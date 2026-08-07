@@ -1,0 +1,53 @@
+# yurtnet systemd servisi — Ubuntu Server 26.04
+#
+# Kurulum:
+#   sudo cp deploy/yurtnet.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now yurtnet
+#
+# Takip:
+#   systemctl status yurtnet
+#   journalctl -u yurtnet -f
+
+[Unit]
+Description=yurtnet - Yurt interneti izleme, on tani ve raporlama
+Documentation=file:///opt/yurtnet/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=yurtnet
+Group=yurtnet
+WorkingDirectory=/opt/yurtnet
+ExecStart=/opt/yurtnet/.venv/bin/python -m yurtnet.main
+Restart=always
+RestartSec=30
+
+# Parolalari config.yaml yerine ortam dosyasinda tutmak icin (istege bagli):
+#   /etc/yurtnet.env  ->  YURTNET_SMTP_PASSWORD=...
+EnvironmentFile=-/etc/yurtnet.env
+
+# Ciktilari journald'a yaz; ayrica dosya tutmaya gerek yok.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=yurtnet
+
+# --- Guvenlik siniflandirmasi -------------------------------------------
+# Arac yalnizca kendi dizinine yaziyor ve disariya HTTPS yapiyor; geri kalan
+# her seye erisimi kapatmak, olasi bir aciktan sistemin etkilenmesini onler.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/yurtnet
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

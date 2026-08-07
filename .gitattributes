@@ -1,0 +1,19 @@
+# Satır sonları depoda her zaman LF tutulur.
+#
+# Neden: kur.sh Windows'ta CRLF ile kaydedildiğinde Linux'ta
+# "/usr/bin/env: 'bash\r': No such file or directory" hatası veriyor ve betik
+# hiç çalışmıyor. Bu dosya olmadan sorun, kimin hangi Windows ayarıyla
+# çalıştığına bağlı olarak rastgele geri geliyor.
+* text=auto eol=lf
+
+# Kabuk betikleri ve systemd birimleri Linux'ta çalışır — istisnasız LF.
+*.sh        text eol=lf
+*.service   text eol=lf
+
+# PowerShell betikleri Windows'ta çalışır.
+*.ps1       text eol=crlf
+
+# İkili dosyalar dönüştürülmesin.
+*.png       binary
+*.pdf       binary
+*.db        binary

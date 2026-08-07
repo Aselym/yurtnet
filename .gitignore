@@ -1,0 +1,27 @@
+config.yaml
+mail_ayarlari.json
+mail_ayarlari.tmp
+*.db
+*.log
+dashboard.html
+demo_dashboard.html
+demo_rapor.html
+__pycache__/
+*.pyc
+.venv/
+.session_secret
+yurtnet-*.pdf
+onizleme*.png
+kurulum-paketi/
+yurtnet-kurulum.zip
+
+# --- GitHub'a asla gitmeyecekler ---
+# Claude Code yerel ayarları: içinde izin verilmiş komutlar ve parolalar var.
+.claude/
+
+# Çalışma çıktıları: canlı yurt adları, IP'ler ve ölçüm verisi içerir.
+*.html
+raporlar/
+envanter.txt
+*.pdf
+*.png

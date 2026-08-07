@@ -1,0 +1,147 @@
+# yurtnet — örnek yapılandırma
+#
+# Kurulum: bu dosyayı config.yaml olarak kopyalayın ve <...> ile işaretli
+# yerleri doldurun.  cp config.example.yaml config.yaml
+#
+# Mail ayarları buradan DEĞİL, panodaki ⚙ Ayarlar sayfasından girilir.
+# Aşağıdaki email bölümü yalnızca ilk açılış için; pano üzerinden kaydedilen
+# değerler mail_ayarlari.json dosyasına yazılır ve bunun üzerine biner.
+
+zabbix:
+  url: "https://zabbix.piramit.com.tr"
+  # Zabbix arayüzünde: Kullanıcılar > API token'ları > Token oluştur
+  token: "<zabbix-api-token>"
+  user: ""
+  password: ""
+  host_groups:
+    - "Tugva-Firewall"
+  # İzlemeye girmemesi gereken hostlar (ad içinde geçen parça yeterli).
+  exclude_hosts: []
+  verify_ssl: true
+  timeout: 30
+
+poll:
+  # Zabbix item'ları da 1 dk aralıklı — daha sık sormanın faydası yok.
+  check_interval_minutes: 1
+  dashboard_refresh_minutes: 1
+  report_refresh_minutes: 10
+  history_window_minutes: 15
+
+thresholds:
+  loss_warn: 2.0
+  loss_crit: 10.0
+  latency_warn_ms: 80
+  latency_crit_ms: 200
+  # WatchGuard'larda CPU/bellek item'ı yok — bu iki eşik şimdilik kullanılmıyor.
+  cpu_warn: 80
+  cpu_crit: 92
+  mem_warn: 85
+  mem_crit: 95
+  bandwidth_util_warn: 75
+  bandwidth_util_crit: 90
+  flap_count_1h: 4
+  regional_outage_min_hosts: 3
+  reboot_recent_minutes: 20
+  stale_data_minutes: 15
+  # Bulgu arıza sayılmadan önce kaç turda üst üste görülmeli.
+  confirm_cycles: 2
+  # Arayüz hata sayacındaki artış eşiği (mutlak değer değil).
+  if_error_artis_esigi: 1
+
+bandwidth:
+  # off = doluluk hiç hesaplanmaz | fixed = default_mbps | learned = geçmişten tahmin
+  mode: "learned"
+  default_mbps: 100
+  # Gerçek abonelik hızı öğrenildikçe buraya yazın; tahmini ezer.
+  #   "TUGVA-ANKARA-M200": 200
+  per_host: {}
+  learn_min_days: 7
+  learn_min_samples: 500
+
+wan:
+  # WAN bacağı trafik yönünden otomatik bulunur. Yanlış seçtiği bir yurt olursa
+  # buraya elle yazın:  "TUGVA-ANKARA-M200": "eth7"
+  interfaces: {}
+
+# --- Mail: panodaki Ayarlar sayfasından yönetilir ---
+# İlk kurulumda boş bırakabilirsiniz; uygulama açılır, mail gönderimi kapalı
+# başlar ve Ayarlar sayfası eksikleri gösterir.
+email:
+  enabled: false
+  smtp_host: ""
+  smtp_port: 465
+  use_tls: false
+  use_ssl: true
+  username: ""
+  # Parolayı dosyada tutmak istemezseniz YURTNET_SMTP_PASSWORD kullanın.
+  password: ""
+  sender: ""
+  recipients: []
+  # Arıza kaydı açıldıktan sonra mail atmadan önce beklenecek süre.
+  min_duration_minutes: 5
+  alert_cooldown_minutes: 60
+  send_recovery: true
+  min_severity: "critical"
+
+report:
+  weekly_enabled: true
+  weekly_day: "monday"
+  weekly_hour: 9
+  recipients: []
+  # Bundan kısa sürüp kendiliğinden düzelen olaylar yönetici raporunda öne çıkmaz.
+  onemli_sure_dakika: 10
+  # Kısa da olsa bu kadar tekrarlayan sorun "kalıcı" sayılır.
+  tekrar_esigi: 4
+  # Aylık yönetici raporu (PDF ekli). monthly_day 28'den büyük olamaz.
+  monthly_enabled: true
+  monthly_day: 1
+  monthly_hour: 9
+  monthly_recipients: []
+
+dashboard:
+  enabled: true
+  # Nginx arkasındaysa 127.0.0.1 bırakın; nginx yoksa 0.0.0.0 yapın.
+  bind: "127.0.0.1"
+  port: 8787
+  output_file: "dashboard.html"
+  # Maillere konacak adres. bind değeri buraya yazılamaz.
+  public_url: "https://yurtnet.piramit.com.tr"
+  auth:
+    enabled: true
+    username: "yurtnet"
+    # Ekiple paylaşılacak ortak parola.
+    # Dosyada tutmak istemezseniz YURTNET_DASHBOARD_PASSWORD kullanın.
+    password: "<pano-parolasi>"
+    # 0 = oturum hiç dolmaz, bir kez giren bir daha parola sormaz.
+    session_days: 0
+
+storage:
+  db_file: "yurtnet.db"
+  retain_days: 90           # ham ölçümler (~2 MB/gün)
+  retain_incident_days: 730 # arıza kayıtları küçüktür, uzun saklanır
+
+# Gerçek envanterden doğrulandı (Network Generic Device by SNMP şablonu).
+item_keys:
+  ping: ["icmpping"]
+  loss: ["icmppingloss"]
+  latency: ["icmppingsec"]
+  cpu: ["system.cpu.util"]
+  mem: ["vm.memory.util"]
+  uptime: ["system.net.uptime", "system.hw.uptime", "system.uptime"]
+  if_in: ["net.if.in["]
+  if_out: ["net.if.out["]
+  if_speed: ["net.if.speed"]
+  if_status: ["net.if.status"]
+  if_errors:
+    - "net.if.in.errors"
+    - "net.if.out.errors"
+    - "net.if.in.discards"
+    - "net.if.out.discards"
+
+regions:
+  # Bölge, host adındaki ilden türetilir (TUGVA-TRABZON-M300 -> Karadeniz).
+  # Zabbix'e "bolge" etiketi eklenirse o öncelikli olur.
+  tag: "bolge"
+  host_group_prefix: "Bolge/"
+  from_host_name: true
+  default: "Bilinmiyor"
