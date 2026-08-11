@@ -25,3 +25,7 @@ raporlar/
 envanter.txt
 *.pdf
 *.png
+
+# muhasebe/ kaynak kodu içindeki statik arayüz dosyaları (hassas veri değil, gerçek kaynak kod)
+!muhasebe/static/*.html
+!muhasebe/static/images/*.png

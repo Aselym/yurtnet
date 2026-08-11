@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piramit Lisans Takip & Otomatik E-posta Hatırlatma Sistemi</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/images/logo2.png?v=2">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <!-- Full-Screen Login Screen Overlay -->
+    <div id="login-screen" class="login-overlay active">
+        <div class="login-card glass-card">
+            <div class="login-brand">
+                <div class="brand-logo-wrap">
+                    <img src="/static/images/logo.png" alt="Piramit Lisans Logo" class="login-logo-img">
+                </div>
+                <h2>Piramit Lisans Takip</h2>
+                <p>Lisans & Süre Sonu Takip Platformu</p>
+            </div>
+            <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit(event);">
+                <div id="login-error" class="login-error-msg" style="display: none;"></div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-user"></i> Kullanıcı Adı:</label>
+                    <input type="text" id="login-username" name="username" class="form-control" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fa-solid fa-lock"></i> Şifre:</label>
+                    <input type="password" id="login-password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-glow btn-block mt-3">
+                    <i class="fa-solid fa-right-to-bracket"></i> Giriş Yap
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container" id="app-wrapper" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <a href="#" onclick="switchTab('dashboard-tab'); return false;" class="brand-logo-link" title="Gösterge Paneline Git">
+                    <div class="brand-logo-wrap">
+                        <img src="/static/images/logo.png" id="app-logo" alt="Piramit Lisans Logo" class="brand-logo-img">
+                    </div>
+                </a>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-link active" data-tab="dashboard-tab">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Gösterge Paneli</span>
+                </button>
+                <button class="nav-link" data-tab="sales-tab">
+                    <i class="fa-solid fa-file-contract"></i>
+                    <span>Satış & Lisans Takibi</span>
+                    <span class="badge badge-pulse" id="license-alert-badge" style="display:none;">0</span>
+                </button>
+                <button class="nav-link" data-tab="invoices-tab">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Ödenmemiş Faturalar</span>
+                    <span class="badge badge-pulse" id="invoice-alert-badge" style="display:none;">0</span>
+                </button>
+                <button class="nav-link" data-tab="inbox-tab">
+                    <i class="fa-solid fa-inbox"></i>
+                    <span>Sanal Gelen Kutusu</span>
+                    <span class="badge badge-pulse" id="inbox-count-badge">0</span>
+                </button>
+                <button class="nav-link" data-tab="templates-tab">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                    <span>E-posta Şablonları</span>
+                </button>
+                <button class="nav-link" data-tab="settings-tab">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Sistem & SMTP Ayarları</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-outline-primary btn-block" id="btn-run-check">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Hatırlatma Taraması Yap</span>
+                </button>
+                <button class="btn btn-outline-danger btn-block mt-2 logout-action" id="logout-btn" style="cursor: pointer;" onclick="handleLogout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Çıkış Yap</span>
+                </button>
+                <div class="server-status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">Servis Aktif (Daemon)</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Piramit Lisans Takip</h1>
+                    <p id="page-subtitle">Özel yazılım ve donanım lisansı süre sonu takip platformu</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-glow header-action-btn" id="open-new-sale-modal" data-show-on="dashboard-tab,sales-tab">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Yeni Satış Kaydı Ekle</span>
+                    </button>
+                    <button class="btn btn-glow header-action-btn" id="open-new-invoice-modal" data-show-on="invoices-tab" style="display:none;">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Yeni Fatura Ekle</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Notification Toast Container -->
+            <div id="toast-container"></div>
+
+            <!-- Tab 1: Dashboard -->
+            <section id="dashboard-tab" class="tab-page active">
+                <!-- Metrics Grid -->
+                <div class="metrics-grid">
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon blue">
+                            <i class="fa-solid fa-bag-shopping"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Toplam Satış Kaydı</span>
+                            <h3 class="metric-value" id="stat-total-sales">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon green">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Aktif Lisanslar</span>
+                            <h3 class="metric-value" id="stat-active-licenses">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon amber">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Yaklaşan (1 Ay İçinde)</span>
+                            <h3 class="metric-value" id="stat-expiring-soon">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon purple">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Gönderilen Hatırlatmalar</span>
+                            <h3 class="metric-value" id="stat-reminders-sent">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon red">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Süresi Dolmuş Lisanslar</span>
+                            <h3 class="metric-value" id="stat-expired-licenses">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Licenses Quick View Container with Breathing Room (mt-4) -->
+                <div class="card glass-card mt-4">
+                    <div class="card-header flex-between">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> Son Eklenen & Yaklaşan Lisanslar</h3>
+                        <button class="btn btn-sm btn-link" onclick="switchTab('sales-tab')">
+                            <span>Tümünü Gör</span> <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="custom-table" id="dashboard-sales-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ürün / Lisans Adı</th>
+                                        <th>Müşteri</th>
+                                        <th>Satış Tarihi</th>
+                                        <th>Bitiş Tarihi</th>
+                                        <th>Kalan Gün</th>
+                                        <th>Hatırlatma Modu</th>
+                                        <th>Durum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Sales & Licenses List -->
+            <section id="sales-tab" class="tab-page">
+                <div class="card glass-card mb-4">
+                    <div class="card-body search-filter-bar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="sales-search-input" placeholder="Ürün adı, müşteri veya lisans anahtarı ara...">
+                        </div>
+                        <div class="filter-box">
+                            <select id="sales-status-filter">
+                                <option value="ALL">Tüm Durumlar</option>
+                                <option value="PENDING">Beklemede (Hatırlatma Yapılmadı)</option>
+                                <option value="FIRST_REMINDER_SENT">1 Ay Kala Bildirildi</option>
+                                <option value="FINAL_REMINDER_SENT">1 Hafta Kala Bildirildi</option>
+                                <option value="EXPIRED">Süresi Doldu</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="custom-table" id="full-sales-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Ürün / Donanım Lisansı</th>
+                                        <th>Müşteri Bilgileri</th>
+                                        <th>Satış Temsilcisi</th>
+                                        <th>Süre</th>
+                                        <th>Bitiş Tarihi</th>
+                                        <th>Kalan Gün</th>
+                                        <th>Hatırlatma Zamanlaması</th>
+                                        <th>Durum</th>
+                                        <th>İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Unpaid Invoices -->
+            <section id="invoices-tab" class="tab-page">
+                <div class="metrics-grid">
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon amber">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Vadesi Yaklaşan (7 Gün)</span>
+                            <h3 class="metric-value" id="stat-invoices-due-soon">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon red">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Vadesi Geçmiş</span>
+                            <h3 class="metric-value" id="stat-invoices-overdue">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon green">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Toplam Ödenmemiş Tutar</span>
+                            <h3 class="metric-value" id="stat-invoices-total-amount">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card mt-4">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="custom-table" id="full-invoices-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fatura No</th>
+                                        <th>Müşteri</th>
+                                        <th>Tutar</th>
+                                        <th>Kesim Tarihi</th>
+                                        <th>Vade Tarihi</th>
+                                        <th>Kalan Gün</th>
+                                        <th>Durum</th>
+                                        <th>İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Virtual Email Inbox -->
+            <section id="inbox-tab" class="tab-page">
+                <div class="card glass-card mb-4">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h3><i class="fa-solid fa-inbox"></i> Sanal E-posta Gelen Kutusu (Mock Inbox)</h3>
+                            <p class="text-muted">Otomatik sistem ve manuel test hatırlatmaları burada canlı olarak simüle edilir.</p>
+                        </div>
+                        <button class="btn btn-sm btn-danger-outline" id="btn-clear-inbox">
+                            <i class="fa-solid fa-trash-can"></i> Gelen Kutusunu Temizle
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inbox-layout">
+                    <div class="inbox-list glass-card" id="inbox-messages-list">
+                        <!-- Dynamic Message Items -->
+                    </div>
+                    <div class="inbox-preview glass-card" id="inbox-preview-panel">
+                        <div class="empty-preview">
+                            <i class="fa-solid fa-envelope-open"></i>
+                            <p>Detaylarını görüntülemek için sol listeden bir e-posta seçin.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Email Templates -->
+            <section id="templates-tab" class="tab-page">
+                <div class="templates-layout">
+                    <!-- Template List -->
+                    <div class="card glass-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-layer-group"></i> Tanımlı Şablonlar</h3>
+                        </div>
+                        <div class="card-body p-0" id="templates-list-container">
+                            <!-- Dynamic Templates -->
+                        </div>
+                    </div>
+
+                    <!-- Template Editor -->
+                    <div class="card glass-card">
+                        <div class="card-header">
+                            <h3 id="editor-title"><i class="fa-solid fa-pen-to-square"></i> Şablon Düzenleyici</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="template-edit-form">
+                                <input type="hidden" id="edit-template-key">
+                                <div class="form-group">
+                                    <label>E-posta Konu Başlığı (Subject):</label>
+                                    <input type="text" id="edit-template-subject" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Kullanılabilir Şablon Değişkenleri (Tıkla Ekle):</label>
+                                    <div class="variable-tags">
+                                        <span class="vtag" onclick="insertTag('{musteri_adi}')">{musteri_adi}</span>
+                                        <span class="vtag" onclick="insertTag('{urun_adi}')">{urun_adi}</span>
+                                        <span class="vtag" onclick="insertTag('{lisans_anahtari}')">{lisans_anahtari}</span>
+                                        <span class="vtag" onclick="insertTag('{bitis_tarihi}')">{bitis_tarihi}</span>
+                                        <span class="vtag" onclick="insertTag('{kalan_gun}')">{kalan_gun}</span>
+                                        <span class="vtag" onclick="insertTag('{satis_temsilcisi}')">{satis_temsilcisi}</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>HTML E-posta Gövdesi (Body HTML):</label>
+                                    <textarea id="edit-template-body" class="form-control code-editor" rows="12" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fa-solid fa-floppy-disk"></i> Şablonu Kaydet
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: System Settings -->
+            <section id="settings-tab" class="tab-page">
+                <div class="card glass-card max-w-700">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-key"></i> Hesap Ayarları (Ortak Giriş)</h3>
+                        <p class="text-muted">Bu arayüze giriş için kullanılan tek, paylaşılan kullanıcı adı/şifredir.</p>
+                    </div>
+                    <div class="card-body">
+                        <form id="account-settings-form">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>Yeni Kullanıcı Adı (boş bırakılırsa değişmez):</label>
+                                    <input type="text" id="account-new-username" class="form-control" placeholder="admin">
+                                </div>
+                                <div class="form-group">
+                                    <label>Yeni Şifre (boş bırakılırsa değişmez):</label>
+                                    <input type="password" id="account-new-password" class="form-control" placeholder="••••••••">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Mevcut Şifre (onay için zorunlu): *</label>
+                                <input type="password" id="account-current-password" class="form-control" placeholder="••••••••" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block mt-3">
+                                <i class="fa-solid fa-floppy-disk"></i> Hesap Bilgilerini Güncelle
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card glass-card max-w-700 mt-4">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-gears"></i> E-posta ve SMTP Sunucu Ayarları</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="settings-form">
+                            <div class="form-group">
+                                <label>E-posta Gönderim Modu:</label>
+                                <div class="mode-selector-grid">
+                                    <label class="mode-card">
+                                        <div class="mode-card-top">
+                                            <input type="radio" name="mode" value="MOCK" checked>
+                                            <i class="fa-solid fa-box-archive"></i>
+                                            <strong>Sanal Kutusu Modu (Mock)</strong>
+                                        </div>
+                                        <span class="mode-card-desc">Gerçek e-posta atmadan panoda simüle eder (Önerilen)</span>
+                                    </label>
+                                    <label class="mode-card">
+                                        <div class="mode-card-top">
+                                            <input type="radio" name="mode" value="SMTP">
+                                            <i class="fa-solid fa-paper-plane"></i>
+                                            <strong>Canlı SMTP Modu</strong>
+                                        </div>
+                                        <span class="mode-card-desc">Müşterilere gerçek HTML e-postalar gönderir</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <hr class="divider">
+
+                            <div class="form-group">
+                                <label>İç Bildirim Alıcıları (Muhasebe & Satış, virgülle ayırın): *</label>
+                                <input type="text" id="setting-internal-recipients" class="form-control" placeholder="muhasebe@sirketiniz.com, satis@sirketiniz.com">
+                                <small class="text-muted">Hatırlatmalar müşteriye değil, buradaki adreslere gönderilir.</small>
+                            </div>
+
+                            <hr class="divider">
+
+                            <h4><i class="fa-solid fa-server"></i> SMTP Bağlantı Bilgileri</h4>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>SMTP Sunucu Adresi (Host):</label>
+                                    <input type="text" id="setting-smtp-host" class="form-control" placeholder="smtp.office365.com veya smtp.gmail.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>SMTP Port:</label>
+                                    <input type="number" id="setting-smtp-port" class="form-control" placeholder="587">
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>E-posta / Kullanıcı Adı:</label>
+                                    <input type="email" id="setting-smtp-user" class="form-control" placeholder="lisans@sirketiniz.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>E-posta Şifresi / Uygulama Şifresi:</label>
+                                    <input type="password" id="setting-smtp-password" class="form-control" placeholder="••••••••">
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>Gönderen E-posta Adresi:</label>
+                                    <input type="email" id="setting-sender-email" class="form-control" placeholder="lisans@sirketiniz.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Gönderen Görünen Adı:</label>
+                                    <input type="text" id="setting-sender-name" class="form-control" placeholder="Lisans Takip Servisi">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block mt-4">
+                                <i class="fa-solid fa-check"></i> Ayarları Kaydet
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Logo ERP Integration Card -->
+                <div class="card glass-card max-w-700 mt-4">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h3><i class="fa-solid fa-database"></i> Logo ERP (MS SQL Server) Entegrasyonu</h3>
+                            <p class="text-muted">Satış faturalarını otomatik lisans kaydı olarak içe aktarın.</p>
+                        </div>
+                        <button class="btn btn-sm btn-glow" id="btn-sync-logo">
+                            <i class="fa-solid fa-sync"></i> Faturaları Şimdi Aktar
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <form id="logo-settings-form">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>MS SQL Server IP / Host:</label>
+                                    <input type="text" id="setting-logo-server" class="form-control" placeholder="192.168.1.100 veya 127.0.0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label>SQL Port:</label>
+                                    <input type="number" id="setting-logo-port" class="form-control" placeholder="1433">
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>Logo Veritabanı Adı (DB):</label>
+                                    <input type="text" id="setting-logo-db" class="form-control" placeholder="LOGO_DB">
+                                </div>
+                                <div class="form-group">
+                                    <label>SQL Kullanıcı Adı (UID):</label>
+                                    <input type="text" id="setting-logo-user" class="form-control" placeholder="sa">
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>SQL Şifresi (PWD):</label>
+                                    <input type="password" id="setting-logo-pass" class="form-control" placeholder="••••••••">
+                                </div>
+                                <div class="form-group">
+                                    <label>Firma Kodu (Örn: 001):</label>
+                                    <input type="text" id="setting-logo-firm" class="form-control" placeholder="001">
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label>Dönem Kodu (Örn: 01):</label>
+                                    <input type="text" id="setting-logo-period" class="form-control" placeholder="01">
+                                </div>
+                                <div class="form-group">
+                                    <label>Otomatik İçe Aktarma:</label>
+                                    <select id="setting-logo-auto" class="form-control">
+                                        <option value="OFF">Kapalı (Manuel Tetikleme)</option>
+                                        <option value="ON">Açık (Arka Plan Periyodik)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex-between mt-3">
+                                <button type="button" class="btn btn-outline-primary" id="btn-test-logo">
+                                    <i class="fa-solid fa-plug"></i> Bağlantıyı Test Et
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-floppy-disk"></i> Entegrasyon Ayarlarını Kaydet
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: New Sale Creation -->
+    <div class="modal-backdrop" id="new-sale-modal">
+        <div class="modal-dialog glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cart-plus"></i> Yeni Satış & Lisans Kaydı</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-sale-form">
+                    <div class="form-group">
+                        <label>Ürün / Lisans Adı (Serbest Metin): *</label>
+                        <input type="text" id="new-product-name" class="form-control" placeholder="Örn: Müşteri A - WatchGuard T125 3 Yıllık Lisans" required>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Müşteri / Şirket Adı: *</label>
+                            <input type="text" id="new-client-name" class="form-control" placeholder="Örn: ABC Holding A.Ş." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Müşteri E-posta Adresi: *</label>
+                            <input type="email" id="new-client-email" class="form-control" placeholder="bilgi@abcholding.com" required>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Satış Temsilcisi:</label>
+                            <input type="text" id="new-sales-rep" class="form-control" placeholder="Örn: Ahmet Yılmaz">
+                        </div>
+                        <div class="form-group">
+                            <label>Lisans Key / Seri No:</label>
+                            <input type="text" id="new-license-key" class="form-control" placeholder="Örn: WG-9842-X78A-3321">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Satış Yapılan Tarih: *</label>
+                            <input type="date" id="new-sale-date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Dinamik Lisans Süresi: *</label>
+                            <select id="new-duration-type" class="form-control">
+                                <option value="1_YEAR" data-months="12">1 Yıl (12 Ay)</option>
+                                <option value="2_YEARS" data-months="24">2 Yıl (24 Ay)</option>
+                                <option value="3_YEARS" data-months="36" selected>3 Yıl (36 Ay - Varsayılan)</option>
+                                <option value="5_YEARS" data-months="60">5 Yıl (60 Ay)</option>
+                                <option value="CUSTOM">Özel Süre (Giriş Yapın)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="custom-duration-container" style="display: none;">
+                        <label>Özel Süre (Ay Olarak):</label>
+                        <input type="number" id="new-custom-months" class="form-control" min="1" value="18">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hatırlatma Zamanlaması (Kademeli Sistem): *</label>
+                        <select id="new-reminder-type" class="form-control">
+                            <option value="STAGED" selected>Kademeli Hatırlatma (Hem 1 Ay Hem 1 Hafta Önce)</option>
+                            <option value="1_MONTH">Sadece 1 Ay Önce (30 Gün Kala)</option>
+                            <option value="1_WEEK">Sadece 1 Hafta Önce (7 Gün Kala)</option>
+                        </select>
+                    </div>
+
+                    <!-- Calculated Expiration Live Calculation Badge -->
+                    <div class="live-calc-box">
+                        <i class="fa-solid fa-calculator"></i>
+                        <div>
+                            <span>Hesaplanan Lisans Bitiş Tarihi:</span>
+                            <strong id="calc-exp-date">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label>Özel Notlar:</label>
+                        <textarea id="new-notes" class="form-control" rows="2" placeholder="Fatura no, özel istekler veya kurulum detayları..."></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary modal-close">İptal</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Kaydet ve Takibe Al</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: New Invoice -->
+    <div class="modal-backdrop" id="new-invoice-modal">
+        <div class="modal-dialog glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-invoice-dollar"></i> Yeni Ödenmemiş Fatura Kaydı</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-invoice-form">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Fatura No:</label>
+                            <input type="text" id="new-invoice-no" class="form-control" placeholder="Örn: FTR2026000123">
+                        </div>
+                        <div class="form-group">
+                            <label>Tutar: *</label>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="number" id="new-invoice-amount" class="form-control" step="0.01" min="0" placeholder="0.00" required>
+                                <select id="new-invoice-currency" class="form-control">
+                                    <option value="TRY" selected>TRY</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Müşteri / Şirket Adı: *</label>
+                            <input type="text" id="new-invoice-client-name" class="form-control" placeholder="Örn: ABC Holding A.Ş." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Müşteri E-posta Adresi:</label>
+                            <input type="email" id="new-invoice-client-email" class="form-control" placeholder="bilgi@abcholding.com">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Kesim Tarihi: *</label>
+                            <input type="date" id="new-invoice-issue-date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Vade Tarihi: *</label>
+                            <input type="date" id="new-invoice-due-date" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notlar:</label>
+                        <textarea id="new-invoice-notes" class="form-control" rows="2" placeholder="Ek bilgiler..."></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary modal-close">İptal</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Kaydet ve Takibe Al</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
