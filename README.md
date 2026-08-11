@@ -1,4 +1,4 @@
-# yurtnet — Yurt İnterneti İzleme, Ön Tanı ve Raporlama
+# Yurt İnterneti İzleme, Ön Tanı ve Raporlama
 
 Zabbix'ten gelen firewall verisini dakikada bir çekip:
 
