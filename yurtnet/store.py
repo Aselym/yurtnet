@@ -72,6 +72,20 @@ CREATE TABLE IF NOT EXISTS planned_down (
     note     TEXT,
     since    INTEGER NOT NULL
 );
+
+-- Teknik servis raporunda elle kapatılan kayıtlar.
+-- Silmiyoruz, kapatıyoruz: kaydın kendisi geçmişte kalmalı, yalnız listeden
+-- düşmeli. Kapatma zamanı saklanıyor çünkü sorun kapatıldıktan SONRA tekrar
+-- ederse listeye geri gelmeli — aksi halde bir kez kapatılan sorun bir daha
+-- görünmez ve sessizce büyür.
+CREATE TABLE IF NOT EXISTS kapatilanlar (
+    bolum    TEXT NOT NULL,       -- 'zabbix' | 'tekrar' | 'analiz'
+    anahtar  TEXT NOT NULL,       -- eventid | dedup_key | analiz kimliği
+    baslik   TEXT,                -- kapatılan şeyin o anki adı (geçmişe not)
+    sebep    TEXT,
+    kapatan  INTEGER NOT NULL,
+    PRIMARY KEY (bolum, anahtar)
+);
 """
 
 
@@ -407,6 +421,95 @@ class Store:
                 "SELECT * FROM incidents WHERE ended_at IS NULL ORDER BY started_at"
             ).fetchall()
         return [_to_incident(r) for r in rows]
+
+    # ------------------------------------------- teknik servis: kapatma
+
+    def kapat(self, bolum: str, anahtar: str, baslik: str = "", sebep: str = "",
+              now: int | None = None) -> None:
+        """Bir kaydı listeden düşürür. Silmez — kapatma zamanını yazar."""
+        now = now or int(time.time())
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT INTO kapatilanlar (bolum, anahtar, baslik, sebep, kapatan)"
+                " VALUES (?,?,?,?,?)"
+                " ON CONFLICT(bolum, anahtar) DO UPDATE SET"
+                " baslik=excluded.baslik, sebep=excluded.sebep, kapatan=excluded.kapatan",
+                (bolum, anahtar, baslik[:200], sebep[:200], now),
+            )
+
+    def kapatmayi_geri_al(self, bolum: str, anahtar: str) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "DELETE FROM kapatilanlar WHERE bolum = ? AND anahtar = ?", (bolum, anahtar)
+            )
+
+    def kapatilanlar(self, bolum: str | None = None) -> dict[tuple[str, str], dict[str, Any]]:
+        """(bölüm, anahtar) -> kapatma kaydı."""
+        with self._conn() as conn:
+            if bolum:
+                rows = conn.execute(
+                    "SELECT * FROM kapatilanlar WHERE bolum = ?", (bolum,)
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM kapatilanlar").fetchall()
+        return {(r["bolum"], r["anahtar"]): dict(r) for r in rows}
+
+    # ------------------------------------------- teknik servis: tekrarlar
+
+    def tekrarlayan_sorunlar(
+        self, now: int | None = None, gun: int = 30, sessiz_gun: int = 2, en_az: int = 2
+    ) -> list[dict[str, Any]]:
+        """Tekrar eden sorunlar: aynı yurtta aynı kodun birden çok kez açılması.
+
+        `sessiz_gun` kadar süredir tekrar etmeyenler listeden düşer — sorun
+        gerçekten geçmişse "tekrarlayan" saymak yanıltıcı olur. Liste her
+        sorguda yeniden hesaplandığı için kendiliğinden güncel kalır.
+        """
+        now = now or int(time.time())
+        since = now - gun * 86400
+        with self._conn() as conn:
+            # Sessizlik, duvar saatine göre değil SON ÖLÇÜME göre ölçülür.
+            # İzleme durmuşsa sorunlar tekrar etmiyor değildir — bakılmıyordur.
+            # Duvar saati kullanılsaydı servis bir hafta kapalı kaldıktan sonra
+            # tüm tekrarlayan sorunlar "geçmiş" sayılıp listeden düşerdi.
+            son_olcum = conn.execute("SELECT MAX(ts) t FROM measurements").fetchone()["t"]
+            olcut = min(now, son_olcum) if son_olcum else now
+
+            rows = conn.execute(
+                "SELECT dedup_key, hostid, name, region, code,"
+                "       COUNT(*) AS adet,"
+                "       MIN(started_at) AS ilk,"
+                "       MAX(started_at) AS son,"
+                f"      SUM({SQL_ARIZA_SURESI}) AS toplam_sure,"
+                "       SUM(CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END) AS acik"
+                " FROM incidents WHERE started_at BETWEEN ? AND ?"
+                " GROUP BY dedup_key HAVING adet >= ?"
+                " ORDER BY adet DESC, son DESC",
+                (now, since, now, en_az),
+            ).fetchall()
+
+            sonuc = []
+            for r in rows:
+                if (olcut - r["son"]) > sessiz_gun * 86400:
+                    continue  # gerçekten sustu, artık tekrarlayan sayılmaz
+                saatler = conn.execute(
+                    "SELECT CAST(strftime('%H', started_at, 'unixepoch', 'localtime') AS INTEGER)"
+                    "       AS saat, COUNT(*) AS n"
+                    " FROM incidents WHERE dedup_key = ? AND started_at BETWEEN ? AND ?"
+                    " GROUP BY saat ORDER BY saat",
+                    (r["dedup_key"], since, now),
+                ).fetchall()
+                zamanlar = conn.execute(
+                    "SELECT started_at, ended_at, last_seen FROM incidents"
+                    " WHERE dedup_key = ? AND started_at BETWEEN ? AND ?"
+                    " ORDER BY started_at DESC LIMIT 12",
+                    (r["dedup_key"], since, now),
+                ).fetchall()
+                kayit = dict(r)
+                kayit["saatler"] = {x["saat"]: x["n"] for x in saatler}
+                kayit["son_olaylar"] = [dict(x) for x in zamanlar]
+                sonuc.append(kayit)
+        return sonuc
 
     def mark_notified(self, incident_ids: list[int], now: int | None = None) -> None:
         if not incident_ids:

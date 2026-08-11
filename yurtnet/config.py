@@ -92,6 +92,10 @@ DEFAULTS: dict[str, Any] = {
         "monthly_day": 1,
         "monthly_hour": 9,
         "monthly_recipients": [],
+        # Teknik servis raporu, 2. bölüm (tekrarlayan sorunlar):
+        # tekrar_sessiz_gun kadar süredir yinelenmeyen sorun listeden düşer.
+        "tekrar_sessiz_gun": 2,
+        "tekrar_en_az": 2,
     },
     "dashboard": {
         "enabled": True,

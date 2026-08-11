@@ -21,6 +21,7 @@ from . import (
     notify,
     report,
     reports_html,
+    servis,
 )
 from .brand import LOGO_DATA_URI
 from .config import ConfigError, load
@@ -269,7 +270,7 @@ def _refresh_reports(config: dict[str, Any], store: Store) -> None:
     klasor = Path(config["dashboard"]["output_file"]).parent
     try:
         for dosya, uretici in (
-            (dashboard.TEKNIK_DOSYA, reports_html.teknik),
+            (dashboard.TEKNIK_DOSYA, servis.sayfa),
             (dashboard.YONETICI_DOSYA, reports_html.yonetici),
         ):
             dashboard.write(uretici(store, config, LOGO_DATA_URI), str(klasor / dosya))

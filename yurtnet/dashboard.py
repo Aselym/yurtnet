@@ -540,6 +540,11 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
                     return self._send_html(render_login(), status=401)
                 return self._ayarlar_kaydet()
 
+            if self.path.startswith("/kapat"):
+                if self._session_user() is None:
+                    return self._send_html(render_login(), status=401)
+                return self._kapat()
+
             if not self.path.startswith("/login"):
                 return self._send_html("<p>Bulunamadı</p>", status=404)
 
@@ -590,6 +595,35 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(icerik)
+
+        def _kapat(self) -> None:
+            """Teknik servis raporundaki bir kaydı kapatır veya kapatmayı geri alır."""
+            if store is None:
+                return self._redirect("/teknik")
+            a = self._form_oku()
+            bolum = (a.get("bolum") or [""])[0]
+            anahtar = (a.get("anahtar") or [""])[0]
+            if bolum not in ("zabbix", "tekrar", "analiz") or not anahtar:
+                return self._redirect("/teknik")
+
+            if (a.get("islem") or [""])[0] == "geri":
+                store.kapatmayi_geri_al(bolum, anahtar)
+                log.info("Kayıt yeniden açıldı: %s/%s", bolum, anahtar)
+            else:
+                store.kapat(bolum, anahtar, (a.get("baslik") or [""])[0])
+                log.info("Kayıt kapatıldı: %s/%s", bolum, anahtar)
+
+            # Sayfayı hemen tazele; yoksa kullanıcı düğmeye basıp hiçbir şey
+            # olmamış gibi görür ve düğmenin çalışmadığını sanır.
+            try:
+                from . import servis
+                from .brand import LOGO_DATA_URI as _logo
+
+                html = servis.sayfa(store, config, _logo)
+                write(html, str(output_path.parent / TEKNIK_DOSYA))
+            except Exception:
+                log.exception("Teknik sayfa tazelenemedi")
+            return self._redirect("/teknik")
 
         def _trafik(self) -> None:
             """Trafik grafikleri. Zabbix geçmişi istek anında çekilir — her turda

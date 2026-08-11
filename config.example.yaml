@@ -97,6 +97,10 @@ report:
   monthly_day: 1
   monthly_hour: 9
   monthly_recipients: []
+  # Teknik servis raporu, 2. bölüm: bu kadar gün tekrar etmeyen sorun
+  # "tekrarlayan" listesinden kendiliğinden düşer.
+  tekrar_sessiz_gun: 2
+  tekrar_en_az: 2
 
 dashboard:
   enabled: true
