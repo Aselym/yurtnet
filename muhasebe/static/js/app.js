@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadDashboardStats();
             loadSalesList();
             loadRenewals();
+            loadOffers();
             loadInbox();
             loadInvoicesList();
             loadSubscriptions();
@@ -170,6 +171,7 @@ function showAppUI() {
     loadDashboardStats();
     loadSalesList();
     loadRenewals();
+    loadOffers();
     loadInbox();
     loadSettings();
     loadInvoicesList();
@@ -301,6 +303,7 @@ function switchTab(tabId) {
         'dashboard-tab': ['Gösterge Paneli', 'Lisans ve fatura durumlarının genel özeti'],
         'sales-tab': ['Lisanslar', 'Kayıtlı lisanslar, süreler ve hatırlatma zamanlamaları'],
         'subscriptions-tab': ['Abonelikler', 'Aylık faturalanan hizmetlerde kayıp müşteri takibi'],
+        'offers-tab': ['Teklifler', 'E-posta ile yapılan teklifler ve sonuçları'],
         'invoices-tab': ['Faturalar', 'Vadesi yaklaşan ve geçmiş ödenmemiş faturalar'],
         'inbox-tab': ['Gönderim Geçmişi', 'Sistemin gönderdiği hatırlatma ve test e-postaları'],
         'settings-tab': ['Ayarlar', 'E-posta gönderimi, hesap ve Logo ERP yapılandırması']
@@ -359,6 +362,19 @@ function initModalEvents() {
     invoiceModal.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => invoiceModal.classList.remove('active'));
     });
+
+
+    const offerModal = document.getElementById('new-offer-modal');
+    const openOfferBtn = document.getElementById('open-new-offer-modal');
+    if (offerModal && openOfferBtn) {
+        openOfferBtn.addEventListener('click', () => {
+            document.getElementById('offer-date').value = new Date().toISOString().split('T')[0];
+            offerModal.classList.add('active');
+        });
+        offerModal.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => offerModal.classList.remove('active'));
+        });
+    }
 
     const customerModal = document.getElementById('customer-detail-modal');
     customerModal.querySelectorAll('.modal-close').forEach(btn => {
@@ -490,6 +506,45 @@ function initFormEvents() {
             showToast('Logo ERP ayarları kaydedildi.');
         }
     });
+
+
+    const offerForm = document.getElementById('new-offer-form');
+    if (offerForm) {
+        offerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                client_name: document.getElementById('offer-client').value,
+                offer_date: document.getElementById('offer-date').value,
+                product_name: document.getElementById('offer-product').value,
+                quantity: parseInt(document.getElementById('offer-quantity').value) || 1,
+                offer_price: parseFloat(document.getElementById('offer-price').value) || 0,
+                currency: document.getElementById('offer-currency').value,
+                sales_rep: document.getElementById('offer-rep').value,
+                status: document.getElementById('offer-status').value,
+                notes: document.getElementById('offer-notes').value
+            };
+            try {
+                const res = await authFetch('/api/offers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    document.getElementById('new-offer-modal').classList.remove('active');
+                    offerForm.reset();
+                    document.getElementById('offer-quantity').value = 1;
+                    loadOffers();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (err) {}
+        });
+    }
+
+    const offerAy = document.getElementById('offer-month-filter');
+    if (offerAy) offerAy.addEventListener('change', renderOffers);
 
     document.getElementById('btn-test-email').addEventListener('click', async () => {
         const btn = document.getElementById('btn-test-email');
@@ -660,6 +715,182 @@ function renderDashboardTable(sales) {
     `).join('');
 }
 
+
+// ============ TEKLIFLER ============
+// Renkler durum paleti (kategorik degil): kabul=iyi, ret=kritik, geri
+// donmedi=notr. Dilim sirasi bilerek yesil -> notr -> kirmizi: kirmizi ile
+// yesil yan yana gelirse deuteranopide ayirt edilemiyor (olcum: dE 4.1).
+// Aralarina notr girince en kotu komsu cift dE 11.9'a cikiyor. Renk tek
+// basina anlam tasimasin diye her dilimin ikonu, etiketi ve sayisi
+// lejantta yaziyla da veriliyor.
+const TEKLIF_DURUMLARI = [
+    { kod: 'ACCEPTED', ad: 'Kabul',        renk: '#0ca30c', ikon: 'fa-circle-check' },
+    { kod: 'PENDING',  ad: 'Geri dönmedi', renk: '#83838f', ikon: 'fa-clock' },
+    { kod: 'REJECTED', ad: 'Ret',          renk: '#d03b3b', ikon: 'fa-circle-xmark' },
+];
+
+let cachedOffers = [];
+
+async function loadOffers() {
+    try {
+        const res = await authFetch('/api/offers');
+        cachedOffers = await res.json();
+        ayFiltresiniDoldur();
+        renderOffers();
+    } catch (e) {}
+}
+
+function ayFiltresiniDoldur() {
+    const sec = document.getElementById('offer-month-filter');
+    if (!sec) return;
+    const oncekiDeger = sec.value;
+
+    const aylar = [...new Set(cachedOffers.map(t => (t.offer_date || '').slice(0, 7)))]
+        .filter(Boolean).sort().reverse();
+    if (aylar.length === 0) aylar.push(new Date().toISOString().slice(0, 7));
+
+    const adlar = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+    sec.innerHTML = aylar.map(a => {
+        const [y, m] = a.split('-');
+        return `<option value="${a}">${adlar[parseInt(m, 10) - 1]} ${y}</option>`;
+    }).join('');
+
+    if (oncekiDeger && aylar.includes(oncekiDeger)) sec.value = oncekiDeger;
+}
+
+function renderOffers() {
+    const ay = document.getElementById('offer-month-filter')?.value || '';
+    const ayinTeklifleri = cachedOffers.filter(t => (t.offer_date || '').startsWith(ay));
+
+    renderOfferDonut(ayinTeklifleri);
+    renderOfferTable(cachedOffers);
+}
+
+function renderOfferDonut(teklifler) {
+    const kap = document.getElementById('offer-donut');
+    const lejant = document.getElementById('offer-legend');
+    if (!kap) return;
+
+    const sayilar = TEKLIF_DURUMLARI.map(d => ({
+        ...d, adet: teklifler.filter(t => t.status === d.kod).length
+    }));
+    const toplam = sayilar.reduce((s, d) => s + d.adet, 0);
+
+    if (toplam === 0) {
+        kap.innerHTML = '<p class="text-muted" style="padding:28px 0">Bu ayda teklif kaydı yok.</p>';
+        lejant.innerHTML = '';
+        return;
+    }
+
+    const R = 78, KALINLIK = 22, C = 100;
+    const cevre = 2 * Math.PI * R;
+    // Dilimler arasinda 2px yuzey boslugu: sinir cizgisi cizmek yerine
+    // bosluk birakiliyor, boylece renk ayrimi kaybolsa da sinir gorunur.
+    const BOSLUK = 2;
+
+    let offset = 0;
+    const dilimler = sayilar.filter(d => d.adet > 0).map(d => {
+        const uzunluk = (d.adet / toplam) * cevre;
+        const cizgi = Math.max(uzunluk - BOSLUK, 1);
+        const el = `<circle cx="${C}" cy="${C}" r="${R}" fill="none"
+            stroke="${d.renk}" stroke-width="${KALINLIK}"
+            stroke-dasharray="${cizgi} ${cevre - cizgi}"
+            stroke-dashoffset="${-offset}"
+            transform="rotate(-90 ${C} ${C})"><title>${d.ad}: ${d.adet}</title></circle>`;
+        offset += uzunluk;
+        return el;
+    }).join('');
+
+    const kabul = sayilar.find(d => d.kod === 'ACCEPTED').adet;
+    const oran = Math.round((kabul / toplam) * 100);
+
+    kap.innerHTML = `
+      <svg viewBox="0 0 200 200" width="200" height="200" role="img"
+           aria-label="Teklif durumları: ${sayilar.map(d => d.ad + ' ' + d.adet).join(', ')}">
+        <circle cx="${C}" cy="${C}" r="${R}" fill="none"
+                stroke="var(--surface-3)" stroke-width="${KALINLIK}"></circle>
+        ${dilimler}
+        <text x="${C}" y="${C - 6}" text-anchor="middle"
+              style="font-size:30px;font-weight:700;fill:var(--text)">${toplam}</text>
+        <text x="${C}" y="${C + 15}" text-anchor="middle"
+              style="font-size:12px;fill:var(--text-3)">teklif</text>
+      </svg>`;
+
+    // Ikon hem renk hem sekil tasiyor; ayrica bir renk karesi koymak fazlalik.
+    lejant.innerHTML = sayilar.map(d => `
+        <div class="lejant-satir">
+            <i class="fa-solid ${d.ikon}" style="color:${d.renk}"></i>
+            <span class="lejant-ad">${d.ad}</span>
+            <span class="lejant-sayi">${d.adet}</span>
+            <span class="lejant-yuzde">${toplam ? Math.round((d.adet / toplam) * 100) : 0}%</span>
+        </div>`).join('') +
+        `<p class="lejant-ozet">Kabul oranı: <strong>%${oran}</strong></p>`;
+}
+
+function renderOfferTable(teklifler) {
+    const tbody = document.querySelector('#offers-table tbody');
+    if (!tbody) return;
+
+    if (teklifler.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-muted">Henüz teklif kaydı yok.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = teklifler.map(t => {
+        const fiyat = t.offer_price
+            ? `${t.offer_price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${t.currency}`
+            : '-';
+        return `
+        <tr>
+            <td>${t.offer_date}</td>
+            <td><strong>${t.client_name}</strong></td>
+            <td>${t.product_name}</td>
+            <td>${t.quantity}</td>
+            <td><strong>${fiyat}</strong></td>
+            <td>${t.sales_rep || '-'}</td>
+            <td>
+                <select class="teklif-durum-sec" onchange="teklifDurumGuncelle(${t.id}, this.value)">
+                    ${TEKLIF_DURUMLARI.map(o => `
+                        <option value="${o.kod}" ${o.kod === t.status ? 'selected' : ''}>${o.ad}</option>
+                    `).join('')}
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-danger-outline" onclick="teklifSil(${t.id})" title="Sil">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function teklifDurumGuncelle(offerId, durum) {
+    try {
+        const res = await authFetch(`/api/offers/${offerId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: durum })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            const t = cachedOffers.find(x => x.id === offerId);
+            if (t) t.status = durum;
+            renderOffers();
+        }
+    } catch (e) {}
+}
+
+async function teklifSil(offerId) {
+    if (!confirm('Bu teklif kaydını silmek istediğinize emin misiniz?')) return;
+    try {
+        const res = await authFetch(`/api/offers/${offerId}`, { method: 'DELETE' });
+        const data = await res.json();
+        showToast(data.message);
+        loadOffers();
+    } catch (e) {}
+}
 
 let cachedRenewals = [];
 

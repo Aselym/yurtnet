@@ -74,6 +74,10 @@
                         <span>Abonelikler</span>
                         <span class="badge badge-alert" id="subscription-alert-badge" style="display:none;">0</span>
                     </button>
+                    <button class="nav-link" data-tab="offers-tab">
+                        <i class="fa-solid fa-handshake"></i>
+                        <span>Teklifler</span>
+                    </button>
                     <button class="nav-link" data-tab="invoices-tab">
                         <i class="fa-solid fa-receipt"></i>
                         <span>Faturalar</span>
@@ -120,6 +124,10 @@
                     <button class="btn btn-primary header-action-btn" id="open-new-sale-modal" data-show-on="dashboard-tab,sales-tab">
                         <i class="fa-solid fa-plus"></i>
                         <span>Yeni Satış Kaydı</span>
+                    </button>
+                    <button class="btn btn-primary header-action-btn" id="open-new-offer-modal" data-show-on="offers-tab" style="display:none;">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Yeni Teklif</span>
                     </button>
                     <button class="btn btn-primary header-action-btn" id="open-new-invoice-modal" data-show-on="invoices-tab" style="display:none;">
                         <i class="fa-solid fa-plus"></i>
@@ -319,6 +327,58 @@
             </section>
 
             <!-- Tab: Unpaid Invoices -->
+            <!-- Teklifler -->
+            <section id="offers-tab" class="tab-page">
+                <div class="teklif-ust">
+                    <div class="card glass-card teklif-grafik-kart">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h3><i class="fa-solid fa-chart-pie"></i> Aylık teklif sonuçları</h3>
+                                <p class="text-muted">Seçili ayda yapılan tekliflerin durumu.</p>
+                            </div>
+                            <div class="filter-box">
+                                <select id="offer-month-filter"></select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="donut-sarmal">
+                                <div id="offer-donut"></div>
+                                <div class="donut-lejant" id="offer-legend"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card mt-4">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-handshake"></i> Teklif kayıtları</h3>
+                        <p class="text-muted">
+                            Satış ekibinin e-posta ile yaptığı teklifler. Yeni teklif "geri dönmedi"
+                            olarak kaydedilir; müşteri dönünce durumu buradan güncelleyin.
+                        </p>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="custom-table" id="offers-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tarih</th>
+                                        <th>Müşteri</th>
+                                        <th>Ürün</th>
+                                        <th>Adet</th>
+                                        <th>Teklif Fiyatı</th>
+                                        <th>Satış Temsilcisi</th>
+                                        <th>Durum</th>
+                                        <th>İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section id="invoices-tab" class="tab-page">
                 <div class="metrics-grid">
                     <div class="metric-card glass-card">
@@ -734,6 +794,78 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary modal-close">İptal</button>
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Kaydet ve Takibe Al</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Yeni Teklif -->
+    <div class="modal-backdrop" id="new-offer-modal">
+        <div class="modal-dialog glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-handshake"></i> Yeni Teklif Kaydı</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-offer-form">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Müşteri: *</label>
+                            <input type="text" id="offer-client" class="form-control" placeholder="Örn: ABC Holding A.Ş." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Teklif Tarihi: *</label>
+                            <input type="date" id="offer-date" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ürün: *</label>
+                        <input type="text" id="offer-product" class="form-control" placeholder="Örn: WatchGuard T45 3 Yıllık Basic Security" required>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Adet: *</label>
+                            <input type="number" id="offer-quantity" class="form-control" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Teklif Fiyatı:</label>
+                            <div class="grid-2" style="gap:8px;">
+                                <input type="number" id="offer-price" class="form-control" step="0.01" min="0" placeholder="0.00">
+                                <select id="offer-currency" class="form-control">
+                                    <option value="TRY" selected>TRY</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Teklifi Yapan:</label>
+                            <input type="text" id="offer-rep" class="form-control" placeholder="Örn: Ahmet Yılmaz">
+                        </div>
+                        <div class="form-group">
+                            <label>Durum:</label>
+                            <select id="offer-status" class="form-control">
+                                <option value="PENDING" selected>Geri dönmedi</option>
+                                <option value="ACCEPTED">Kabul</option>
+                                <option value="REJECTED">Ret</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notlar:</label>
+                        <textarea id="offer-notes" class="form-control" rows="2" placeholder="Ek bilgiler..."></textarea>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary modal-close">İptal</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Teklifi Kaydet</button>
                     </div>
                 </form>
             </div>

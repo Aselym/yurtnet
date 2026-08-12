@@ -106,6 +106,26 @@ def init_db():
         )
     ''')
 
+    # Satis ekibinin Gmail uzerinden yaptigi teklifler. Logo'da izi olmadigi
+    # icin elle giriliyor; lisans/fatura kayitlariyla karismasin diye ayri
+    # tabloda duruyor ve yalnizca Teklifler sayfasinda listeleniyor.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            client_name TEXT NOT NULL,
+            offer_price REAL,
+            currency TEXT NOT NULL DEFAULT 'TRY',
+            offer_date TEXT NOT NULL,
+            sales_rep TEXT,
+            -- PENDING = geri donmedi (varsayilan), ACCEPTED = kabul, REJECTED = ret
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     cursor.execute("PRAGMA table_info(sent_emails)")
     existing_cols = {row[1] for row in cursor.fetchall()}
     if 'invoice_id' not in existing_cols:

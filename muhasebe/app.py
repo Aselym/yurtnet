@@ -161,6 +161,13 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
+        elif path == '/api/offers':
+            cursor.execute('SELECT * FROM offers ORDER BY offer_date DESC, id DESC')
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            self._send_json(rows)
+            return
+
         elif path == '/api/renewals':
             # Suresi dolmus kayit + onun yerine gecmis olabilecek yeni kayit.
             cursor.execute('''
@@ -442,6 +449,42 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'success': success, 'message': msg})
             return
 
+        elif path == '/api/offers':
+            cursor.execute('''
+                INSERT INTO offers (product_name, quantity, client_name, offer_price,
+                                    currency, offer_date, sales_rep, status, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                body_data.get('product_name'),
+                int(body_data.get('quantity') or 1),
+                body_data.get('client_name'),
+                float(body_data.get('offer_price') or 0),
+                body_data.get('currency', 'TRY'),
+                body_data.get('offer_date') or datetime.now().strftime('%Y-%m-%d'),
+                body_data.get('sales_rep', ''),
+                # Varsayilan "geri donmedi": teklif yapildi, cevap henuz yok.
+                body_data.get('status') or 'PENDING',
+                body_data.get('notes', ''),
+            ))
+            yeni_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            self._send_json({'success': True, 'id': yeni_id, 'message': 'Teklif kaydedildi.'})
+            return
+
+        elif path.startswith('/api/offers/') and path.endswith('/status'):
+            offer_id = int(path.split('/')[3])
+            durum = body_data.get('status')
+            if durum not in ('PENDING', 'ACCEPTED', 'REJECTED'):
+                conn.close()
+                self._send_json({'success': False, 'message': 'Geçersiz durum.'}, 400)
+                return
+            cursor.execute('UPDATE offers SET status = ? WHERE id = ?', (durum, offer_id))
+            conn.commit()
+            conn.close()
+            self._send_json({'success': True, 'message': 'Teklif durumu güncellendi.'})
+            return
+
         elif path.startswith('/api/sales/') and path.endswith('/renewal'):
             sale_id = int(path.split('/')[3])
             karar = body_data.get('karar')  # 'CONFIRMED' | 'REJECTED'
@@ -580,6 +623,14 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self._send_json({'success': True, 'message': 'Fatura kaydı silindi.'})
+            return
+
+        if path.startswith('/api/offers/'):
+            offer_id = int(path.split('/')[-1])
+            cursor.execute('DELETE FROM offers WHERE id = ?', (offer_id,))
+            conn.commit()
+            conn.close()
+            self._send_json({'success': True, 'message': 'Teklif silindi.'})
             return
 
         conn.close()

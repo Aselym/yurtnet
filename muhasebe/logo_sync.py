@@ -23,10 +23,23 @@ from datetime import datetime
 
 from database import get_db_connection, calculate_dates, sure_dolmuslari_isaretle
 
-# Sureli lisans urunlerini yakalayan kelimeler
+# Sureli lisans urunlerini yakalayan kelimeler.
+#
+# Bu bir BEYAZ LISTE ve oyle kalmali: urun adinda "3YIL" gecmesi lisans
+# oldugu anlamina gelmiyor. "DELL LATI 3450 ... 3YIL" bir dizustu bilgisayarin
+# garanti suresi, "TOSHIBA 16TB GUVENLIK HDD" bir disk. Marka bazli
+# eslestirme bizi bu tur yanlis pozitiflerden koruyor.
+#
+# Yazim hatali varyantlar da listede: gercek veride "WATCGUARD",
+# "WATCGHUARD" ve "FOTIGATE" seklinde girilmis kayitlar var.
 LISANS_MARKALARI = [
-    'WATCHGUARD', 'WATCGUARD', 'FORTIGATE', 'FORTINET', 'SOPHOS', 'ESET',
-    'KASPERSKY', 'VEEAM', 'PLOG', '5651', 'SIGNLOGGER', 'CRYPTTECH',
+    'WATCHGUARD', 'WATCGUARD', 'WATCGHUARD',
+    'FORTIGATE', 'FOTIGATE', 'FORTINET',
+    'SOPHOS', 'ESET', 'KASPERSKY', 'BITDEFENDER', 'TRELLIX',
+    'COMODO', 'XCITIUM', 'SAFETICA',
+    'VEEAM', 'VMWARE',
+    'PLOG', '5651', 'SIGNLOGGER', 'CRYPTTECH',
+    'ADOBE', 'AUTOCAD', 'AUTODESK', 'GEOTRUST',
 ]
 
 # Aylik abonelik urunleri
@@ -96,14 +109,14 @@ def build_connection_string(settings):
 def _baglan():
     """Salt-okunur Logo baglantisi.
 
-    Turkce karakterler icin cp1254 sart: veritabani Windows-1254 kullaniyor,
-    varsayilan cozumleme "BÖLGE" yerine "B?LGE" uretir.
+    Metin sutunlari sorgularda CAST(... AS NVARCHAR) ile cekiliyor; boylece
+    donusumu SQL Server kendi collation bilgisiyle yapiyor ve Turkce
+    karakterler dogru geliyor. Istemci tarafinda kod sayfasi zorlamak
+    (setdecoding cp1254) kirilgandi: urun adlarindan birinde cp1254'te
+    karsiligi olmayan bir bayt vardi ve tum senkronizasyonu cokertiyordu.
     """
     import pyodbc
-    conn = pyodbc.connect(build_connection_string(get_logo_settings()))
-    conn.setdecoding(pyodbc.SQL_CHAR, encoding='cp1254')
-    conn.setdecoding(pyodbc.SQL_WCHAR, encoding='cp1254')
-    return conn
+    return pyodbc.connect(build_connection_string(get_logo_settings()))
 
 
 def test_logo_connection():
@@ -182,9 +195,16 @@ def _temiz_mail(deger):
     return '' if mail in ('-', '.', '_') else mail
 
 
-def sync_logo_invoices(gecmis_yil=3):
+# Bitisi bu tarihten onceye dusen lisanslar alinmaz. Coktan gecmis bir
+# yenileme firsati listeyi sisirmekten baska ise yaramiyor: satis ekibi
+# 2025'te dolmus bir lisans icin bugun musteriyi aramayacak.
+EN_ESKI_BITIS = '2026-01-01'
+
+
+def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
     """Sureli lisans satislarini Logo'dan cekip yerel veritabanina yazar.
 
+    Bitisi `en_eski_bitis` tarihinden onceye dusenler atlanir.
     Doner: (eklenen, sure_bekleyen, atlanan)
     """
     ayarlar = get_logo_settings()
@@ -195,8 +215,11 @@ def sync_logo_invoices(gecmis_yil=3):
     cur = conn.cursor()
     cur.execute(f"""
         SELECT INV.FICHENO, INV.DATE_, STL.LOGICALREF AS satir_ref,
-               CLC.DEFINITION_ AS cari_ad, CLC.EMAILADDR AS cari_mail,
-               CLC.CODE AS cari_kod, ITM.NAME AS urun_adi, ITM.CODE AS urun_kod
+               CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
+               CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
+               CAST(CLC.CODE AS NVARCHAR(50))          AS cari_kod,
+               CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
+               CAST(ITM.CODE AS NVARCHAR(50))          AS urun_kod
         FROM LG_{firma}_{donem}_INVOICE INV WITH (NOLOCK)
         JOIN LG_{firma}_{donem}_STLINE STL WITH (NOLOCK)
              ON STL.INVOICEREF = INV.LOGICALREF
@@ -236,12 +259,20 @@ def sync_logo_invoices(gecmis_yil=3):
         ay = sure_ay_bul(urun)
         if ay:
             bitis = calculate_dates(satis_tarihi, ay)
+            if bitis < en_eski_bitis:
+                atlanan += 1
+                continue
             durum = 'PENDING'
             sure_tipi = {12: '1_YEAR', 24: '2_YEARS',
                          36: '3_YEARS', 60: '5_YEARS'}.get(ay, 'CUSTOM')
         else:
-            # Sure bilinmiyor: bitis olarak satis tarihi konur ama
-            # NEEDS_DURATION durumu hatirlatma uretilmesini engeller.
+            # Sure bilinmiyor: en iyimser tahminle 3 yillik olsa bile
+            # esikten eskiyse artik ilgilendirmiyor demektir.
+            if calculate_dates(satis_tarihi, 36) < en_eski_bitis:
+                atlanan += 1
+                continue
+            # Bitis olarak satis tarihi konur ama NEEDS_DURATION durumu
+            # hatirlatma uretilmesini engeller.
             ay, bitis = 0, satis_tarihi
             durum, sure_tipi = 'NEEDS_DURATION', 'CUSTOM'
             sure_bekleyen += 1
@@ -281,8 +312,9 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
     conn = _baglan()
     cur = conn.cursor()
     cur.execute(f"""
-        SELECT CLC.DEFINITION_ AS cari_ad, CLC.EMAILADDR AS cari_mail,
-               ITM.NAME AS urun_adi,
+        SELECT CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
+               CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
+               CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
                COUNT(*) AS adet,
                MIN(INV.DATE_) AS ilk_tarih,
                MAX(INV.DATE_) AS son_tarih
@@ -297,7 +329,9 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
           AND INV.CANCELLED = 0
           AND INV.DATE_ >= DATEADD(year, -{int(gecmis_yil)}, GETDATE())
           AND ({_like_kosulu(ABONELIK_MARKALARI)})
-        GROUP BY CLC.DEFINITION_, CLC.EMAILADDR, ITM.NAME
+        GROUP BY CAST(CLC.DEFINITION_ AS NVARCHAR(200)),
+                 CAST(CLC.EMAILADDR AS NVARCHAR(200)),
+                 CAST(ITM.NAME AS NVARCHAR(200))
         HAVING COUNT(*) >= 2
         ORDER BY MAX(INV.DATE_) DESC
     """)
