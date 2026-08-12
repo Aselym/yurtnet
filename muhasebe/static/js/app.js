@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoggedIn) {
             loadDashboardStats();
             loadSalesList();
+            loadRenewals();
             loadInbox();
             loadInvoicesList();
             loadSubscriptions();
@@ -168,6 +169,7 @@ function showAppUI() {
     document.getElementById('app-wrapper').style.display = 'flex';
     loadDashboardStats();
     loadSalesList();
+    loadRenewals();
     loadInbox();
     loadSettings();
     loadInvoicesList();
@@ -658,6 +660,91 @@ function renderDashboardTable(sales) {
     `).join('');
 }
 
+
+let cachedRenewals = [];
+
+async function loadRenewals() {
+    try {
+        const res = await authFetch('/api/renewals');
+        cachedRenewals = await res.json();
+        const rozet = document.getElementById('count-RENEWAL');
+        if (rozet) rozet.innerText = cachedRenewals.length;
+    } catch (e) {}
+}
+
+function renderRenewals(query) {
+    const kap = document.getElementById('license-groups');
+    if (!kap) return;
+
+    const liste = cachedRenewals.filter(r => !query ||
+        r.musteri.toLowerCase().includes(query) ||
+        r.eski_urun.toLowerCase().includes(query) ||
+        r.yeni_urun.toLowerCase().includes(query));
+
+    if (liste.length === 0) {
+        kap.innerHTML = '<div class="card glass-card"><div class="card-body text-center text-muted">' +
+                        'Onay bekleyen yenileme yok.</div></div>';
+        return;
+    }
+
+    kap.innerHTML = `
+      <div class="card glass-card mb-4">
+        <div class="card-body" style="padding:16px 20px">
+          <p class="text-muted" style="margin:0;font-size:13.5px">
+            Bu kayıtların süresi dolmuş görünüyor, ama aynı müşteriye daha sonra
+            benzer bir ürün satılmış. Ürün kodları değiştiği için eşleşme kesin değil —
+            doğruysa onaylayın, değilse reddedin (kayıt "süresi doldu" listesinde kalır).
+          </p>
+        </div>
+      </div>` +
+      liste.map(r => `
+        <div class="card glass-card musteri-grup" id="renewal-${r.eski_id}">
+            <div class="card-header musteri-grup-bas">
+                <h3><i class="fa-solid fa-building"></i> ${r.musteri}</h3>
+                <div class="flex-gap-2">
+                    <button class="btn btn-sm btn-primary" onclick="karaVerRenewal(${r.eski_id}, 'CONFIRMED')">
+                        <i class="fa-solid fa-check"></i> Yenilenmiş
+                    </button>
+                    <button class="btn btn-sm btn-danger-outline" onclick="karaVerRenewal(${r.eski_id}, 'REJECTED')">
+                        <i class="fa-solid fa-xmark"></i> Değil
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="yenileme-kiyas">
+                    <div class="yenileme-kutu eski">
+                        <span class="yenileme-etiket">Süresi dolan</span>
+                        <strong>${r.eski_urun}</strong>
+                        <span class="text-muted">${r.eski_satis} → ${r.eski_bitis}</span>
+                    </div>
+                    <i class="fa-solid fa-arrow-right yenileme-ok"></i>
+                    <div class="yenileme-kutu yeni">
+                        <span class="yenileme-etiket">Yerine geçmiş olabilir</span>
+                        <strong>${r.yeni_urun}</strong>
+                        <span class="text-muted">${r.yeni_satis} → ${r.yeni_bitis}</span>
+                    </div>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+async function karaVerRenewal(saleId, karar) {
+    try {
+        const res = await authFetch(`/api/sales/${saleId}/renewal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ karar })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            cachedRenewals = cachedRenewals.filter(r => r.eski_id !== saleId);
+            await loadSalesList();
+            filterSalesTable();
+        }
+    } catch (e) {}
+}
+
 let aktifDurum = 'PENDING';
 
 function initLicenseStatusTabs() {
@@ -685,6 +772,7 @@ function durumSayilariniGuncelle() {
     document.getElementById('count-PENDING').innerText = say(DURUM_GRUPLARI.PENDING);
     document.getElementById('count-NEEDS_DURATION').innerText = say(DURUM_GRUPLARI.NEEDS_DURATION);
     document.getElementById('count-EXPIRED').innerText = say(DURUM_GRUPLARI.EXPIRED);
+    document.getElementById('count-RENEWAL').innerText = cachedRenewals.length;
     document.getElementById('count-ALL').innerText = cachedSales.length;
 }
 
@@ -786,6 +874,12 @@ function gunRengi(gun) {
 
 function filterSalesTable() {
     const query = (document.getElementById('sales-search-input')?.value || '').toLowerCase();
+
+    if (aktifDurum === 'RENEWAL') {
+        renderRenewals(query);
+        return;
+    }
+
     const durumlar = DURUM_GRUPLARI[aktifDurum];
 
     const filtered = cachedSales.filter(s => {

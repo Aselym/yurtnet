@@ -1,11 +1,13 @@
 import threading
 import time
 from datetime import datetime
-from database import get_db_connection
+from database import get_db_connection, sure_dolmuslari_isaretle
 from mailer import send_reminder_email, send_invoice_reminder
 from notifier import send_windows_toast
 
 def check_and_send_reminders():
+    sure_dolmuslari_isaretle()
+
     conn = get_db_connection()
     cursor = conn.cursor()
 

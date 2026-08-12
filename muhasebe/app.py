@@ -161,6 +161,29 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
+        elif path == '/api/renewals':
+            # Suresi dolmus kayit + onun yerine gecmis olabilecek yeni kayit.
+            cursor.execute('''
+                SELECT
+                    e.id            AS eski_id,
+                    e.client_name   AS musteri,
+                    e.product_name  AS eski_urun,
+                    e.sale_date     AS eski_satis,
+                    e.expiration_date AS eski_bitis,
+                    y.id            AS yeni_id,
+                    y.product_name  AS yeni_urun,
+                    y.sale_date     AS yeni_satis,
+                    y.expiration_date AS yeni_bitis
+                FROM sales e
+                JOIN sales y ON y.id = e.renewed_by
+                WHERE e.renewal_state = 'SUSPECT'
+                ORDER BY e.client_name, e.expiration_date
+            ''')
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            self._send_json(rows)
+            return
+
         elif path == '/api/sent-emails':
             cursor.execute('''
                 SELECT sent_emails.*, sales.product_name 
@@ -417,6 +440,32 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             success, msg = send_invoice_reminder(invoice_data, stage)
             conn.close()
             self._send_json({'success': success, 'message': msg})
+            return
+
+        elif path.startswith('/api/sales/') and path.endswith('/renewal'):
+            sale_id = int(path.split('/')[3])
+            karar = body_data.get('karar')  # 'CONFIRMED' | 'REJECTED'
+
+            if karar == 'CONFIRMED':
+                # Yenilendigi onaylandi: artik acik bir is degil, listeden duser.
+                cursor.execute(
+                    "UPDATE sales SET status = 'RENEWED', renewal_state = 'CONFIRMED' WHERE id = ?",
+                    (sale_id,))
+                mesaj = 'Yenilendi olarak işaretlendi.'
+            elif karar == 'REJECTED':
+                # Yanlis eslesme: kayit acik kalir, bir daha aday gosterilmez.
+                cursor.execute(
+                    "UPDATE sales SET renewal_state = 'REJECTED', renewed_by = NULL WHERE id = ?",
+                    (sale_id,))
+                mesaj = 'Yenileme reddedildi, kayıt açık kaldı.'
+            else:
+                conn.close()
+                self._send_json({'success': False, 'message': 'Geçersiz karar.'}, 400)
+                return
+
+            conn.commit()
+            conn.close()
+            self._send_json({'success': True, 'message': mesaj})
             return
 
         elif path.startswith('/api/invoices/') and path.endswith('/mark-paid'):

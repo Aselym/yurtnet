@@ -118,6 +118,14 @@ def init_db():
         cursor.execute('ALTER TABLE sales ADD COLUMN logo_ref TEXT')
     if 'source' not in sales_cols:
         cursor.execute("ALTER TABLE sales ADD COLUMN source TEXT DEFAULT 'MANUAL'")
+    # Suresi dolmus bir lisansin yerine yenisi alinmis olabilir. Otomatik
+    # kapatilmaz: urun kodlari degistigi icin eslesme yanilabilir, o yuzden
+    # aday olarak isaretlenip satis ekibinin onayina birakilir.
+    if 'renewed_by' not in sales_cols:
+        cursor.execute('ALTER TABLE sales ADD COLUMN renewed_by INTEGER')
+    if 'renewal_state' not in sales_cols:
+        # NULL | 'SUSPECT' (aday) | 'CONFIRMED' (onaylandi) | 'REJECTED' (degil)
+        cursor.execute('ALTER TABLE sales ADD COLUMN renewal_state TEXT')
 
     default_admin_salt, default_admin_hash = hash_password('Aa123456')
     default_settings = [
@@ -155,6 +163,27 @@ def calculate_dates(sale_date_str, duration_months):
     
     expiration_date = datetime(year, month, day)
     return expiration_date.strftime('%Y-%m-%d')
+
+def sure_dolmuslari_isaretle():
+    """Bitis tarihi gecmis lisanslari EXPIRED yapar.
+
+    Bu bir veri gercegi, mail gonderiminin yan etkisi degil — o yuzden
+    zamanlayicidan ayri duruyor ve Logo senkronizasyonundan sonra da
+    cagriliyor. NEEDS_DURATION olanlara dokunulmaz: onlarin bitis tarihi
+    tahmini, uzerine "suresi doldu" demek yaniltici olur.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE sales SET status = 'EXPIRED'
+        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION')
+          AND date(expiration_date) <= date('now')
+    """)
+    adet = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return adet
+
 
 if __name__ == '__main__':
     init_db()

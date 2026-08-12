@@ -21,7 +21,7 @@ Iki ayri urun grubu var ve takip mantiklari farkli:
 import re
 from datetime import datetime
 
-from database import get_db_connection, calculate_dates
+from database import get_db_connection, calculate_dates, sure_dolmuslari_isaretle
 
 # Sureli lisans urunlerini yakalayan kelimeler
 LISANS_MARKALARI = [
@@ -43,12 +43,16 @@ KALICI_LISANS_KELIMELERI = [
 ABONELIK_MIN_FATURA = 4       # en az bu kadar kez faturalanmis olmali
 ABONELIK_MAX_ARALIK_GUN = 60  # ortalama faturalama araligi bunu asmamali
 
-# Bunlar donanim; lisans degil, yenileme takibi gerektirmez
+# Bunlar donanim; lisans degil, yenileme takibi gerektirmez.
+# Gercek veride "APPLIANCE ONLY" birden fazla yazimla geciyor: bosluksuz
+# ("APPLIANCEONLY"), kisaltilmis ("APPLIENCE ONL") ve harf hatali
+# ("APLLIANCE"). Bu yuzden asagida bosluklar silinerek karsilastiriliyor.
 DONANIM_KELIMELERI = [
-    'APPLIANCE ONLY', 'APPLIENCE ONLY', 'TRANSCEIVER', 'SFP', 'SWITCH',
-    'ACCESS POINT', 'POWER INJEKTOR', 'INJECTOR', 'RACK MOUNT', 'RACKTRAY',
-    'MODUL', 'MODULE', 'CIHAZ', 'KLAVYE', 'MONITOR', 'MONITÖR', 'TABLET',
-    'KABLO', 'PATCH PANEL',
+    'APPLIANCEONLY', 'APPLIENCEONLY', 'APLLIANCEONLY', 'APPLIENCEONL',
+    'APPLIANCEONL', 'POEAPPLIANCE', 'HARDWARETOKEN',
+    'TRANSCEIVER', 'SFP', 'SWITCH', 'ACCESSPOINT', 'POWERINJEKTOR',
+    'INJEKTOR', 'INJECTOR', 'RACKMOUNT', 'RACKTRAY', 'MODUL', 'MODULE',
+    'CIHAZ', 'KLAVYE', 'MONITOR', 'MONITÖR', 'TABLET', 'KABLO', 'PATCHPANEL',
 ]
 
 SATIS_TRCODE = (7, 8, 9)  # perakende satis, toptan satis, verilen hizmet
@@ -122,18 +126,31 @@ def test_logo_connection():
 def sure_ay_bul(urun_adi):
     """Urun adindan lisans suresini ay cinsinden cikarir; bulunamazsa None.
 
-    Gercek veriden ogrenilen kaliplar: "1YIL", "3 YILLIK", "3YEAR", "1 YEAR"
-    ve bosluksuz yazimlar ("GUVLIC3Y", "FAORTIAUTH.3Y").
+    Gercek veriden ogrenilen kaliplar: "1YIL", "3 YILLIK", "3YEAR", "1 YEAR",
+    tireli "3-Y", kisaltilmis "1YR", yazim hatali "1TEAR" ve bosluksuz
+    yazimlar ("GUVLIC3Y", "FAORTIAUTH.3Y").
     """
     m = (urun_adi or '').upper()
 
-    yil = re.search(r'(\d+)\s*(?:YIL|YEAR)', m)
+    # YIL / YILLIK / YEAR / YEARS ve "1TEAR" gibi harf hatalari.
+    # Sonrasina sinir konmaz: "3 YILLIK" ve "1YEARS" da eslesmeli.
+    yil = re.search(r'(\d+)\s*[-\s]*(?:YIL|YEAR|TEAR)', m)
     if yil:
         return int(yil.group(1)) * 12
+
+    # "1YR" — kisaltma; burada sinir sart, "1YRX" gibi SKU'ya takilmasin
+    yr = re.search(r'(\d+)\s*[-\s]*YR(?![A-Z0-9])', m)
+    if yr:
+        return int(yr.group(1)) * 12
 
     ay = re.search(r'(\d+)\s*(?:AY|MONTH)', m)
     if ay:
         return int(ay.group(1))
+
+    # Tireli yazim: "M395 - 3-Y WGM395160"
+    tireli = re.search(r'(?<!\d)(\d)\s*-\s*Y(?![A-Z0-9])', m)
+    if tireli:
+        return int(tireli.group(1)) * 12
 
     # "3Y" — tek rakam + Y. Ardindan harf/rakam gelmemeli ki "WGT1850203"
     # gibi model kodlari ve "SU1YP-00" gibi SKU'lar yanlislikla eslesmesin.
@@ -145,7 +162,9 @@ def sure_ay_bul(urun_adi):
 
 
 def _donanim_mi(urun_adi):
-    m = (urun_adi or '').upper()
+    # Bosluklar ve noktalama silinerek karsilastirilir: gercek veride
+    # "APPLIENCE  ONL" gibi cift bosluklu ve kesik yazimlar var.
+    m = re.sub(r'[^A-Z0-9]', '', (urun_adi or '').upper())
     return any(k in m for k in DONANIM_KELIMELERI)
 
 
@@ -240,6 +259,9 @@ def sync_logo_invoices(gecmis_yil=3):
 
     yerel.commit()
     yerel.close()
+
+    # Cekilen kayitlarin bir kismi zaten gecmis tarihli olabilir.
+    sure_dolmuslari_isaretle()
     return eklenen, sure_bekleyen, atlanan
 
 
@@ -335,6 +357,88 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
     yerel.commit()
     yerel.close()
     return yazilan, riskli
+
+
+# ---------------------------------------------------------------- yenileme
+
+# Ayni islevi goren urunler ayni kategoriye dusmeli ki urun kodu degisse bile
+# yenileme yakalanabilsin: WGEPDR30201 -> WGESB30201 (EPDR, "Endpoint Security
+# 360" adini almis) ya da PLOG 5651 -> SIGNLOGGER 5651 (marka degismis).
+YENILEME_KATEGORILERI = [
+    ('endpoint', ('EPDR', 'ESB', 'ENDPOINT', 'EPP', 'PATCH MANAGEMENT', 'WGPTCH')),
+    ('log5651',  ('5651', 'PLOG', 'SIGNLOGGER', 'HOTSPOT')),
+    ('mfa',      ('AUTHPOINT', 'WGATH')),
+    ('backup',   ('VEEAM', 'BACKUP')),
+    ('dns',      ('DNSWATCH', 'WGDNS')),
+]
+
+FIREWALL_IPUCU = ('WATCHGUARD', 'WATCGUARD', 'FIREBOX', 'FORTIGATE')
+
+# Firebox model kodu: WGT25341, WGM27333, WGVME331... Model onemli, cunku bir
+# musteride birden fazla cihaz olabilir (T25 ve T85 gibi) ve bunlar birbirini
+# yenilemez.
+_MODEL_DESEN = re.compile(r'WG([TMV][A-Z]*\d+|ME\d*)')
+
+
+def yenileme_kategorisi(urun_adi):
+    """Yenileme eslestirmesi icin urunun islevsel kimligi."""
+    m = (urun_adi or '').upper()
+    for ad, kelimeler in YENILEME_KATEGORILERI:
+        if any(k in m for k in kelimeler):
+            return ad
+    if any(k in m for k in FIREWALL_IPUCU):
+        model = _MODEL_DESEN.search(m.replace(' ', ''))
+        if model:
+            taban = re.match(r'([A-Z]+)(\d{2,3})', model.group(1))
+            if taban:
+                return f'firewall:{taban.group(1)}{taban.group(2)[:2]}'
+        return 'firewall:?'
+    return 'diger'
+
+
+def yenileme_adaylari_bul():
+    """Suresi dolmus kayitlar icin olasi yenilemeleri isaretler.
+
+    Otomatik kapatmaz — sadece 'SUSPECT' olarak isaretler ve hangi yeni kaydin
+    aday oldugunu yazar. Yanlis eslesme ihtimali var (ornegin FortiAuthenticator
+    ile FortiGate destegi ayni kategoriye dusebiliyor), o yuzden son karari
+    satis ekibi verir.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    kayitlar = [dict(r) for r in cur.execute('SELECT * FROM sales').fetchall()]
+    for k in kayitlar:
+        k['_kat'] = yenileme_kategorisi(k['product_name'])
+
+    isaretlenen = 0
+    for eski in kayitlar:
+        if eski['status'] != 'EXPIRED':
+            continue
+        # Daha once bakilmis kayda tekrar dokunma
+        if eski.get('renewal_state') in ('CONFIRMED', 'REJECTED'):
+            continue
+
+        adaylar = [
+            y for y in kayitlar
+            if y['id'] != eski['id']
+            and y['client_name'] == eski['client_name']
+            and y['_kat'] == eski['_kat']
+            and y['_kat'] != 'diger'
+            and (y['sale_date'] or '') > (eski['sale_date'] or '')
+        ]
+        if not adaylar:
+            continue
+
+        en_yeni = max(adaylar, key=lambda x: x['sale_date'])
+        cur.execute(
+            "UPDATE sales SET renewed_by = ?, renewal_state = 'SUSPECT' WHERE id = ?",
+            (en_yeni['id'], eski['id']),
+        )
+        isaretlenen += 1
+
+    conn.commit()
+    conn.close()
+    return isaretlenen
 
 
 if __name__ == '__main__':
