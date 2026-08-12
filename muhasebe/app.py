@@ -173,13 +173,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
-        elif path == '/api/templates':
-            cursor.execute('SELECT * FROM email_templates ORDER BY id ASC')
-            rows = [dict(r) for r in cursor.fetchall()]
-            conn.close()
-            self._send_json(rows)
-            return
-
         elif path == '/api/settings':
             cursor.execute('SELECT key, value FROM settings')
             rows = cursor.fetchall()
@@ -509,21 +502,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
 
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        if path.startswith('/api/templates/'):
-            template_key = path.split('/')[-1]
-            subject = body_data.get('subject')
-            body_html = body_data.get('body_html')
-
-            cursor.execute('''
-                UPDATE email_templates 
-                SET subject = ?, body_html = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE template_key = ?
-            ''', (subject, body_html, template_key))
-            conn.commit()
-            conn.close()
-            self._send_json({'success': True, 'message': 'E-posta şablonu güncellendi.'})
-            return
 
         conn.close()
         self.send_error(404)

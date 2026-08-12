@@ -84,11 +84,7 @@
                         <span>Gönderim Geçmişi</span>
                         <span class="badge" id="inbox-count-badge">0</span>
                     </button>
-                    <button class="nav-link" data-tab="templates-tab">
-                        <i class="fa-solid fa-file-pen"></i>
-                        <span>Şablonlar</span>
-                    </button>
-                    <button class="nav-link" data-tab="settings-tab">
+                                        <button class="nav-link" data-tab="settings-tab">
                         <i class="fa-solid fa-gear"></i>
                         <span>Ayarlar</span>
                     </button>
@@ -219,49 +215,39 @@
 
             <!-- Tab 2: Sales & Licenses List -->
             <section id="sales-tab" class="tab-page">
+                <div class="status-tabs" id="license-status-tabs">
+                    <button class="status-tab active" data-status="PENDING">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>Beklemede</span>
+                        <span class="status-tab-count" id="count-PENDING">0</span>
+                    </button>
+                    <button class="status-tab" data-status="NEEDS_DURATION">
+                        <i class="fa-solid fa-circle-question"></i>
+                        <span>Süre girilmeli</span>
+                        <span class="status-tab-count" id="count-NEEDS_DURATION">0</span>
+                    </button>
+                    <button class="status-tab" data-status="EXPIRED">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Süresi doldu</span>
+                        <span class="status-tab-count" id="count-EXPIRED">0</span>
+                    </button>
+                    <button class="status-tab" data-status="ALL">
+                        <i class="fa-solid fa-list"></i>
+                        <span>Tümü</span>
+                        <span class="status-tab-count" id="count-ALL">0</span>
+                    </button>
+                </div>
+
                 <div class="card glass-card mb-4">
                     <div class="card-body search-filter-bar">
                         <div class="search-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="sales-search-input" placeholder="Ürün adı, müşteri veya lisans anahtarı ara...">
-                        </div>
-                        <div class="filter-box">
-                            <select id="sales-status-filter">
-                                <option value="ALL">Tüm Durumlar</option>
-                                <option value="PENDING">Beklemede (Hatırlatma Yapılmadı)</option>
-                                <option value="FIRST_REMINDER_SENT">1 Ay Kala Bildirildi</option>
-                                <option value="FINAL_REMINDER_SENT">1 Hafta Kala Bildirildi</option>
-                                <option value="EXPIRED">Süresi Doldu</option>
-                            </select>
+                            <input type="text" id="sales-search-input" placeholder="Müşteri, ürün veya lisans anahtarı ara...">
                         </div>
                     </div>
                 </div>
 
-                <div class="card glass-card">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="custom-table" id="full-sales-table">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Ürün / Donanım Lisansı</th>
-                                        <th>Müşteri Bilgileri</th>
-                                        <th>Satış Temsilcisi</th>
-                                        <th>Süre</th>
-                                        <th>Bitiş Tarihi</th>
-                                        <th>Kalan Gün</th>
-                                        <th>Hatırlatma Zamanlaması</th>
-                                        <th>Durum</th>
-                                        <th>İşlemler</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dynamic Rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <div id="license-groups"></div>
             </section>
 
             <!-- Tab: Subscriptions (monthly recurring) -->
@@ -407,55 +393,6 @@
                         <div class="empty-preview">
                             <i class="fa-solid fa-envelope-open"></i>
                             <p>İçeriğini görmek için soldaki listeden bir e-posta seçin.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Tab 4: Email Templates -->
-            <section id="templates-tab" class="tab-page">
-                <div class="templates-layout">
-                    <!-- Template List -->
-                    <div class="card glass-card">
-                        <div class="card-header">
-                            <h3><i class="fa-solid fa-file-lines"></i> Tanımlı Şablonlar</h3>
-                        </div>
-                        <div class="card-body p-0" id="templates-list-container">
-                            <!-- Dynamic Templates -->
-                        </div>
-                    </div>
-
-                    <!-- Template Editor -->
-                    <div class="card glass-card">
-                        <div class="card-header">
-                            <h3 id="editor-title"><i class="fa-solid fa-pen-to-square"></i> Şablon Düzenleyici</h3>
-                        </div>
-                        <div class="card-body">
-                            <form id="template-edit-form">
-                                <input type="hidden" id="edit-template-key">
-                                <div class="form-group">
-                                    <label>E-posta Konu Başlığı (Subject):</label>
-                                    <input type="text" id="edit-template-subject" class="form-control" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Kullanılabilir Şablon Değişkenleri (Tıkla Ekle):</label>
-                                    <div class="variable-tags">
-                                        <span class="vtag" onclick="insertTag('{musteri_adi}')">{musteri_adi}</span>
-                                        <span class="vtag" onclick="insertTag('{urun_adi}')">{urun_adi}</span>
-                                        <span class="vtag" onclick="insertTag('{lisans_anahtari}')">{lisans_anahtari}</span>
-                                        <span class="vtag" onclick="insertTag('{bitis_tarihi}')">{bitis_tarihi}</span>
-                                        <span class="vtag" onclick="insertTag('{kalan_gun}')">{kalan_gun}</span>
-                                        <span class="vtag" onclick="insertTag('{satis_temsilcisi}')">{satis_temsilcisi}</span>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>HTML E-posta Gövdesi (Body HTML):</label>
-                                    <textarea id="edit-template-body" class="form-control code-editor" rows="12" required></textarea>
-                                </div>
-                                <button type="submit" class="btn btn-primary btn-block">
-                                    <i class="fa-solid fa-floppy-disk"></i> Şablonu Kaydet
-                                </button>
-                            </form>
                         </div>
                     </div>
                 </div>

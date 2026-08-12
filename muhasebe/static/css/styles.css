@@ -757,6 +757,92 @@ h4 i { color: var(--brand); font-size: 13px; }
     font-variant-numeric: tabular-nums;
 }
 
+/* ============ DURUM SEKMELERI ============ */
+.status-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.status-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 17px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .12s;
+}
+
+.status-tab i { font-size: 13px; color: var(--text-3); }
+
+.status-tab:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+}
+
+.status-tab.active {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+
+.status-tab.active i { color: var(--brand); }
+
+.status-tab-count {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 11px;
+    background: var(--neutral-bg);
+    color: var(--text-3);
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-tab.active .status-tab-count {
+    background: var(--brand);
+    color: #fff;
+}
+
+/* ============ MUSTERI GRUBU ============ */
+.musteri-grup { margin-bottom: 16px; }
+
+.musteri-grup-bas {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.musteri-grup-bas h3 { font-size: 15.5px; }
+.musteri-grup-bas h3 i { color: var(--text-3); }
+.musteri-grup-bas .text-muted { font-size: 13px; margin-top: 5px; }
+
+.musteri-grup-rozet {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-pill.needs-duration {
+    background: var(--neutral-bg);
+    color: var(--text-2);
+}
+
 /* ============ CUSTOMER PRODUCT LINK ============ */
 .client-link {
     background: none;

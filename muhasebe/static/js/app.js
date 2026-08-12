@@ -169,7 +169,6 @@ function showAppUI() {
     loadDashboardStats();
     loadSalesList();
     loadInbox();
-    loadTemplates();
     loadSettings();
     loadInvoicesList();
     loadSubscriptions();
@@ -302,7 +301,6 @@ function switchTab(tabId) {
         'subscriptions-tab': ['Abonelikler', 'Aylık faturalanan hizmetlerde kayıp müşteri takibi'],
         'invoices-tab': ['Faturalar', 'Vadesi yaklaşan ve geçmiş ödenmemiş faturalar'],
         'inbox-tab': ['Gönderim Geçmişi', 'Sistemin gönderdiği hatırlatma ve test e-postaları'],
-        'templates-tab': ['Şablonlar', 'Hatırlatma e-postalarının içeriğini düzenleyin'],
         'settings-tab': ['Ayarlar', 'E-posta gönderimi, hesap ve Logo ERP yapılandırması']
     };
 
@@ -434,7 +432,7 @@ function initFormEvents() {
     });
 
     document.getElementById('sales-search-input').addEventListener('input', filterSalesTable);
-    document.getElementById('sales-status-filter').addEventListener('change', filterSalesTable);
+    initLicenseStatusTabs();
 
     document.getElementById('btn-clear-inbox').addEventListener('click', async () => {
         if (!confirm('Gönderim geçmişini temizlemek istediğinizden emin misiniz?')) return;
@@ -442,26 +440,6 @@ function initFormEvents() {
         loadInbox();
         loadDashboardStats();
         showToast('Gönderim geçmişi temizlendi.');
-    });
-
-    document.getElementById('template-edit-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const key = document.getElementById('edit-template-key').value;
-        const payload = {
-            subject: document.getElementById('edit-template-subject').value,
-            body_html: document.getElementById('edit-template-body').value
-        };
-
-        const res = await authFetch(`/api/templates/${key}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message);
-            loadTemplates();
-        }
     });
 
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
@@ -635,7 +613,8 @@ async function loadSalesList() {
         const res = await authFetch('/api/sales');
         cachedSales = await res.json();
         renderDashboardTable(cachedSales.slice(0, 5));
-        renderFullSalesTable(cachedSales);
+        durumSayilariniGuncelle();
+        filterSalesTable();
     } catch (e) {}
 }
 
@@ -679,67 +658,146 @@ function renderDashboardTable(sales) {
     `).join('');
 }
 
-function renderFullSalesTable(sales) {
-    const tbody = document.querySelector('#full-sales-table tbody');
+let aktifDurum = 'PENDING';
+
+function initLicenseStatusTabs() {
+    document.querySelectorAll('#license-status-tabs .status-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#license-status-tabs .status-tab')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            aktifDurum = btn.dataset.status;
+            filterSalesTable();
+        });
+    });
+}
+
+// PENDING sekmesi hatirlatmasi gonderilmis olanlari da kapsar: hepsi hala
+// "yenilenmeyi bekliyor" durumunda, sadece bildirim asamasi farkli.
+const DURUM_GRUPLARI = {
+    PENDING: ['PENDING', 'FIRST_REMINDER_SENT', 'FINAL_REMINDER_SENT'],
+    NEEDS_DURATION: ['NEEDS_DURATION'],
+    EXPIRED: ['EXPIRED'],
+};
+
+function durumSayilariniGuncelle() {
+    const say = (durumlar) => cachedSales.filter(s => durumlar.includes(s.status)).length;
+    document.getElementById('count-PENDING').innerText = say(DURUM_GRUPLARI.PENDING);
+    document.getElementById('count-NEEDS_DURATION').innerText = say(DURUM_GRUPLARI.NEEDS_DURATION);
+    document.getElementById('count-EXPIRED').innerText = say(DURUM_GRUPLARI.EXPIRED);
+    document.getElementById('count-ALL').innerText = cachedSales.length;
+}
+
+function renderLicenseGroups(sales) {
+    const kap = document.getElementById('license-groups');
+    if (!kap) return;
+
     if (sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-muted">Kayıtlı lisans bulunamadı.</td></tr>';
+        kap.innerHTML = '<div class="card glass-card"><div class="card-body text-center text-muted">' +
+                        'Bu başlıkta kayıt yok.</div></div>';
         return;
     }
 
-    tbody.innerHTML = sales.map(s => `
-        <tr>
-            <td>#${s.id}</td>
-            <td>
-                <strong>${s.product_name}</strong>
-                ${s.license_key ? `<br><code class="text-muted" style="font-size:11px;">${s.license_key}</code>` : ''}
-            </td>
-            <td>
-                <button class="client-link" data-client="${s.client_name}" title="Bu müşteriye ait tüm ürünleri gör">${s.client_name}</button><br>
-                <small class="text-muted">${s.client_email}</small>
-            </td>
-            <td>${s.sales_rep || '-'}</td>
-            <td>${s.status === 'NEEDS_DURATION'
-                    ? '<span class="text-muted">bilinmiyor</span>'
-                    : `${s.duration_months} Ay (${(s.duration_months / 12).toFixed(1)} Yıl)`}</td>
-            <td>${s.status === 'NEEDS_DURATION'
-                    ? '<span class="text-muted">—</span>'
-                    : `<strong>${s.expiration_date}</strong>`}</td>
-            <td>${s.status === 'NEEDS_DURATION'
-                    ? '<span class="text-muted">—</span>'
-                    : `<strong class="${s.days_left <= 30 ? (s.days_left <= 7 ? 'text-danger' : 'text-warning') : 'text-success'}">${s.days_left} Gün</strong>`}</td>
-            <td>${renderReminderType(s.reminder_type)}</td>
-            <td>${renderStatusPill(s.status)}</td>
-            <td>
-                <div class="flex-gap-2">
-                    ${s.status === 'NEEDS_DURATION' ? `
-                    <button class="btn btn-sm btn-outline-primary" onclick="setDuration(${s.id})" title="Lisans süresini gir">
-                        <i class="fa-solid fa-calendar-plus"></i>
-                    </button>` : `
-                    <button class="btn btn-sm btn-outline-primary" onclick="sendTestEmail(${s.id})" title="Hatırlatma e-postası gönder">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>`}
-                    <button class="btn btn-sm btn-danger-outline" onclick="deleteSale(${s.id})" title="Sil">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+    // Ayni musteriye satilanlar tek kart altinda toplanir.
+    const gruplar = new Map();
+    sales.forEach(s => {
+        if (!gruplar.has(s.client_name)) gruplar.set(s.client_name, []);
+        gruplar.get(s.client_name).push(s);
+    });
+
+    // En acil musteri en ustte: gruptaki en az kalan gune gore siralanir.
+    const sirali = [...gruplar.entries()].sort((a, b) => {
+        const enAz = (liste) => Math.min(...liste.map(x => x.days_left));
+        return enAz(a[1]) - enAz(b[1]);
+    });
+
+    kap.innerHTML = sirali.map(([musteri, urunler]) => {
+        const enAzGun = Math.min(...urunler.map(u => u.days_left));
+        const mail = urunler.find(u => u.client_email)?.client_email || '';
+        const temsilci = urunler.find(u => u.sales_rep)?.sales_rep || '';
+
+        const satirlar = urunler.map(u => `
+            <tr>
+                <td>
+                    <strong>${u.product_name}</strong>
+                    ${u.license_key ? `<br><code class="text-muted" style="font-size:11px;">${u.license_key}</code>` : ''}
+                </td>
+                <td>${u.sale_date}</td>
+                <td>${u.duration_months ? u.duration_months + ' Ay' : '-'}</td>
+                <td><strong>${u.expiration_date}</strong></td>
+                <td><strong class="${gunRengi(u.days_left)}">${u.days_left} Gün</strong></td>
+                <td>${renderStatusPill(u.status)}</td>
+                <td>
+                    <div class="flex-gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="sendTestEmail(${u.id})" title="Hatırlatma gönder">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger-outline" onclick="deleteSale(${u.id})" title="Sil">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+        <div class="card glass-card musteri-grup">
+            <div class="card-header musteri-grup-bas">
+                <div>
+                    <h3><i class="fa-solid fa-building"></i> ${musteri}</h3>
+                    <p class="text-muted">
+                        ${urunler.length} ürün
+                        ${temsilci ? ' · Satış temsilcisi: ' + temsilci : ''}
+                        ${mail ? ' · ' + mail : ''}
+                    </p>
                 </div>
-            </td>
-        </tr>
-    `).join('');
+                <span class="musteri-grup-rozet ${gunRengi(enAzGun)}">
+                    ${enAzGun < 0 ? Math.abs(enAzGun) + ' gün geçti' : 'En yakın: ' + enAzGun + ' gün'}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Ürün / Lisans</th>
+                                <th>Satış Tarihi</th>
+                                <th>Süre</th>
+                                <th>Bitiş Tarihi</th>
+                                <th>Kalan Gün</th>
+                                <th>Durum</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>${satirlar}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function gunRengi(gun) {
+    if (gun < 0) return 'text-danger';
+    if (gun <= 7) return 'text-danger';
+    if (gun <= 30) return 'text-warning';
+    return 'text-success';
 }
 
 function filterSalesTable() {
-    const query = document.getElementById('sales-search-input').value.toLowerCase();
-    const status = document.getElementById('sales-status-filter').value;
+    const query = (document.getElementById('sales-search-input')?.value || '').toLowerCase();
+    const durumlar = DURUM_GRUPLARI[aktifDurum];
 
     const filtered = cachedSales.filter(s => {
-        const matchesQuery = s.product_name.toLowerCase().includes(query) ||
-                             s.client_name.toLowerCase().includes(query) ||
-                             (s.license_key && s.license_key.toLowerCase().includes(query));
-        const matchesStatus = (status === 'ALL') || (s.status === status);
-        return matchesQuery && matchesStatus;
+        const aramaUydu = !query ||
+            s.product_name.toLowerCase().includes(query) ||
+            s.client_name.toLowerCase().includes(query) ||
+            (s.license_key && s.license_key.toLowerCase().includes(query));
+        const durumUydu = !durumlar || durumlar.includes(s.status);
+        return aramaUydu && durumUydu;
     });
 
-    renderFullSalesTable(filtered);
+    renderLicenseGroups(filtered);
 }
 
 async function sendTestEmail(saleId) {
@@ -852,53 +910,6 @@ function previewInboxMessage(emailId) {
             ${targetEmail.body_html}
         </div>
     `;
-}
-
-async function loadTemplates() {
-    try {
-        const res = await authFetch('/api/templates');
-        const templates = await res.json();
-
-        const container = document.getElementById('templates-list-container');
-        container.innerHTML = templates.map((t, idx) => `
-            <div class="template-item ${idx === 0 ? 'active' : ''}" data-key="${t.template_key}" onclick="loadTemplateToEditor('${t.template_key}')">
-                <h4><i class="fa-solid fa-file-code"></i> ${t.title}</h4>
-                <p class="template-item-subject">Konu: ${t.subject}</p>
-            </div>
-        `).join('');
-
-        window.cachedTemplates = templates;
-        if (templates.length > 0) {
-            loadTemplateToEditor(templates[0].template_key);
-        }
-    } catch (e) {}
-}
-
-function loadTemplateToEditor(key) {
-    document.querySelectorAll('.template-item').forEach(el => {
-        if (el.getAttribute('data-key') === key) {
-            el.classList.add('active');
-        } else {
-            el.classList.remove('active');
-        }
-    });
-
-    const tmpl = window.cachedTemplates.find(t => t.template_key === key);
-    if (!tmpl) return;
-
-    document.getElementById('edit-template-key').value = tmpl.template_key;
-    document.getElementById('edit-template-subject').value = tmpl.subject;
-    document.getElementById('edit-template-body').value = tmpl.body_html;
-    document.getElementById('editor-title').innerText = `Düzenlenen: ${tmpl.title}`;
-}
-
-function insertTag(tag) {
-    const textarea = document.getElementById('edit-template-body');
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    textarea.value = text.substring(0, start) + tag + text.substring(end);
-    textarea.focus();
 }
 
 async function loadSettings() {

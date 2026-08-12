@@ -4,27 +4,117 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from database import get_db_connection
 
-def render_template(template_html, subject_template, sale_data):
-    sale_date = datetime.strptime(sale_data['sale_date'], '%Y-%m-%d')
-    exp_date = datetime.strptime(sale_data['expiration_date'], '%Y-%m-%d')
-    days_left = (exp_date - datetime.now()).days
+MARKA = '#f2691f'
+METIN = '#1a1a1c'
+SOLUK = '#55555e'
+CIZGI = '#e6e6e9'
 
-    placeholders = {
-        '{musteri_adi}': sale_data.get('client_name') or 'Değerli Müşterimiz',
-        '{urun_adi}': sale_data.get('product_name') or 'Lisanslı Ürün',
-        '{lisans_anahtari}': sale_data.get('license_key') or 'Belirtilmedi',
-        '{bitis_tarihi}': sale_data.get('expiration_date') or '',
-        '{kalan_gun}': str(max(0, days_left)),
-        '{satis_temsilcisi}': sale_data.get('sales_rep') or 'Müşteri Temsilcisi',
-        '{satis_tarihi}': sale_data.get('sale_date') or ''
-    }
+# Ürün adından tür çıkarımı — mailde doğal bir cümle kurmak için.
+URUN_TURLERI = [
+    (('WATCHGUARD', 'WATCGUARD', 'FORTIGATE', 'FORTINET', 'SOPHOS'),
+     'güvenlik duvarı lisansı'),
+    (('EPDR', 'ENDPOINT', 'ESET', 'KASPERSKY', 'ANTIVIR'),
+     'uç nokta güvenlik lisansı'),
+    (('VEEAM', 'BACKUP', 'YEDEK'),
+     'yedekleme lisansı'),
+    (('5651', 'PLOG', 'SIGNLOGGER', 'CRYPTTECH', 'LOGLAMA'),
+     '5651 loglama lisansı'),
+    (('AUTHPOINT', 'MFA', 'AUTHENTIC'),
+     'çok faktörlü kimlik doğrulama lisansı'),
+    (('MICROSOFT', 'AZURE', 'CSP', 'M365', '365'),
+     'Microsoft aboneliği'),
+]
 
-    body = template_html
-    subject = subject_template
 
-    for key, val in placeholders.items():
-        body = body.replace(key, val)
-        subject = subject.replace(key, val)
+def urun_turu(urun_adi):
+    m = (urun_adi or '').upper()
+    for kelimeler, tur in URUN_TURLERI:
+        if any(k in m for k in kelimeler):
+            return tur
+    return 'lisansı'
+
+
+def _gun_ifadesi(kalan_gun):
+    """Kalan güne göre hem aciliyet rengi hem insan diliyle süre ifadesi."""
+    if kalan_gun < 0:
+        return f'{abs(kalan_gun)} gün önce doldu', '#b3261e', 'GECİKMİŞ'
+    if kalan_gun == 0:
+        return 'bugün doluyor', '#b3261e', 'BUGÜN'
+    if kalan_gun == 1:
+        return 'yarın doluyor', '#b3261e', 'ACİL'
+    if kalan_gun <= 7:
+        return f'{kalan_gun} gün sonra doluyor', '#a45c00', 'ACİL'
+    return f'{kalan_gun} gün sonra doluyor', MARKA, 'HATIRLATMA'
+
+
+def lisans_maili(sale_data):
+    """Satış ekibine gidecek yenileme hatırlatmasını üretir.
+
+    Şablon veritabanında tutulmuyor; metin müşteri ve ürün bilgisine göre
+    burada kuruluyor, böylece her ürün için doğru dilde cümle çıkıyor.
+    """
+    musteri = sale_data.get('client_name') or 'Müşteri'
+    urun = sale_data.get('product_name') or 'Lisanslı ürün'
+    bitis = sale_data.get('expiration_date') or ''
+    temsilci = (sale_data.get('sales_rep') or '').strip()
+    anahtar = (sale_data.get('license_key') or '').strip()
+
+    try:
+        kalan = (datetime.strptime(bitis, '%Y-%m-%d') - datetime.now()).days
+    except ValueError:
+        kalan = 0
+
+    sure_ifadesi, renk, etiket = _gun_ifadesi(kalan)
+    tur = urun_turu(urun)
+
+    subject = f'[{etiket}] {musteri} — {tur} {sure_ifadesi}'
+
+    satirlar = [('Müşteri', musteri), ('Ürün', urun), ('Bitiş tarihi', bitis)]
+    if anahtar:
+        satirlar.append(('Lisans anahtarı', anahtar))
+    if temsilci:
+        satirlar.append(('Satış temsilcisi', temsilci))
+
+    detay = ''.join(
+        f'<tr>'
+        f'<td style="padding:7px 0;color:{SOLUK};font-size:13px;width:140px;'
+        f'vertical-align:top">{etiket_}</td>'
+        f'<td style="padding:7px 0;color:{METIN};font-size:14px;font-weight:600">'
+        f'{deger}</td></tr>'
+        for etiket_, deger in satirlar
+    )
+
+    if kalan < 0:
+        eylem = ('Lisans süresi dolmuş durumda. Müşteri hâlâ kullanıyorsa koruma '
+                 'devre dışı kalmış olabilir — yenileme için bir an önce iletişime geçin.')
+    elif kalan <= 7:
+        eylem = ('Yenileme teklifinin bu hafta içinde iletilmesi gerekiyor, '
+                 'aksi halde müşteri korumasız kalacak.')
+    else:
+        eylem = 'Yenileme teklifi hazırlamak için uygun zaman.'
+
+    body = f'''<div style="font-family:'Segoe UI',system-ui,sans-serif;max-width:560px;
+     margin:0 auto;color:{METIN};line-height:1.55">
+  <div style="border:1px solid {CIZGI};border-radius:12px;overflow:hidden">
+    <div style="background:{renk};padding:14px 22px">
+      <span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em">
+        {etiket}
+      </span>
+    </div>
+    <div style="padding:22px">
+      <p style="margin:0 0 18px;font-size:15px">
+        <strong>{musteri}</strong> firmasına satılan {tur}
+        <strong style="color:{renk}">{sure_ifadesi}</strong>.
+      </p>
+      <table style="width:100%;border-collapse:collapse;border-top:1px solid {CIZGI};
+             border-bottom:1px solid {CIZGI}">{detay}</table>
+      <p style="margin:18px 0 0;font-size:14px;color:{SOLUK}">{eylem}</p>
+    </div>
+  </div>
+  <p style="margin:14px 0 0;font-size:11px;color:#8b8b95;text-align:center">
+    Piramit Lisans Takip — otomatik hatırlatma
+  </p>
+</div>'''
 
     return subject, body
 
@@ -120,15 +210,7 @@ def send_reminder_email(sale_data, reminder_stage):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    template_key = 'FINAL_REMINDER' if reminder_stage == 'FINAL_REMINDER' else 'FIRST_REMINDER'
-    cursor.execute('SELECT subject, body_html FROM email_templates WHERE template_key = ?', (template_key,))
-    template = cursor.fetchone()
-
-    if not template:
-        conn.close()
-        return False, "E-posta şablonu bulunamadı."
-
-    subject, body_html = render_template(template['body_html'], template['subject'], sale_data)
+    subject, body_html = lisans_maili(sale_data)
     settings = get_settings()
     recipients = get_internal_recipients(settings)
 
@@ -150,46 +232,71 @@ def send_reminder_email(sale_data, reminder_stage):
     conn.close()
     return True, "Hatırlatma e-postası gönderildi."
 
-def render_invoice_template(template_html, subject_template, invoice_data):
-    due_date = datetime.strptime(invoice_data['due_date'], '%Y-%m-%d')
-    days_left = (due_date - datetime.now()).days
+def fatura_maili(invoice_data):
+    """Ödenmemiş fatura hatırlatması — muhasebe ekibine."""
+    musteri = invoice_data.get('client_name') or 'Müşteri'
+    fatura_no = invoice_data.get('invoice_no') or '-'
+    tutar = f"{invoice_data.get('amount', 0):,.2f}".replace(',', '.')
+    birim = invoice_data.get('currency') or 'TRY'
+    vade = invoice_data.get('due_date') or ''
 
-    placeholders = {
-        '{musteri_adi}': invoice_data.get('client_name') or 'Değerli Müşterimiz',
-        '{fatura_no}': invoice_data.get('invoice_no') or 'Belirtilmedi',
-        '{tutar}': f"{invoice_data.get('amount', 0):,.2f}".replace(',', '.'),
-        '{para_birimi}': invoice_data.get('currency') or 'TRY',
-        '{vade_tarihi}': invoice_data.get('due_date') or '',
-        '{kalan_gun}': str(max(0, days_left)),
-    }
+    try:
+        kalan = (datetime.strptime(vade, '%Y-%m-%d') - datetime.now()).days
+    except ValueError:
+        kalan = 0
 
-    body = template_html
-    subject = subject_template
-    for key, val in placeholders.items():
-        body = body.replace(key, val)
-        subject = subject.replace(key, val)
+    sure_ifadesi, renk, etiket = _gun_ifadesi(kalan)
+    subject = f'[{etiket}] {musteri} — {tutar} {birim} tutarındaki fatura {sure_ifadesi}'
+
+    satirlar = [
+        ('Müşteri', musteri),
+        ('Fatura no', fatura_no),
+        ('Tutar', f'{tutar} {birim}'),
+        ('Vade tarihi', vade),
+    ]
+    detay = ''.join(
+        f'<tr>'
+        f'<td style="padding:7px 0;color:{SOLUK};font-size:13px;width:140px;'
+        f'vertical-align:top">{ad}</td>'
+        f'<td style="padding:7px 0;color:{METIN};font-size:14px;font-weight:600">'
+        f'{deger}</td></tr>'
+        for ad, deger in satirlar
+    )
+
+    eylem = ('Vade geçmiş, tahsilat takibi gerekiyor.' if kalan < 0
+             else 'Ödeme yaklaşıyor, takip listesine alın.')
+
+    body = f'''<div style="font-family:'Segoe UI',system-ui,sans-serif;max-width:560px;
+     margin:0 auto;color:{METIN};line-height:1.55">
+  <div style="border:1px solid {CIZGI};border-radius:12px;overflow:hidden">
+    <div style="background:{renk};padding:14px 22px">
+      <span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em">
+        {etiket}
+      </span>
+    </div>
+    <div style="padding:22px">
+      <p style="margin:0 0 18px;font-size:15px">
+        <strong>{musteri}</strong> firmasına kesilen faturanın ödemesi
+        <strong style="color:{renk}">{sure_ifadesi}</strong>.
+      </p>
+      <table style="width:100%;border-collapse:collapse;border-top:1px solid {CIZGI};
+             border-bottom:1px solid {CIZGI}">{detay}</table>
+      <p style="margin:18px 0 0;font-size:14px;color:{SOLUK}">{eylem}</p>
+    </div>
+  </div>
+  <p style="margin:14px 0 0;font-size:11px;color:#8b8b95;text-align:center">
+    Piramit Lisans Takip — otomatik hatırlatma
+  </p>
+</div>'''
 
     return subject, body
 
-INVOICE_STAGE_TEMPLATE_KEYS = {
-    'WEEK': 'INVOICE_WEEK_REMINDER',
-    'DAY': 'INVOICE_DAY_REMINDER',
-    'OVERDUE': 'INVOICE_OVERDUE',
-}
 
 def send_invoice_reminder(invoice_data, stage):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    template_key = INVOICE_STAGE_TEMPLATE_KEYS.get(stage, 'INVOICE_WEEK_REMINDER')
-    cursor.execute('SELECT subject, body_html FROM email_templates WHERE template_key = ?', (template_key,))
-    template = cursor.fetchone()
-
-    if not template:
-        conn.close()
-        return False, "E-posta şablonu bulunamadı."
-
-    subject, body_html = render_invoice_template(template['body_html'], template['subject'], invoice_data)
+    subject, body_html = fatura_maili(invoice_data)
     settings = get_settings()
     recipients = get_internal_recipients(settings)
 
