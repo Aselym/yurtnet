@@ -96,10 +96,39 @@ def init_db():
         )
     ''')
 
+    # Microsoft CSP / Azure gibi aylik faturalanan abonelikler. Bunlarin
+    # "suresi dolmuyor"; takip mantigi farkli: fatura kesilmeyi birakmissa
+    # musteri abonelikten cikmis olabilir.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_name TEXT NOT NULL,
+            client_email TEXT,
+            product_name TEXT NOT NULL,
+            first_invoice_date TEXT NOT NULL,
+            last_invoice_date TEXT NOT NULL,
+            invoice_count INTEGER NOT NULL DEFAULT 1,
+            avg_interval_days REAL,
+            days_since_last INTEGER,
+            status TEXT NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE','AT_RISK','LOST'
+            source TEXT DEFAULT 'LOGO',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (client_name, product_name)
+        )
+    ''')
+
     cursor.execute("PRAGMA table_info(sent_emails)")
     existing_cols = {row[1] for row in cursor.fetchall()}
     if 'invoice_id' not in existing_cols:
         cursor.execute('ALTER TABLE sent_emails ADD COLUMN invoice_id INTEGER')
+
+    # Logo'dan gelen kayitlari tekilleştirmek icin: fatura no + urun
+    cursor.execute("PRAGMA table_info(sales)")
+    sales_cols = {row[1] for row in cursor.fetchall()}
+    if 'logo_ref' not in sales_cols:
+        cursor.execute('ALTER TABLE sales ADD COLUMN logo_ref TEXT')
+    if 'source' not in sales_cols:
+        cursor.execute("ALTER TABLE sales ADD COLUMN source TEXT DEFAULT 'MANUAL'")
 
     default_templates = [
             (
@@ -213,7 +242,6 @@ def init_db():
 
     default_admin_salt, default_admin_hash = hash_password('Aa123456')
     default_settings = [
-        ('mode', 'MOCK'), # 'MOCK' or 'SMTP'
         ('smtp_host', 'smtp.office365.com'),
         ('smtp_port', '587'),
         ('smtp_user', 'lisans@sirketiniz.com'),

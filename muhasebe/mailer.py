@@ -42,6 +42,80 @@ def get_internal_recipients(settings=None):
     raw = settings.get('internal_recipients', '') or ''
     return [e.strip() for e in raw.split(',') if e.strip()]
 
+def smtp_gonder(settings, recipients, subject, body_html):
+    """Tek bir SMTP gönderimi yapar. (başarılı_mı, mesaj) döner."""
+    smtp_host = (settings.get('smtp_host') or '').strip()
+    if not smtp_host:
+        return False, "SMTP sunucu adresi girilmemiş. Ayarlar sekmesinden doldurun."
+
+    try:
+        smtp_port = int(settings.get('smtp_port') or 587)
+        smtp_user = settings.get('smtp_user', '')
+        smtp_password = settings.get('smtp_password', '')
+        sender_email = settings.get('sender_email') or smtp_user
+        sender_name = settings.get('sender_name') or 'Piramit Lisans Takip'
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{sender_name} <{sender_email}>"
+        msg['To'] = ', '.join(recipients)
+        msg.attach(MIMEText(body_html, 'html', 'utf-8'))
+
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
+        server.starttls()
+        if smtp_user and smtp_password:
+            server.login(smtp_user, smtp_password)
+        server.sendmail(sender_email, recipients, msg.as_string())
+        server.quit()
+        return True, "E-posta gönderildi."
+
+    except Exception as e:
+        return False, f"SMTP hatası: {e}"
+
+def _gonderim_kaydet(cursor, subject, body_html, recipients, recipient_name,
+                     stage, sale_id=None, invoice_id=None):
+    cursor.execute('''
+        INSERT INTO sent_emails (sale_id, invoice_id, recipient_email, recipient_name,
+                                 subject, body_html, reminder_stage, delivery_mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'SMTP')
+    ''', (sale_id, invoice_id, ', '.join(recipients), recipient_name, subject, body_html, stage))
+
+def send_test_email(recipients=None):
+    """Ayarların doğruluğunu kontrol etmek için örnek bir hatırlatma gönderir."""
+    settings = get_settings()
+    alicilar = recipients or get_internal_recipients(settings)
+    if not alicilar:
+        return False, "Alıcı yok. Önce iç bildirim adreslerini girin."
+
+    zaman = datetime.now().strftime('%d.%m.%Y %H:%M')
+    subject = "Test: Piramit Lisans Takip e-posta ayarları çalışıyor"
+    body_html = f'''<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;
+     border:1px solid #e6e6e9;border-radius:12px;padding:24px;color:#1a1a1c">
+  <h2 style="margin:0 0 6px;color:#f2691f;font-size:19px">Test e-postası</h2>
+  <p style="margin:0 0 16px;color:#55555e;font-size:14px">
+    Bu mesajı görüyorsanız SMTP ayarlarınız doğru çalışıyor. Lisans yenileme ve
+    ödenmemiş fatura hatırlatmaları bu adrese ulaşacak.
+  </p>
+  <div style="background:#fafafa;border-left:3px solid #f2691f;padding:12px 14px;
+       border-radius:6px;font-size:13px;color:#55555e">
+    Gönderim zamanı: <strong style="color:#1a1a1c">{zaman}</strong><br>
+    Sunucu: <strong style="color:#1a1a1c">{settings.get('smtp_host', '-')}</strong>
+  </div>
+  <p style="margin:16px 0 0;font-size:12px;color:#8b8b95">
+    Piramit Lisans Takip — otomatik test mesajı
+  </p>
+</div>'''
+
+    basarili, mesaj = smtp_gonder(settings, alicilar, subject, body_html)
+    if basarili:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        _gonderim_kaydet(cursor, subject, body_html, alicilar, 'Test alıcısı', 'TEST')
+        conn.commit()
+        conn.close()
+        return True, f"Test e-postası gönderildi: {', '.join(alicilar)}"
+    return False, mesaj
+
 def send_reminder_email(sale_data, reminder_stage):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -56,79 +130,25 @@ def send_reminder_email(sale_data, reminder_stage):
 
     subject, body_html = render_template(template['body_html'], template['subject'], sale_data)
     settings = get_settings()
-
-    mode = settings.get('mode', 'MOCK').upper()
     recipients = get_internal_recipients(settings)
-    recipient_email = ', '.join(recipients)
-    recipient_name = f"Muhasebe & Satış Ekibi (İlgili müşteri: {sale_data.get('client_name', '')})"
 
     if not recipients:
         conn.close()
         return False, "İç bildirim alıcı listesi boş. Ayarlar sekmesinden muhasebe/satış e-postalarını ekleyin."
 
-    if mode == 'MOCK':
-        cursor.execute('''
-            INSERT INTO sent_emails (sale_id, recipient_email, recipient_name, subject, body_html, reminder_stage, delivery_mode)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            sale_data.get('id'),
-            recipient_email,
-            recipient_name,
-            subject,
-            body_html,
-            reminder_stage,
-            'MOCK'
-        ))
-        conn.commit()
+    basarili, mesaj = smtp_gonder(settings, recipients, subject, body_html)
+    if not basarili:
         conn.close()
-        return True, "E-posta sanal gelen kutusuna kaydedildi (Mock Modu)."
+        return False, mesaj
 
-    elif mode == 'SMTP':
-        try:
-            smtp_host = settings.get('smtp_host', '')
-            smtp_port = int(settings.get('smtp_port', 587))
-            smtp_user = settings.get('smtp_user', '')
-            smtp_password = settings.get('smtp_password', '')
-            sender_email = settings.get('sender_email', smtp_user)
-            sender_name = settings.get('sender_name', 'Lisans Hatırlatma Servisi')
-
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = f"{sender_name} <{sender_email}>"
-            msg['To'] = recipient_email
-
-            msg.attach(MIMEText(body_html, 'html', 'utf-8'))
-
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
-            server.starttls()
-            if smtp_user and smtp_password:
-                server.login(smtp_user, smtp_password)
-
-            server.sendmail(sender_email, recipients, msg.as_string())
-            server.quit()
-
-            cursor.execute('''
-                INSERT INTO sent_emails (sale_id, recipient_email, recipient_name, subject, body_html, reminder_stage, delivery_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                sale_data.get('id'),
-                recipient_email,
-                recipient_name,
-                subject,
-                body_html,
-                reminder_stage,
-                'SMTP'
-            ))
-            conn.commit()
-            conn.close()
-            return True, "E-posta SMTP sunucusu aracılığıyla başarıyla gönderildi."
-
-        except Exception as e:
-            conn.close()
-            return False, f"SMTP Gönderim Hatası: {str(e)}"
-
+    _gonderim_kaydet(
+        cursor, subject, body_html, recipients,
+        f"Muhasebe & Satış Ekibi (İlgili müşteri: {sale_data.get('client_name', '')})",
+        reminder_stage, sale_id=sale_data.get('id'),
+    )
+    conn.commit()
     conn.close()
-    return False, "Geçersiz e-posta modu."
+    return True, "Hatırlatma e-postası gönderildi."
 
 def render_invoice_template(template_html, subject_template, invoice_data):
     due_date = datetime.strptime(invoice_data['due_date'], '%Y-%m-%d')
@@ -171,75 +191,22 @@ def send_invoice_reminder(invoice_data, stage):
 
     subject, body_html = render_invoice_template(template['body_html'], template['subject'], invoice_data)
     settings = get_settings()
-
-    mode = settings.get('mode', 'MOCK').upper()
     recipients = get_internal_recipients(settings)
-    recipient_email = ', '.join(recipients)
-    recipient_name = f"Muhasebe & Satış Ekibi (İlgili müşteri: {invoice_data.get('client_name', '')})"
 
     if not recipients:
         conn.close()
         return False, "İç bildirim alıcı listesi boş. Ayarlar sekmesinden muhasebe/satış e-postalarını ekleyin."
 
-    if mode == 'MOCK':
-        cursor.execute('''
-            INSERT INTO sent_emails (invoice_id, recipient_email, recipient_name, subject, body_html, reminder_stage, delivery_mode)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            invoice_data.get('id'),
-            recipient_email,
-            recipient_name,
-            subject,
-            body_html,
-            f'INVOICE_{stage}',
-            'MOCK'
-        ))
-        conn.commit()
+    basarili, mesaj = smtp_gonder(settings, recipients, subject, body_html)
+    if not basarili:
         conn.close()
-        return True, "E-posta sanal gelen kutusuna kaydedildi (Mock Modu)."
+        return False, mesaj
 
-    elif mode == 'SMTP':
-        try:
-            smtp_host = settings.get('smtp_host', '')
-            smtp_port = int(settings.get('smtp_port', 587))
-            smtp_user = settings.get('smtp_user', '')
-            smtp_password = settings.get('smtp_password', '')
-            sender_email = settings.get('sender_email', smtp_user)
-            sender_name = settings.get('sender_name', 'Fatura Hatırlatma Servisi')
-
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = f"{sender_name} <{sender_email}>"
-            msg['To'] = recipient_email
-            msg.attach(MIMEText(body_html, 'html', 'utf-8'))
-
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
-            server.starttls()
-            if smtp_user and smtp_password:
-                server.login(smtp_user, smtp_password)
-
-            server.sendmail(sender_email, recipients, msg.as_string())
-            server.quit()
-
-            cursor.execute('''
-                INSERT INTO sent_emails (invoice_id, recipient_email, recipient_name, subject, body_html, reminder_stage, delivery_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                invoice_data.get('id'),
-                recipient_email,
-                recipient_name,
-                subject,
-                body_html,
-                f'INVOICE_{stage}',
-                'SMTP'
-            ))
-            conn.commit()
-            conn.close()
-            return True, "E-posta SMTP sunucusu aracılığıyla başarıyla gönderildi."
-
-        except Exception as e:
-            conn.close()
-            return False, f"SMTP Gönderim Hatası: {str(e)}"
-
+    _gonderim_kaydet(
+        cursor, subject, body_html, recipients,
+        f"Muhasebe & Satış Ekibi (İlgili müşteri: {invoice_data.get('client_name', '')})",
+        f'INVOICE_{stage}', invoice_id=invoice_data.get('id'),
+    )
+    conn.commit()
     conn.close()
-    return False, "Geçersiz e-posta modu."
+    return True, "Fatura hatırlatması gönderildi."

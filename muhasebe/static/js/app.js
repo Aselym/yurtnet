@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     initAuth();
     initNavigation();
     initModalEvents();
@@ -10,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSalesList();
             loadInbox();
             loadInvoicesList();
+            loadSubscriptions();
             loadNotifications();
         }
     }, 30000);
@@ -18,6 +20,30 @@ document.addEventListener('DOMContentLoaded', () => {
 let isLoggedIn = false;
 let lastToastMsg = '';
 let lastToastTime = 0;
+
+function initTheme() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+
+    const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
+    const paintIcon = () => {
+        btn.innerHTML = `<i class="fa-solid fa-${isDark() ? 'sun' : 'moon'}"></i>`;
+        btn.title = isDark() ? 'Açık temaya geç' : 'Koyu temaya geç';
+    };
+
+    paintIcon();
+    btn.addEventListener('click', () => {
+        if (isDark()) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('piramit.tema', 'acik');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('piramit.tema', 'koyu');
+        }
+        paintIcon();
+    });
+}
 
 async function initAuth() {
     const loginForm = document.getElementById('login-form');
@@ -121,7 +147,7 @@ async function handleLogout() {
     } catch(err) {
         console.error('Logout error:', err);
     } finally {
-        localStorage.clear();
+        localStorage.removeItem('isLoggedIn');
         sessionStorage.clear();
 
         document.cookie.split(";").forEach(function(c) { 
@@ -146,12 +172,13 @@ function showAppUI() {
     loadTemplates();
     loadSettings();
     loadInvoicesList();
+    loadSubscriptions();
     loadNotifications();
 }
 
 function showLoginUI() {
     isLoggedIn = false;
-    localStorage.clear();
+    localStorage.removeItem('isLoggedIn');
     sessionStorage.clear();
     document.cookie.split(";").forEach(function(c) { 
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
@@ -205,6 +232,36 @@ function showToast(message, type = 'success') {
     }, 4000);
 }
 
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('.client-link');
+    if (link) showCustomerDetail(link.dataset.client);
+});
+
+function showCustomerDetail(clientName) {
+    const urunler = cachedSales.filter(s => s.client_name === clientName);
+    document.getElementById('customer-detail-name').innerText = clientName;
+
+    const list = document.getElementById('customer-products-list');
+    if (urunler.length === 0) {
+        list.innerHTML = '<p class="text-muted p-4 text-center">Bu müşteriye ait ürün bulunamadı.</p>';
+    } else {
+        list.innerHTML = urunler.map(s => `
+            <div class="customer-product-row">
+                <div>
+                    <strong>${s.product_name}</strong>
+                    ${s.license_key ? `<br><code class="text-muted" style="font-size:11px;">${s.license_key}</code>` : ''}
+                </div>
+                <div class="customer-product-meta">
+                    <span class="text-muted">Bitiş: ${s.expiration_date}</span>
+                    ${renderStatusPill(s.status)}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('customer-detail-modal').classList.add('active');
+}
+
 function initNavigation() {
     const links = document.querySelectorAll('.nav-link');
     links.forEach(link => {
@@ -223,6 +280,7 @@ function initNavigation() {
             loadSalesList();
             loadInbox();
             loadInvoicesList();
+            loadSubscriptions();
             loadNotifications();
         } catch (e) {}
     });
@@ -239,12 +297,13 @@ function switchTab(tabId) {
     if (activePage) activePage.classList.add('active');
 
     const titles = {
-        'dashboard-tab': ['Piramit Lisans Takip', 'Lisans durumları ve istatistik özetleri'],
-        'sales-tab': ['Satış & Lisans Takibi', 'Kayıtlı lisanslar, süreler ve hatırlatma zamanlamaları'],
-        'invoices-tab': ['Ödenmemiş Faturalar', 'Vadesi yaklaşan/geçmiş faturalar ve hatırlatma durumları'],
-        'inbox-tab': ['Sanal Gelen Kutusu (Mock Inbox)', 'Gönderilen canlı ve simüle edilmiş hatırlatma e-postaları'],
-        'templates-tab': ['E-posta Şablonları', 'Müşterilere gidecek HTML e-posta metinlerini düzenleyin'],
-        'settings-tab': ['Sistem & SMTP Ayarları', 'E-posta modu ve SMTP sunucu yapılandırması']
+        'dashboard-tab': ['Gösterge Paneli', 'Lisans ve fatura durumlarının genel özeti'],
+        'sales-tab': ['Lisanslar', 'Kayıtlı lisanslar, süreler ve hatırlatma zamanlamaları'],
+        'subscriptions-tab': ['Abonelikler', 'Aylık faturalanan hizmetlerde kayıp müşteri takibi'],
+        'invoices-tab': ['Faturalar', 'Vadesi yaklaşan ve geçmiş ödenmemiş faturalar'],
+        'inbox-tab': ['Gönderim Geçmişi', 'Sistemin gönderdiği hatırlatma ve test e-postaları'],
+        'templates-tab': ['Şablonlar', 'Hatırlatma e-postalarının içeriğini düzenleyin'],
+        'settings-tab': ['Ayarlar', 'E-posta gönderimi, hesap ve Logo ERP yapılandırması']
     };
 
     if (titles[tabId]) {
@@ -299,6 +358,11 @@ function initModalEvents() {
     });
     invoiceModal.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => invoiceModal.classList.remove('active'));
+    });
+
+    const customerModal = document.getElementById('customer-detail-modal');
+    customerModal.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', () => customerModal.classList.remove('active'));
     });
 }
 
@@ -373,11 +437,11 @@ function initFormEvents() {
     document.getElementById('sales-status-filter').addEventListener('change', filterSalesTable);
 
     document.getElementById('btn-clear-inbox').addEventListener('click', async () => {
-        if (!confirm('Sanal gelen kutusunu temizlemek istediğinizden emin misiniz?')) return;
+        if (!confirm('Gönderim geçmişini temizlemek istediğinizden emin misiniz?')) return;
         await authFetch('/api/sent-emails/clear', { method: 'POST' });
         loadInbox();
         loadDashboardStats();
-        showToast('Gelen kutusu temizlendi.');
+        showToast('Gönderim geçmişi temizlendi.');
     });
 
     document.getElementById('template-edit-form').addEventListener('submit', async (e) => {
@@ -402,9 +466,7 @@ function initFormEvents() {
 
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const mode = document.querySelector('input[name="mode"]:checked').value;
         const payload = {
-            mode: mode,
             internal_recipients: document.getElementById('setting-internal-recipients').value,
             smtp_host: document.getElementById('setting-smtp-host').value,
             smtp_port: document.getElementById('setting-smtp-port').value,
@@ -449,6 +511,28 @@ function initFormEvents() {
         }
     });
 
+    document.getElementById('btn-test-email').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-test-email');
+        const eski = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gönderiliyor...';
+        try {
+            const res = await authFetch('/api/test-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipients: document.getElementById('setting-internal-recipients').value })
+            });
+            const data = await res.json();
+            showToast(data.message, data.success ? 'success' : 'error');
+            if (data.success) loadInbox();
+        } catch (e) {
+            showToast('Test e-postası gönderilemedi.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = eski;
+        }
+    });
+
     document.getElementById('btn-test-logo').addEventListener('click', async () => {
         try {
             const res = await authFetch('/api/logo/test-connection', { method: 'POST' });
@@ -464,9 +548,11 @@ function initFormEvents() {
             showToast('Logo fatura senkronizasyonu başlatıldı...', 'success');
             const res = await authFetch('/api/logo/sync', { method: 'POST' });
             const data = await res.json();
-            showToast(data.message, 'success');
+            showToast(data.message, data.success ? 'success' : 'error');
             loadDashboardStats();
             loadSalesList();
+            loadSubscriptions();
+            loadNotifications();
         } catch (e) {
             showToast('Aktarım sırasında hata oluştu.', 'error');
         }
@@ -536,7 +622,9 @@ async function loadDashboardStats() {
         document.getElementById('stat-expiring-soon').innerText = stats.expiring_soon;
         document.getElementById('stat-reminders-sent').innerText = stats.reminders_sent;
         document.getElementById('stat-expired-licenses').innerText = stats.expired_licenses;
-        document.getElementById('inbox-count-badge').innerText = stats.reminders_sent;
+        const inboxBadge = document.getElementById('inbox-count-badge');
+        inboxBadge.innerText = stats.reminders_sent;
+        inboxBadge.style.display = stats.reminders_sent > 0 ? '' : 'none';
     } catch (e) {}
 }
 
@@ -553,6 +641,7 @@ async function loadSalesList() {
 
 function renderStatusPill(status) {
     const map = {
+        'NEEDS_DURATION': '<span class="status-pill needs-duration"><i class="fa-solid fa-circle-question"></i> Süre girilmeli</span>',
         'PENDING': '<span class="status-pill pending"><i class="fa-solid fa-clock"></i> Beklemede</span>',
         'FIRST_REMINDER_SENT': '<span class="status-pill first-sent"><i class="fa-solid fa-envelope"></i> 1 Ay Kala Bildirildi</span>',
         'FINAL_REMINDER_SENT': '<span class="status-pill final-sent"><i class="fa-solid fa-bell"></i> 1 Hafta Kala Bildirildi</span>',
@@ -605,20 +694,30 @@ function renderFullSalesTable(sales) {
                 ${s.license_key ? `<br><code class="text-muted" style="font-size:11px;">${s.license_key}</code>` : ''}
             </td>
             <td>
-                ${s.client_name}<br>
+                <button class="client-link" data-client="${s.client_name}" title="Bu müşteriye ait tüm ürünleri gör">${s.client_name}</button><br>
                 <small class="text-muted">${s.client_email}</small>
             </td>
             <td>${s.sales_rep || '-'}</td>
-            <td>${s.duration_months} Ay (${(s.duration_months/12).toFixed(1)} Yıl)</td>
-            <td><strong>${s.expiration_date}</strong></td>
-            <td><strong class="${s.days_left <= 30 ? (s.days_left <= 7 ? 'text-danger' : 'text-warning') : 'text-success'}">${s.days_left} Gün</strong></td>
+            <td>${s.status === 'NEEDS_DURATION'
+                    ? '<span class="text-muted">bilinmiyor</span>'
+                    : `${s.duration_months} Ay (${(s.duration_months / 12).toFixed(1)} Yıl)`}</td>
+            <td>${s.status === 'NEEDS_DURATION'
+                    ? '<span class="text-muted">—</span>'
+                    : `<strong>${s.expiration_date}</strong>`}</td>
+            <td>${s.status === 'NEEDS_DURATION'
+                    ? '<span class="text-muted">—</span>'
+                    : `<strong class="${s.days_left <= 30 ? (s.days_left <= 7 ? 'text-danger' : 'text-warning') : 'text-success'}">${s.days_left} Gün</strong>`}</td>
             <td>${renderReminderType(s.reminder_type)}</td>
             <td>${renderStatusPill(s.status)}</td>
             <td>
                 <div class="flex-gap-2">
-                    <button class="btn btn-sm btn-outline-primary" onclick="sendTestEmail(${s.id})" title="Test / Manuel E-posta Gönder">
+                    ${s.status === 'NEEDS_DURATION' ? `
+                    <button class="btn btn-sm btn-outline-primary" onclick="setDuration(${s.id})" title="Lisans süresini gir">
+                        <i class="fa-solid fa-calendar-plus"></i>
+                    </button>` : `
+                    <button class="btn btn-sm btn-outline-primary" onclick="sendTestEmail(${s.id})" title="Hatırlatma e-postası gönder">
                         <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+                    </button>`}
                     <button class="btn btn-sm btn-danger-outline" onclick="deleteSale(${s.id})" title="Sil">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -644,7 +743,7 @@ function filterSalesTable() {
 }
 
 async function sendTestEmail(saleId) {
-    if (!confirm('Bu lisans için müşteri ve satış temsilcisine manuel hatırlatma e-postası göndermek istediğinizden emin misiniz?')) return;
+    if (!confirm('Bu lisans için muhasebe/satış ekibine hatırlatma e-postası gönderilsin mi?')) return;
 
     try {
         const res = await authFetch(`/api/sales/${saleId}/send-reminder`, {
@@ -659,6 +758,37 @@ async function sendTestEmail(saleId) {
             loadDashboardStats();
         } else {
             showToast(data.message, 'error');
+        }
+    } catch (e) {}
+}
+
+async function setDuration(saleId) {
+    const kayit = cachedSales.find(s => s.id === saleId);
+    const girdi = prompt(
+        `"${kayit ? kayit.product_name : ''}"\n\n` +
+        'Bu lisansın süresi kaç AY? (1 yıl = 12, 3 yıl = 36)',
+        '12'
+    );
+    if (girdi === null) return;
+
+    const ay = parseInt(girdi, 10);
+    if (!ay || ay < 1) {
+        showToast('Geçerli bir ay sayısı girin.', 'error');
+        return;
+    }
+
+    try {
+        const res = await authFetch(`/api/sales/${saleId}/set-duration`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ duration_months: ay })
+        });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            loadSalesList();
+            loadDashboardStats();
+            loadNotifications();
         }
     } catch (e) {}
 }
@@ -681,7 +811,7 @@ async function loadInbox() {
 
         const listContainer = document.getElementById('inbox-messages-list');
         if (emails.length === 0) {
-            listContainer.innerHTML = '<div class="p-4 text-center text-muted">Sanal gelen kutunuz boş.</div>';
+            listContainer.innerHTML = '<div class="p-4 text-center text-muted">Henüz e-posta gönderilmedi.</div>';
             return;
         }
 
@@ -776,11 +906,6 @@ async function loadSettings() {
         const res = await authFetch('/api/settings');
         const settings = await res.json();
 
-        if (settings.mode) {
-            const radio = document.querySelector(`input[name="mode"][value="${settings.mode}"]`);
-            if (radio) radio.checked = true;
-        }
-
         if (settings.internal_recipients) document.getElementById('setting-internal-recipients').value = settings.internal_recipients;
         if (settings.smtp_host) document.getElementById('setting-smtp-host').value = settings.smtp_host;
         if (settings.smtp_port) document.getElementById('setting-smtp-port').value = settings.smtp_port;
@@ -870,7 +995,7 @@ function renderInvoicesTable(invoices) {
 }
 
 async function sendInvoiceTestEmail(invoiceId) {
-    if (!confirm('Bu fatura için müşteriye hatırlatma e-postası göndermek istediğinizden emin misiniz?')) return;
+    if (!confirm('Bu fatura için muhasebe/satış ekibine hatırlatma e-postası gönderilsin mi?')) return;
     try {
         const res = await authFetch(`/api/invoices/${invoiceId}/send-reminder`, {
             method: 'POST',
@@ -902,6 +1027,51 @@ async function deleteInvoice(invoiceId) {
         showToast(data.message);
         loadInvoicesList();
         loadNotifications();
+    } catch (e) {}
+}
+
+async function loadSubscriptions() {
+    try {
+        const res = await authFetch('/api/subscriptions');
+        const abonelikler = await res.json();
+
+        const say = (d) => abonelikler.filter(a => a.status === d).length;
+        document.getElementById('stat-subs-active').innerText = say('ACTIVE');
+        document.getElementById('stat-subs-risk').innerText = say('AT_RISK');
+        document.getElementById('stat-subs-lost').innerText = say('LOST');
+
+        const rozet = document.getElementById('subscription-alert-badge');
+        const dikkat = say('AT_RISK');
+        rozet.innerText = dikkat;
+        rozet.style.display = dikkat > 0 ? '' : 'none';
+
+        const tbody = document.querySelector('#subscriptions-table tbody');
+        if (abonelikler.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-muted">' +
+                'Abonelik kaydı yok. Ayarlar sekmesinden Logo aktarımı yapın.</td></tr>';
+            return;
+        }
+
+        const durumRozeti = {
+            ACTIVE: '<span class="status-pill first-sent"><i class="fa-solid fa-circle-check"></i> Aktif</span>',
+            AT_RISK: '<span class="status-pill final-sent"><i class="fa-solid fa-triangle-exclamation"></i> Riskli</span>',
+            LOST: '<span class="status-pill expired"><i class="fa-solid fa-user-slash"></i> Kayıp görünüyor</span>'
+        };
+
+        tbody.innerHTML = abonelikler.map(a => `
+            <tr>
+                <td>
+                    <strong>${a.client_name}</strong>
+                    ${a.client_email ? `<br><small class="text-muted">${a.client_email}</small>` : ''}
+                </td>
+                <td>${a.product_name}</td>
+                <td>${a.invoice_count}</td>
+                <td>${a.avg_interval_days ? Math.round(a.avg_interval_days) + ' gün' : '-'}</td>
+                <td>${a.last_invoice_date}</td>
+                <td><strong class="${a.status === 'LOST' ? 'text-danger' : (a.status === 'AT_RISK' ? 'text-warning' : '')}">${a.days_since_last} gün</strong></td>
+                <td>${durumRozeti[a.status] || a.status}</td>
+            </tr>
+        `).join('');
     } catch (e) {}
 }
 

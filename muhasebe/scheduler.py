@@ -9,7 +9,15 @@ def check_and_send_reminders():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM sales WHERE status != "EXPIRED"')
+    # NEEDS_DURATION: suresi bilinmeyen kayitlar. Bitis tarihi tahmin olacagi
+    # icin hatirlatma uretilmez; once elle sure girilmeli.
+    # duration_months = 0 kontrolu ikinci bir emniyet: durum alani baska bir
+    # yerde yanlislikla degistirilse bile suresi girilmemis kayit islenmez.
+    cursor.execute("""
+        SELECT * FROM sales
+        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION')
+          AND COALESCE(duration_months, 0) > 0
+    """)
     sales = [dict(row) for row in cursor.fetchall()]
 
     today = datetime.now().date()

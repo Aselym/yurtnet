@@ -6,14 +6,19 @@
     <title>Piramit Lisans Takip & Otomatik E-posta Hatırlatma Sistemi</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/static/images/logo2.png?v=2">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/styles.css">
+    <script>
+        // Stil uygulanmadan önce çalışır ki koyu temayı seçmiş kullanıcı
+        // her yenilemede bir anlığına beyaz ekran görmesin.
+        try {
+            if (localStorage.getItem('piramit.tema') === 'koyu') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        } catch (e) {}
+    </script>
 </head>
 <body>
     <!-- Full-Screen Login Screen Overlay -->
@@ -21,7 +26,8 @@
         <div class="login-card glass-card">
             <div class="login-brand">
                 <div class="brand-logo-wrap">
-                    <img src="/static/images/logo.png" alt="Piramit Lisans Logo" class="login-logo-img">
+                    <img src="/static/images/logo.png" alt="Piramit Bilgisayar" class="login-logo-img logo-light">
+                    <img src="/static/images/logo-dark.png" alt="Piramit Bilgisayar" class="login-logo-img logo-dark">
                 </div>
                 <h2>Piramit Lisans Takip</h2>
                 <p>Lisans & Süre Sonu Takip Platformu</p>
@@ -45,81 +51,86 @@
 
     <!-- Main App Container -->
     <div class="app-container" id="app-wrapper" style="display: none;">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="brand">
-                <a href="#" onclick="switchTab('dashboard-tab'); return false;" class="brand-logo-link" title="Gösterge Paneline Git">
-                    <div class="brand-logo-wrap">
-                        <img src="/static/images/logo.png" id="app-logo" alt="Piramit Lisans Logo" class="brand-logo-img">
-                    </div>
+        <!-- Top Navigation Bar -->
+        <header class="topbar">
+            <div class="topbar-inner">
+                <a href="#" onclick="switchTab('dashboard-tab'); return false;" class="topbar-brand" title="Gösterge Paneline Git">
+                    <img src="/static/images/logo.png" id="app-logo" alt="Piramit Bilgisayar" class="topbar-logo logo-light">
+                    <img src="/static/images/logo-dark.png" alt="Piramit Bilgisayar" class="topbar-logo logo-dark">
                 </a>
-            </div>
 
-            <nav class="nav-menu">
-                <button class="nav-link active" data-tab="dashboard-tab">
-                    <i class="fa-solid fa-chart-pie"></i>
-                    <span>Gösterge Paneli</span>
-                </button>
-                <button class="nav-link" data-tab="sales-tab">
-                    <i class="fa-solid fa-file-contract"></i>
-                    <span>Satış & Lisans Takibi</span>
-                    <span class="badge badge-pulse" id="license-alert-badge" style="display:none;">0</span>
-                </button>
-                <button class="nav-link" data-tab="invoices-tab">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Ödenmemiş Faturalar</span>
-                    <span class="badge badge-pulse" id="invoice-alert-badge" style="display:none;">0</span>
-                </button>
-                <button class="nav-link" data-tab="inbox-tab">
-                    <i class="fa-solid fa-inbox"></i>
-                    <span>Sanal Gelen Kutusu</span>
-                    <span class="badge badge-pulse" id="inbox-count-badge">0</span>
-                </button>
-                <button class="nav-link" data-tab="templates-tab">
-                    <i class="fa-solid fa-envelope-open-text"></i>
-                    <span>E-posta Şablonları</span>
-                </button>
-                <button class="nav-link" data-tab="settings-tab">
-                    <i class="fa-solid fa-sliders"></i>
-                    <span>Sistem & SMTP Ayarları</span>
-                </button>
-            </nav>
+                <nav class="topnav">
+                    <button class="nav-link active" data-tab="dashboard-tab">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span>Gösterge Paneli</span>
+                    </button>
+                    <button class="nav-link" data-tab="sales-tab">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Lisanslar</span>
+                        <span class="badge badge-alert" id="license-alert-badge" style="display:none;">0</span>
+                    </button>
+                    <button class="nav-link" data-tab="subscriptions-tab">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Abonelikler</span>
+                        <span class="badge badge-alert" id="subscription-alert-badge" style="display:none;">0</span>
+                    </button>
+                    <button class="nav-link" data-tab="invoices-tab">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Faturalar</span>
+                        <span class="badge badge-alert" id="invoice-alert-badge" style="display:none;">0</span>
+                    </button>
+                    <button class="nav-link" data-tab="inbox-tab">
+                        <i class="fa-solid fa-envelope"></i>
+                        <span>Gönderim Geçmişi</span>
+                        <span class="badge" id="inbox-count-badge">0</span>
+                    </button>
+                    <button class="nav-link" data-tab="templates-tab">
+                        <i class="fa-solid fa-file-pen"></i>
+                        <span>Şablonlar</span>
+                    </button>
+                    <button class="nav-link" data-tab="settings-tab">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Ayarlar</span>
+                    </button>
+                </nav>
 
-            <div class="sidebar-footer">
-                <button class="btn btn-outline-primary btn-block" id="btn-run-check">
-                    <i class="fa-solid fa-arrows-rotate"></i>
-                    <span>Hatırlatma Taraması Yap</span>
-                </button>
-                <button class="btn btn-outline-danger btn-block mt-2 logout-action" id="logout-btn" style="cursor: pointer;" onclick="handleLogout()">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Çıkış Yap</span>
-                </button>
-                <div class="server-status">
-                    <span class="status-dot online"></span>
-                    <span class="status-text">Servis Aktif (Daemon)</span>
+                <div class="topbar-actions">
+                    <span class="server-status" title="Arka plan hatırlatma servisi çalışıyor">
+                        <span class="status-dot online"></span>
+                        <span class="status-text">Servis aktif</span>
+                    </span>
+                    <span class="topbar-sep"></span>
+                    <button class="icon-btn" id="btn-run-check" title="Hatırlatma taraması yap">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                    <button class="icon-btn" id="theme-toggle" title="Açık / koyu tema">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                    <button class="icon-btn danger logout-action" id="logout-btn" title="Çıkış yap" onclick="handleLogout()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                 </div>
             </div>
-        </aside>
+        </header>
 
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Header Bar -->
-            <header class="top-header">
+            <div class="page-head">
                 <div class="header-title">
-                    <h1 id="page-title">Piramit Lisans Takip</h1>
-                    <p id="page-subtitle">Özel yazılım ve donanım lisansı süre sonu takip platformu</p>
+                    <h1 id="page-title">Gösterge Paneli</h1>
+                    <p id="page-subtitle">Lisans ve fatura durumlarının genel özeti</p>
                 </div>
                 <div class="header-actions">
-                    <button class="btn btn-glow header-action-btn" id="open-new-sale-modal" data-show-on="dashboard-tab,sales-tab">
+                    <button class="btn btn-primary header-action-btn" id="open-new-sale-modal" data-show-on="dashboard-tab,sales-tab">
                         <i class="fa-solid fa-plus"></i>
-                        <span>Yeni Satış Kaydı Ekle</span>
+                        <span>Yeni Satış Kaydı</span>
                     </button>
-                    <button class="btn btn-glow header-action-btn" id="open-new-invoice-modal" data-show-on="invoices-tab" style="display:none;">
+                    <button class="btn btn-primary header-action-btn" id="open-new-invoice-modal" data-show-on="invoices-tab" style="display:none;">
                         <i class="fa-solid fa-plus"></i>
-                        <span>Yeni Fatura Ekle</span>
+                        <span>Yeni Fatura</span>
                     </button>
                 </div>
-            </header>
+            </div>
 
             <!-- Notification Toast Container -->
             <div id="toast-container"></div>
@@ -130,7 +141,7 @@
                 <div class="metrics-grid">
                     <div class="metric-card glass-card">
                         <div class="metric-icon blue">
-                            <i class="fa-solid fa-bag-shopping"></i>
+                            <i class="fa-solid fa-layer-group"></i>
                         </div>
                         <div class="metric-data">
                             <span class="metric-label">Toplam Satış Kaydı</span>
@@ -148,7 +159,7 @@
                     </div>
                     <div class="metric-card glass-card">
                         <div class="metric-icon amber">
-                            <i class="fa-solid fa-hourglass-half"></i>
+                            <i class="fa-solid fa-clock"></i>
                         </div>
                         <div class="metric-data">
                             <span class="metric-label">Yaklaşan (1 Ay İçinde)</span>
@@ -253,6 +264,69 @@
                 </div>
             </section>
 
+            <!-- Tab: Subscriptions (monthly recurring) -->
+            <section id="subscriptions-tab" class="tab-page">
+                <div class="metrics-grid">
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon green">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Aktif Abonelik</span>
+                            <h3 class="metric-value" id="stat-subs-active">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon amber">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Riskli (Gecikmiş)</span>
+                            <h3 class="metric-value" id="stat-subs-risk">0</h3>
+                        </div>
+                    </div>
+                    <div class="metric-card glass-card">
+                        <div class="metric-icon red">
+                            <i class="fa-solid fa-user-slash"></i>
+                        </div>
+                        <div class="metric-data">
+                            <span class="metric-label">Kayıp Görünen</span>
+                            <h3 class="metric-value" id="stat-subs-lost">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card mt-4">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-rotate"></i> Aylık Abonelikler</h3>
+                        <p class="text-muted">
+                            Microsoft 365, Azure gibi her ay yeniden faturalanan hizmetler. Bunların
+                            süresi dolmaz; burada takip edilen şey faturalamanın durup durmadığıdır.
+                            Bir müşteriye kendi ortalama aralığının iki katından uzun süredir fatura
+                            kesilmemişse abonelikten çıkmış olabilir.
+                        </p>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="custom-table" id="subscriptions-table">
+                                <thead>
+                                    <tr>
+                                        <th>Müşteri</th>
+                                        <th>Ürün / Hizmet</th>
+                                        <th>Fatura Sayısı</th>
+                                        <th>Ortalama Aralık</th>
+                                        <th>Son Fatura</th>
+                                        <th>Geçen Süre</th>
+                                        <th>Durum</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Tab: Unpaid Invoices -->
             <section id="invoices-tab" class="tab-page">
                 <div class="metrics-grid">
@@ -276,7 +350,7 @@
                     </div>
                     <div class="metric-card glass-card">
                         <div class="metric-icon green">
-                            <i class="fa-solid fa-sack-dollar"></i>
+                            <i class="fa-solid fa-turkish-lira-sign"></i>
                         </div>
                         <div class="metric-data">
                             <span class="metric-label">Toplam Ödenmemiş Tutar</span>
@@ -316,11 +390,11 @@
                 <div class="card glass-card mb-4">
                     <div class="card-header flex-between">
                         <div>
-                            <h3><i class="fa-solid fa-inbox"></i> Sanal E-posta Gelen Kutusu (Mock Inbox)</h3>
-                            <p class="text-muted">Otomatik sistem ve manuel test hatırlatmaları burada canlı olarak simüle edilir.</p>
+                            <h3><i class="fa-solid fa-paper-plane"></i> Gönderilen E-postalar</h3>
+                            <p class="text-muted">Sistemin gönderdiği tüm hatırlatma ve test e-postalarının kaydı.</p>
                         </div>
                         <button class="btn btn-sm btn-danger-outline" id="btn-clear-inbox">
-                            <i class="fa-solid fa-trash-can"></i> Gelen Kutusunu Temizle
+                            <i class="fa-solid fa-trash-can"></i> Geçmişi Temizle
                         </button>
                     </div>
                 </div>
@@ -332,7 +406,7 @@
                     <div class="inbox-preview glass-card" id="inbox-preview-panel">
                         <div class="empty-preview">
                             <i class="fa-solid fa-envelope-open"></i>
-                            <p>Detaylarını görüntülemek için sol listeden bir e-posta seçin.</p>
+                            <p>İçeriğini görmek için soldaki listeden bir e-posta seçin.</p>
                         </div>
                     </div>
                 </div>
@@ -344,7 +418,7 @@
                     <!-- Template List -->
                     <div class="card glass-card">
                         <div class="card-header">
-                            <h3><i class="fa-solid fa-layer-group"></i> Tanımlı Şablonlar</h3>
+                            <h3><i class="fa-solid fa-file-lines"></i> Tanımlı Şablonlar</h3>
                         </div>
                         <div class="card-body p-0" id="templates-list-container">
                             <!-- Dynamic Templates -->
@@ -419,34 +493,10 @@
 
                 <div class="card glass-card max-w-700 mt-4">
                     <div class="card-header">
-                        <h3><i class="fa-solid fa-gears"></i> E-posta ve SMTP Sunucu Ayarları</h3>
+                        <h3><i class="fa-solid fa-envelope-circle-check"></i> E-posta ve SMTP Sunucu Ayarları</h3>
                     </div>
                     <div class="card-body">
                         <form id="settings-form">
-                            <div class="form-group">
-                                <label>E-posta Gönderim Modu:</label>
-                                <div class="mode-selector-grid">
-                                    <label class="mode-card">
-                                        <div class="mode-card-top">
-                                            <input type="radio" name="mode" value="MOCK" checked>
-                                            <i class="fa-solid fa-box-archive"></i>
-                                            <strong>Sanal Kutusu Modu (Mock)</strong>
-                                        </div>
-                                        <span class="mode-card-desc">Gerçek e-posta atmadan panoda simüle eder (Önerilen)</span>
-                                    </label>
-                                    <label class="mode-card">
-                                        <div class="mode-card-top">
-                                            <input type="radio" name="mode" value="SMTP">
-                                            <i class="fa-solid fa-paper-plane"></i>
-                                            <strong>Canlı SMTP Modu</strong>
-                                        </div>
-                                        <span class="mode-card-desc">Müşterilere gerçek HTML e-postalar gönderir</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <hr class="divider">
-
                             <div class="form-group">
                                 <label>İç Bildirim Alıcıları (Muhasebe & Satış, virgülle ayırın): *</label>
                                 <input type="text" id="setting-internal-recipients" class="form-control" placeholder="muhasebe@sirketiniz.com, satis@sirketiniz.com">
@@ -490,9 +540,18 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn btn-primary btn-block mt-4">
-                                <i class="fa-solid fa-check"></i> Ayarları Kaydet
-                            </button>
+                            <div class="flex-between mt-4">
+                                <button type="button" class="btn btn-outline-primary" id="btn-test-email">
+                                    <i class="fa-solid fa-paper-plane"></i> Test E-postası Gönder
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-check"></i> Ayarları Kaydet
+                                </button>
+                            </div>
+                            <small class="text-muted" style="display:block;margin-top:10px;">
+                                Test e-postası, yukarıdaki iç bildirim adreslerine örnek bir hatırlatma gönderir.
+                                Önce ayarları kaydedin.
+                            </small>
                         </form>
                     </div>
                 </div>
@@ -576,7 +635,7 @@
     <div class="modal-backdrop" id="new-sale-modal">
         <div class="modal-dialog glass-card">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-cart-plus"></i> Yeni Satış & Lisans Kaydı</h3>
+                <h3><i class="fa-solid fa-shield-halved"></i> Yeni Satış & Lisans Kaydı</h3>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
@@ -662,11 +721,25 @@
         </div>
     </div>
 
+    <!-- Modal: Customer Product Detail -->
+    <div class="modal-backdrop" id="customer-detail-modal">
+        <div class="modal-dialog glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-building"></i> <span id="customer-detail-name">Müşteri</span></h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted" style="margin-bottom:16px;">Bu müşteriye verilen ürün ve lisanslar:</p>
+                <div id="customer-products-list"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: New Invoice -->
     <div class="modal-backdrop" id="new-invoice-modal">
         <div class="modal-dialog glass-card">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-file-invoice-dollar"></i> Yeni Ödenmemiş Fatura Kaydı</h3>
+                <h3><i class="fa-solid fa-receipt"></i> Yeni Ödenmemiş Fatura Kaydı</h3>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">

@@ -6,9 +6,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
 from database import init_db, get_db_connection, calculate_dates, hash_password, verify_password
-from mailer import send_reminder_email, send_invoice_reminder
+from mailer import send_reminder_email, send_invoice_reminder, send_test_email
 from scheduler import check_and_send_reminders, check_and_send_invoice_reminders, start_background_scheduler
-from logo_sync import test_logo_connection, sync_logo_invoices
+from logo_sync import (test_logo_connection, sync_logo_invoices,
+                       sync_logo_subscriptions)
 from notifier import send_windows_toast
 
 PORT = 5000
@@ -58,6 +59,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             return
         self.send_response(200)
         self.send_header('Content-Type', f'{mime_type}')
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
         self.end_headers()
         with open(file_path, 'rb') as f:
             self.wfile.write(f.read())
@@ -118,10 +122,10 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             cursor.execute('SELECT COUNT(*) FROM sales')
             total_sales = cursor.fetchone()[0]
 
-            cursor.execute('SELECT COUNT(*) FROM sales WHERE status != "EXPIRED"')
+            cursor.execute("SELECT COUNT(*) FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION')")
             active_licenses = cursor.fetchone()[0]
 
-            cursor.execute('SELECT * FROM sales WHERE status != "EXPIRED"')
+            cursor.execute("SELECT * FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION')")
             rows = [dict(r) for r in cursor.fetchall()]
             expiring_soon = 0
             for r in rows:
@@ -194,8 +198,19 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
+        elif path == '/api/subscriptions':
+            cursor.execute('''
+                SELECT * FROM subscriptions
+                ORDER BY CASE status WHEN 'AT_RISK' THEN 0 WHEN 'LOST' THEN 1
+                                     ELSE 2 END, days_since_last DESC
+            ''')
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            self._send_json(rows)
+            return
+
         elif path == '/api/notifications/pending':
-            cursor.execute('SELECT client_name, product_name, expiration_date FROM sales WHERE status != "EXPIRED"')
+            cursor.execute("SELECT client_name, product_name, expiration_date FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION')")
             sales = [dict(r) for r in cursor.fetchall()]
             today = datetime.now().date()
             license_alerts = 0
@@ -325,6 +340,14 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'success': True, 'message': 'Sistem ayarları güncellendi.'})
             return
 
+        elif path == '/api/test-email':
+            conn.close()
+            hedef = (body_data.get('recipients') or '').strip()
+            alicilar = [e.strip() for e in hedef.split(',') if e.strip()] if hedef else None
+            success, msg = send_test_email(alicilar)
+            self._send_json({'success': success, 'message': msg})
+            return
+
         elif path == '/api/logo/test-connection':
             conn.close()
             success, msg = test_logo_connection()
@@ -333,8 +356,30 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
 
         elif path == '/api/logo/sync':
             conn.close()
-            count = sync_logo_invoices()
-            self._send_json({'success': True, 'imported_count': count, 'message': f'Logo ERP senkronizasyonu tamamlandı. {count} yeni fatura aktarıldı.'})
+            try:
+                eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
+                abone, riskli = sync_logo_subscriptions()
+            except Exception as e:
+                self._send_json({'success': False, 'message': f'Aktarım hatası: {e}'}, 500)
+                return
+
+            mesaj = f'{eklenen} yeni lisans aktarıldı'
+            if sure_bekleyen:
+                mesaj += f' ({sure_bekleyen} tanesi için süre girilmeli)'
+            mesaj += f'. {abone} abonelik güncellendi'
+            if riskli:
+                mesaj += f', {riskli} tanesi riskli'
+            mesaj += '.'
+
+            self._send_json({
+                'success': True,
+                'imported_count': eklenen,
+                'needs_duration': sure_bekleyen,
+                'skipped': atlanan,
+                'subscriptions': abone,
+                'at_risk': riskli,
+                'message': mesaj,
+            })
             return
 
         elif path == '/api/run-scheduler':
@@ -388,6 +433,39 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self._send_json({'success': True, 'message': 'Fatura ödendi olarak işaretlendi.'})
+            return
+
+        elif path.startswith('/api/sales/') and path.endswith('/set-duration'):
+            sale_id = int(path.split('/')[3])
+            try:
+                ay = int(body_data.get('duration_months', 0))
+            except (TypeError, ValueError):
+                ay = 0
+            if ay <= 0:
+                conn.close()
+                self._send_json({'success': False, 'message': 'Geçerli bir süre girin.'}, 400)
+                return
+
+            cursor.execute('SELECT sale_date FROM sales WHERE id = ?', (sale_id,))
+            kayit = cursor.fetchone()
+            if not kayit:
+                conn.close()
+                self._send_json({'success': False, 'message': 'Kayıt bulunamadı.'}, 404)
+                return
+
+            bitis = calculate_dates(kayit['sale_date'], ay)
+            sure_tipi = {12: '1_YEAR', 24: '2_YEARS',
+                         36: '3_YEARS', 60: '5_YEARS'}.get(ay, 'CUSTOM')
+            cursor.execute('''
+                UPDATE sales
+                SET duration_months = ?, duration_type = ?, expiration_date = ?,
+                    status = 'PENDING'
+                WHERE id = ?
+            ''', (ay, sure_tipi, bitis, sale_id))
+            conn.commit()
+            conn.close()
+            self._send_json({'success': True, 'expiration_date': bitis,
+                             'message': f'Süre kaydedildi. Bitiş: {bitis}'})
             return
 
         elif path == '/api/account':
