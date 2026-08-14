@@ -14,6 +14,10 @@
 
 @layer base {
   body {
-    @apply bg-bg font-sans antialiased;
+    @apply bg-bg font-sans antialiased dark:bg-neutral-950;
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
   }
 }

@@ -36,7 +36,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <Card className="w-[380px] p-8">
+        <Card className="w-full max-w-[380px] p-8">
           <div className="mb-8 flex flex-col items-center text-center">
             <img src="/static/images/logo.png" alt="Piramit Bilgisayar" className="mb-4 h-12" />
             <h1 className="text-lg font-semibold text-black/90 dark:text-white">Piramit Lisans Takip</h1>
