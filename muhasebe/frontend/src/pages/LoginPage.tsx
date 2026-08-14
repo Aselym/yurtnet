@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { login } from '@/lib/auth'
 
 interface LoginPageProps {
@@ -29,19 +30,20 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-4 dark:bg-neutral-950">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(242,105,31,0.12),transparent_45%),radial-gradient(circle_at_80%_80%,rgba(242,105,31,0.10),transparent_45%)]" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <AnimatedBackground />
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative"
       >
-        <Card className="w-full max-w-[380px] p-8">
+        <Card className="w-full max-w-[380px] border-white/15 bg-white/10 p-8 backdrop-blur-md">
           <div className="mb-8 flex flex-col items-center text-center">
-            <img src="/static/images/logo.png" alt="Piramit Bilgisayar" className="mb-4 h-12" />
-            <h1 className="text-lg font-semibold text-black/90 dark:text-white">Piramit Lisans Takip</h1>
-            <p className="mt-1 text-sm text-black/50 dark:text-white/50">
-              Lisans &amp; Süre Sonu Takip Platformu
+            <img src="/static/images/logo-dark.png" alt="Piramit Bilgisayar" className="mb-4 h-12" />
+            <h1 className="text-lg font-semibold text-white">Piramit Lisans Takip</h1>
+            <p className="mt-1 text-sm text-white/60">
+              Analiz &amp; Takip Platformu
             </p>
           </div>
 
@@ -49,7 +51,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-4 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400"
+              className="mb-4 rounded-lg bg-red-500/15 px-3.5 py-2.5 text-sm text-red-300"
             >
               {error}
             </motion.div>
@@ -57,7 +59,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-black/70 dark:text-white/70">
+              <label className="mb-1.5 block text-sm font-medium text-white/70">
                 Kullanıcı Adı
               </label>
               <Input
@@ -66,10 +68,11 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                 placeholder="admin"
                 required
                 autoFocus
+                className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand focus:ring-brand/30"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-black/70 dark:text-white/70">
+              <label className="mb-1.5 block text-sm font-medium text-white/70">
                 Şifre
               </label>
               <Input
@@ -78,6 +81,7 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand focus:ring-brand/30"
               />
             </div>
             <Button type="submit" size="lg" className="mt-2 w-full" disabled={submitting}>

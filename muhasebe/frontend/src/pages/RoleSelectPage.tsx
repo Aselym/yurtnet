@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { LayoutDashboard, Users, type LucideIcon } from 'lucide-react'
+import { AnimatedBackground } from '@/components/AnimatedBackground'
 import type { Role } from '@/lib/types'
 
 interface RoleSelectPageProps {
@@ -13,15 +14,16 @@ const roles: { id: Role; label: string; icon: LucideIcon }[] = [
 
 export function RoleSelectPage({ onSelect }: RoleSelectPageProps) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-12 bg-bg px-4 dark:bg-neutral-950">
+    <div className="relative flex min-h-screen flex-col items-center justify-center gap-12 overflow-hidden px-4">
+      <AnimatedBackground />
       <motion.h1
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-xl font-semibold text-black/80 dark:text-white/90"
+        className="relative text-xl font-semibold text-white/90"
       >
         Nasıl devam etmek istersiniz?
       </motion.h1>
-      <div className="flex flex-col gap-8 sm:flex-row sm:gap-12">
+      <div className="relative flex flex-col gap-8 sm:flex-row sm:gap-12">
         {roles.map(({ id, label, icon: Icon }, i) => (
           <motion.button
             key={id}
@@ -31,7 +33,7 @@ export function RoleSelectPage({ onSelect }: RoleSelectPageProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onSelect(id)}
-            className="group flex h-48 w-48 flex-col items-center justify-center gap-3 rounded-full border border-black/5 bg-white text-black/80 shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition-colors hover:border-brand/40 hover:text-brand dark:border-white/10 dark:bg-white/5 dark:text-white/80"
+            className="group flex h-48 w-48 flex-col items-center justify-center gap-3 rounded-full border border-white/15 bg-white/10 text-white/85 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-colors hover:border-brand/50 hover:bg-white/15 hover:text-brand"
           >
             <Icon className="h-10 w-10 text-brand transition-transform group-hover:scale-110" strokeWidth={1.5} />
             <span className="px-4 text-center text-sm font-medium">{label}</span>

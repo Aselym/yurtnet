@@ -21,3 +21,37 @@
     color-scheme: dark;
   }
 }
+
+@layer utilities {
+  @keyframes aurora-drift-1 {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    25% { transform: translate(18%, 22%) scale(1.25) rotate(12deg); }
+    50% { transform: translate(-12%, 16%) scale(0.85) rotate(-8deg); }
+    75% { transform: translate(10%, -14%) scale(1.1) rotate(6deg); }
+  }
+  @keyframes aurora-drift-2 {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    30% { transform: translate(-20%, -14%) scale(1.3) rotate(-14deg); }
+    60% { transform: translate(-8%, 18%) scale(0.9) rotate(10deg); }
+  }
+  @keyframes aurora-drift-3 {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    35% { transform: translate(16%, -18%) scale(1.15) rotate(-10deg); }
+    70% { transform: translate(-14%, 8%) scale(0.85) rotate(9deg); }
+  }
+  @keyframes aurora-drift-4 {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    40% { transform: translate(-16%, -12%) scale(1.2) rotate(11deg); }
+    80% { transform: translate(12%, 10%) scale(0.9) rotate(-7deg); }
+  }
+  @keyframes aurora-drift-5 {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    50% { transform: translate(14%, -16%) scale(1.2) rotate(-13deg); }
+  }
+
+  .animate-aurora-1 { animation: aurora-drift-1 18s ease-in-out infinite; }
+  .animate-aurora-2 { animation: aurora-drift-2 22s ease-in-out infinite; }
+  .animate-aurora-3 { animation: aurora-drift-3 26s ease-in-out infinite; }
+  .animate-aurora-4 { animation: aurora-drift-4 20s ease-in-out infinite; }
+  .animate-aurora-5 { animation: aurora-drift-5 24s ease-in-out infinite; }
+}
