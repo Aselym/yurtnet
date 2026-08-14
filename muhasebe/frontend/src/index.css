@@ -12,16 +12,6 @@
   --font-sans: "InterVariable", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-@layer theme {
-  :root {
-    --color-brand: #f2691f;
-    --color-brand-hover: #d95712;
-    --color-brand-dark: #a8410c;
-    --color-brand-soft: #fdf0e8;
-    --color-bg: #f5f5f6;
-  }
-}
-
 @layer base {
   body {
     @apply bg-bg font-sans antialiased;
