@@ -30,3 +30,4 @@ envanter.txt
 !muhasebe/static/*.html
 !muhasebe/static/images/*.png
 !muhasebe/frontend/public/images/*.png
+!muhasebe/frontend/index.html
