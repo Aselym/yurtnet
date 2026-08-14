@@ -361,9 +361,13 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
         if adet < ABONELIK_MIN_FATURA or ortalama > ABONELIK_MAX_ARALIK_GUN:
             continue
 
+        # Uzun suredir fatura kesilmemis: abonelik bitmis demektir, takip
+        # listesinde yeri yok. Kaydedilmiyor ki liste yalnizca hala devam
+        # eden ve riske girenlerden olussun.
         if gecen > ortalama * risk_kat * 2:
-            durum = 'LOST'
-        elif gecen > ortalama * risk_kat:
+            continue
+
+        if gecen > ortalama * risk_kat:
             durum = 'AT_RISK'
             riskli += 1
         else:
@@ -475,6 +479,87 @@ def yenileme_adaylari_bul():
     return isaretlenen
 
 
+def sync_logo_products(gecmis_yil=2):
+    """Lisans ve abonelik disindaki satis kalemlerini ceker.
+
+    Burada yenileme/sure takibi yok — amac "bu musteriye ne satmisiz"
+    sorusuna cevap vermek. Bu yuzden marka filtresi de yok: lisans ve
+    abonelik markalari HARIC her sey urun sayilir.
+
+    Doner: (eklenen, atlanan)
+    """
+    ayarlar = get_logo_settings()
+    firma = (ayarlar.get('logo_firm_no') or '001').zfill(3)
+    donem = (ayarlar.get('logo_period_no') or '01').zfill(2)
+
+    haric = LISANS_MARKALARI + ABONELIK_MARKALARI
+    haric_kosul = ' AND '.join(f"ITM.NAME NOT LIKE '%{k}%'" for k in haric)
+
+    conn = _baglan()
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT INV.FICHENO, INV.DATE_, STL.LOGICALREF AS satir_ref,
+               STL.AMOUNT AS miktar, STL.PRICE AS birim_fiyat,
+               STL.TOTAL AS satir_tutar,
+               CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
+               CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
+               CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
+               CAST(ITM.CODE AS NVARCHAR(50))          AS urun_kod
+        FROM LG_{firma}_{donem}_INVOICE INV WITH (NOLOCK)
+        JOIN LG_{firma}_{donem}_STLINE STL WITH (NOLOCK)
+             ON STL.INVOICEREF = INV.LOGICALREF
+        JOIN LG_{firma}_ITEMS ITM WITH (NOLOCK)
+             ON ITM.LOGICALREF = STL.STOCKREF
+        LEFT JOIN LG_{firma}_CLCARD CLC WITH (NOLOCK)
+             ON CLC.LOGICALREF = INV.CLIENTREF
+        WHERE INV.TRCODE IN {SATIS_TRCODE}
+          AND INV.CANCELLED = 0
+          -- Yalnizca stok kalemi satirlari. Diger satir turleri urun satisi
+          -- degil: LINETYPE 8'de sirketin kendi araclarinin satisi cikti
+          -- (Skoda Superb 1,7 milyon TL), LINETYPE 4'te ise tedarikcilere
+          -- kesilen iade/fiyat farki satirlari var.
+          AND STL.LINETYPE = 0
+          AND INV.DATE_ >= DATEADD(year, -{int(gecmis_yil)}, GETDATE())
+          AND {haric_kosul}
+        ORDER BY INV.DATE_ DESC
+    """)
+    satirlar = cur.fetchall()
+    conn.close()
+
+    yerel = get_db_connection()
+    yc = yerel.cursor()
+    eklenen = atlanan = 0
+
+    for r in satirlar:
+        urun = (r.urun_adi or '').strip()
+        if not urun:
+            atlanan += 1
+            continue
+
+        logo_ref = f"{r.FICHENO}#{r.satir_ref}"
+        yc.execute('SELECT 1 FROM products WHERE logo_ref = ?', (logo_ref,))
+        if yc.fetchone():
+            atlanan += 1
+            continue
+
+        yc.execute("""
+            INSERT INTO products (product_name, product_code, client_name, client_email,
+                                  quantity, unit_price, line_total, sale_date,
+                                  invoice_no, logo_ref, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'LOGO')
+        """, (
+            urun, (r.urun_kod or '').strip(),
+            (r.cari_ad or 'Bilinmeyen Müşteri').strip(), _temiz_mail(r.cari_mail),
+            float(r.miktar or 0), float(r.birim_fiyat or 0), float(r.satir_tutar or 0),
+            r.DATE_.strftime('%Y-%m-%d'), (r.FICHENO or '').strip(), logo_ref,
+        ))
+        eklenen += 1
+
+    yerel.commit()
+    yerel.close()
+    return eklenen, atlanan
+
+
 if __name__ == '__main__':
     ok, mesaj = test_logo_connection()
     print(mesaj)
@@ -483,3 +568,5 @@ if __name__ == '__main__':
         print(f'Lisans : {e} eklendi ({s} süre bekliyor), {a} atlandı')
         y, r = sync_logo_subscriptions()
         print(f'Abonelik: {y} kayıt, {r} riskli')
+        u, ua = sync_logo_products()
+        print(f'Ürün    : {u} eklendi, {ua} atlandı')

@@ -6,10 +6,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
 from database import init_db, get_db_connection, calculate_dates, hash_password, verify_password
-from mailer import send_reminder_email, send_invoice_reminder, send_test_email
-from scheduler import check_and_send_reminders, check_and_send_invoice_reminders, start_background_scheduler
+from mailer import send_reminder_email, send_test_email
+from scheduler import check_and_send_reminders, start_background_scheduler
 from logo_sync import (test_logo_connection, sync_logo_invoices,
-                       sync_logo_subscriptions)
+                       sync_logo_subscriptions, sync_logo_products)
 from notifier import send_windows_toast
 
 PORT = 5000
@@ -168,6 +168,13 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
+        elif path == '/api/products':
+            cursor.execute('SELECT * FROM products ORDER BY sale_date DESC, id DESC')
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            self._send_json(rows)
+            return
+
         elif path == '/api/renewals':
             # Suresi dolmus kayit + onun yerine gecmis olabilecek yeni kayit.
             cursor.execute('''
@@ -191,34 +198,11 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
-        elif path == '/api/sent-emails':
-            cursor.execute('''
-                SELECT sent_emails.*, sales.product_name 
-                FROM sent_emails 
-                LEFT JOIN sales ON sent_emails.sale_id = sales.id 
-                ORDER BY sent_emails.id DESC
-            ''')
-            rows = [dict(r) for r in cursor.fetchall()]
-            conn.close()
-            self._send_json(rows)
-            return
-
         elif path == '/api/settings':
             cursor.execute('SELECT key, value FROM settings')
             rows = cursor.fetchall()
             conn.close()
             self._send_json({r['key']: r['value'] for r in rows})
-            return
-
-        elif path == '/api/invoices':
-            cursor.execute('SELECT * FROM invoices ORDER BY due_date ASC')
-            rows = [dict(r) for r in cursor.fetchall()]
-            today = datetime.now().date()
-            for r in rows:
-                due = datetime.strptime(r['due_date'], '%Y-%m-%d').date()
-                r['days_left'] = (due - today).days
-            conn.close()
-            self._send_json(rows)
             return
 
         elif path == '/api/subscriptions':
@@ -242,19 +226,10 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
                 if (exp - today).days <= 7:
                     license_alerts += 1
 
-            cursor.execute('SELECT client_name, amount, currency, due_date FROM invoices WHERE status = "UNPAID"')
-            invoices = [dict(r) for r in cursor.fetchall()]
-            invoice_alerts = 0
-            for i in invoices:
-                due = datetime.strptime(i['due_date'], '%Y-%m-%d').date()
-                if (due - today).days <= 7:
-                    invoice_alerts += 1
-
             conn.close()
             self._send_json({
                 'license_alerts': license_alerts,
-                'invoice_alerts': invoice_alerts,
-                'total': license_alerts + invoice_alerts
+                'total': license_alerts
             })
             return
 
@@ -348,13 +323,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'success': success, 'message': msg})
             return
 
-        elif path == '/api/sent-emails/clear':
-            cursor.execute('DELETE FROM sent_emails')
-            conn.commit()
-            conn.close()
-            self._send_json({'success': True, 'message': 'Sanal gelen kutusu temizlendi.'})
-            return
-
         elif path == '/api/settings':
             for key, val in body_data.items():
                 cursor.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, str(val)))
@@ -382,6 +350,7 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             try:
                 eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
                 abone, riskli = sync_logo_subscriptions()
+                urun, urun_atlanan = sync_logo_products()
             except Exception as e:
                 self._send_json({'success': False, 'message': f'Aktarım hatası: {e}'}, 500)
                 return
@@ -390,6 +359,7 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             if sure_bekleyen:
                 mesaj += f' ({sure_bekleyen} tanesi için süre girilmeli)'
             mesaj += f'. {abone} abonelik güncellendi'
+            mesaj += f'. {urun} ürün kaydı eklendi'
             if riskli:
                 mesaj += f', {riskli} tanesi riskli'
             mesaj += '.'
@@ -407,46 +377,8 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
 
         elif path == '/api/run-scheduler':
             conn.close()
-            sent_count = check_and_send_reminders() + check_and_send_invoice_reminders()
+            sent_count = check_and_send_reminders()
             self._send_json({'success': True, 'sent_count': sent_count, 'message': f'Hatırlatma kontrolü tamamlandı. Gönderilen: {sent_count}'})
-            return
-
-        elif path == '/api/invoices':
-            invoice_no = body_data.get('invoice_no', '')
-            client_name = body_data.get('client_name')
-            client_email = body_data.get('client_email', '')
-            amount = float(body_data.get('amount', 0))
-            currency = body_data.get('currency', 'TRY')
-            issue_date = body_data.get('issue_date') or datetime.now().strftime('%Y-%m-%d')
-            due_date = body_data.get('due_date')
-            notes = body_data.get('notes', '')
-
-            cursor.execute('''
-                INSERT INTO invoices (invoice_no, client_name, client_email, amount, currency, issue_date, due_date, status, reminder_stage, source, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'UNPAID', 'NONE', 'MANUAL', ?)
-            ''', (invoice_no, client_name, client_email, amount, currency, issue_date, due_date, notes))
-            invoice_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-
-            self._send_json({'success': True, 'id': invoice_id, 'message': 'Fatura kaydı başarıyla eklendi.'})
-            return
-
-        elif path.startswith('/api/invoices/') and path.endswith('/send-reminder'):
-            parts = path.split('/')
-            invoice_id = int(parts[3])
-            cursor.execute('SELECT * FROM invoices WHERE id = ?', (invoice_id,))
-            invoice = cursor.fetchone()
-            if not invoice:
-                conn.close()
-                self._send_json({'success': False, 'message': 'Fatura bulunamadı.'}, 404)
-                return
-
-            invoice_data = dict(invoice)
-            stage = body_data.get('stage', 'WEEK')
-            success, msg = send_invoice_reminder(invoice_data, stage)
-            conn.close()
-            self._send_json({'success': success, 'message': msg})
             return
 
         elif path == '/api/offers':
@@ -509,15 +441,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self._send_json({'success': True, 'message': mesaj})
-            return
-
-        elif path.startswith('/api/invoices/') and path.endswith('/mark-paid'):
-            parts = path.split('/')
-            invoice_id = int(parts[3])
-            cursor.execute('UPDATE invoices SET status = "PAID" WHERE id = ?', (invoice_id,))
-            conn.commit()
-            conn.close()
-            self._send_json({'success': True, 'message': 'Fatura ödendi olarak işaretlendi.'})
             return
 
         elif path.startswith('/api/sales/') and path.endswith('/set-duration'):
@@ -615,14 +538,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self._send_json({'success': True, 'message': 'Satış kaydı silindi.'})
-            return
-
-        if path.startswith('/api/invoices/'):
-            invoice_id = int(path.split('/')[-1])
-            cursor.execute('DELETE FROM invoices WHERE id = ?', (invoice_id,))
-            conn.commit()
-            conn.close()
-            self._send_json({'success': True, 'message': 'Fatura kaydı silindi.'})
             return
 
         if path.startswith('/api/offers/'):

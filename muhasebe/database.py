@@ -67,23 +67,6 @@ def init_db():
         )
     ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS invoices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            invoice_no TEXT,
-            client_name TEXT NOT NULL,
-            client_email TEXT,
-            amount REAL NOT NULL,
-            currency TEXT NOT NULL DEFAULT 'TRY',
-            issue_date TEXT NOT NULL,
-            due_date TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'UNPAID', -- 'UNPAID', 'PAID'
-            reminder_stage TEXT NOT NULL DEFAULT 'NONE', -- 'NONE','WEEK_SENT','DAY_SENT','OVERDUE_SENT'
-            source TEXT DEFAULT 'MANUAL', -- 'MANUAL','LOGO'
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
 
     # Microsoft CSP / Azure gibi aylik faturalanan abonelikler. Bunlarin
     # "suresi dolmuyor"; takip mantigi farkli: fatura kesilmeyi birakmissa
@@ -103,6 +86,27 @@ def init_db():
             source TEXT DEFAULT 'LOGO',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (client_name, product_name)
+        )
+    ''')
+
+    # Lisans ve abonelik disindaki her sey: bilgisayar, mouse, monitor, kablo...
+    # Yenileme takibi yok; amac "bu musteriye ne satmisiz" sorusuna cevap vermek.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_name TEXT NOT NULL,
+            product_code TEXT,
+            client_name TEXT NOT NULL,
+            client_email TEXT,
+            quantity REAL NOT NULL DEFAULT 1,
+            unit_price REAL,
+            line_total REAL,
+            currency TEXT NOT NULL DEFAULT 'TRY',
+            sale_date TEXT NOT NULL,
+            invoice_no TEXT,
+            logo_ref TEXT UNIQUE,
+            source TEXT DEFAULT 'LOGO',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 

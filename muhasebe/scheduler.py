@@ -2,8 +2,13 @@ import threading
 import time
 from datetime import datetime
 from database import get_db_connection, sure_dolmuslari_isaretle
-from mailer import send_reminder_email, send_invoice_reminder
+from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products
+from mailer import send_reminder_email
 from notifier import send_windows_toast
+
+# Logo'dan otomatik veri cekme saatleri. Muhasebe/satis ekibinin gun icinde
+# baktigi saatlerle hizali: ogleden once, ogleden sonra, aksam kapanistan once.
+LOGO_SYNC_SAATLERI = (11, 15, 17)
 
 def check_and_send_reminders():
     sure_dolmuslari_isaretle()
@@ -75,63 +80,47 @@ def check_and_send_reminders():
     conn.close()
     return sent_count
 
-def check_and_send_invoice_reminders():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute('SELECT * FROM invoices WHERE status = "UNPAID"')
-    invoices = [dict(row) for row in cursor.fetchall()]
-
-    today = datetime.now().date()
-    sent_count = 0
-
-    for inv in invoices:
-        due_date = datetime.strptime(inv['due_date'], '%Y-%m-%d').date()
-        days_left = (due_date - today).days
-        stage = inv['reminder_stage']
-        inv_id = inv['id']
-
-        if days_left < 0 and stage != 'OVERDUE_SENT':
-            success, msg = send_invoice_reminder(inv, 'OVERDUE')
-            if success:
-                cursor.execute('UPDATE invoices SET reminder_stage = "OVERDUE_SENT" WHERE id = ?', (inv_id,))
-                conn.commit()
-                sent_count += 1
-                send_windows_toast("Vadesi Geçmiş Fatura", f"{inv['client_name']} - {inv['amount']} {inv['currency']} (Vade: {inv['due_date']})")
-
-        elif 0 <= days_left <= 1 and stage not in ('DAY_SENT', 'OVERDUE_SENT'):
-            success, msg = send_invoice_reminder(inv, 'DAY')
-            if success:
-                cursor.execute('UPDATE invoices SET reminder_stage = "DAY_SENT" WHERE id = ?', (inv_id,))
-                conn.commit()
-                sent_count += 1
-                send_windows_toast("Fatura Vadesi Yarın Doluyor", f"{inv['client_name']} - {inv['amount']} {inv['currency']}")
-
-        elif 1 < days_left <= 7 and stage == 'NONE':
-            success, msg = send_invoice_reminder(inv, 'WEEK')
-            if success:
-                cursor.execute('UPDATE invoices SET reminder_stage = "WEEK_SENT" WHERE id = ?', (inv_id,))
-                conn.commit()
-                sent_count += 1
-                send_windows_toast("Fatura Vadesi Yaklaşıyor", f"{inv['client_name']} - {days_left} gün kaldı")
-
-    conn.close()
-    return sent_count
-
 def scheduler_loop(interval_seconds=3600):
     while True:
         try:
             check_and_send_reminders()
-            check_and_send_invoice_reminders()
         except Exception as e:
             print(f"Scheduler Error: {e}")
         time.sleep(interval_seconds)
 
+def logo_sync_loop(check_interval_seconds=60):
+    """Gunde LOGO_SYNC_SAATLERI'nde bir kez Logo'dan veri ceker.
+
+    Dakikada bir saat kontrolu yapilir; her saat icin gun basina tek
+    calisma garanti edilir (calisan_saatler ile), yoksa 60 saniyelik
+    kontrol araligi ayni saat icinde birden fazla tetikleme yapabilir.
+    """
+    calisan_saatler = set()  # (tarih, saat) ciftleri
+
+    while True:
+        try:
+            now = datetime.now()
+            anahtar = (now.date(), now.hour)
+            if now.hour in LOGO_SYNC_SAATLERI and anahtar not in calisan_saatler:
+                calisan_saatler.add(anahtar)
+                eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
+                abone, riskli = sync_logo_subscriptions()
+                urun, urun_atlanan = sync_logo_products()
+                print(f"Logo senkronizasyonu ({now.hour}:00): {eklenen} lisans, "
+                      f"{abone} abonelik, {urun} ürün.")
+        except Exception as e:
+            print(f"Logo Sync Scheduler Error: {e}")
+        time.sleep(check_interval_seconds)
+
 def start_background_scheduler():
     thread = threading.Thread(target=scheduler_loop, args=(300,), daemon=True)
     thread.start()
+
+    logo_thread = threading.Thread(target=logo_sync_loop, daemon=True)
+    logo_thread.start()
+
     print("Background reminder scheduler started.")
 
 if __name__ == '__main__':
-    count = check_and_send_reminders() + check_and_send_invoice_reminders()
+    count = check_and_send_reminders()
     print(f"Reminder check completed. Reminders sent: {count}")

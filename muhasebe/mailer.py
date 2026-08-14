@@ -163,12 +163,12 @@ def smtp_gonder(settings, recipients, subject, body_html):
         return False, f"SMTP hatası: {e}"
 
 def _gonderim_kaydet(cursor, subject, body_html, recipients, recipient_name,
-                     stage, sale_id=None, invoice_id=None):
+                     stage, sale_id=None):
     cursor.execute('''
-        INSERT INTO sent_emails (sale_id, invoice_id, recipient_email, recipient_name,
+        INSERT INTO sent_emails (sale_id, recipient_email, recipient_name,
                                  subject, body_html, reminder_stage, delivery_mode)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'SMTP')
-    ''', (sale_id, invoice_id, ', '.join(recipients), recipient_name, subject, body_html, stage))
+        VALUES (?, ?, ?, ?, ?, ?, 'SMTP')
+    ''', (sale_id, ', '.join(recipients), recipient_name, subject, body_html, stage))
 
 def send_test_email(recipients=None):
     """Ayarların doğruluğunu kontrol etmek için örnek bir hatırlatma gönderir."""
@@ -183,8 +183,7 @@ def send_test_email(recipients=None):
      border:1px solid #e6e6e9;border-radius:12px;padding:24px;color:#1a1a1c">
   <h2 style="margin:0 0 6px;color:#f2691f;font-size:19px">Test e-postası</h2>
   <p style="margin:0 0 16px;color:#55555e;font-size:14px">
-    Bu mesajı görüyorsanız SMTP ayarlarınız doğru çalışıyor. Lisans yenileme ve
-    ödenmemiş fatura hatırlatmaları bu adrese ulaşacak.
+    Bu mesajı görüyorsanız SMTP ayarlarınız doğru çalışıyor. Lisans yenileme hatırlatmaları bu adrese ulaşacak.
   </p>
   <div style="background:#fafafa;border-left:3px solid #f2691f;padding:12px 14px;
        border-radius:6px;font-size:13px;color:#55555e">
@@ -231,89 +230,3 @@ def send_reminder_email(sale_data, reminder_stage):
     conn.commit()
     conn.close()
     return True, "Hatırlatma e-postası gönderildi."
-
-def fatura_maili(invoice_data):
-    """Ödenmemiş fatura hatırlatması — muhasebe ekibine."""
-    musteri = invoice_data.get('client_name') or 'Müşteri'
-    fatura_no = invoice_data.get('invoice_no') or '-'
-    tutar = f"{invoice_data.get('amount', 0):,.2f}".replace(',', '.')
-    birim = invoice_data.get('currency') or 'TRY'
-    vade = invoice_data.get('due_date') or ''
-
-    try:
-        kalan = (datetime.strptime(vade, '%Y-%m-%d') - datetime.now()).days
-    except ValueError:
-        kalan = 0
-
-    sure_ifadesi, renk, etiket = _gun_ifadesi(kalan)
-    subject = f'[{etiket}] {musteri} — {tutar} {birim} tutarındaki fatura {sure_ifadesi}'
-
-    satirlar = [
-        ('Müşteri', musteri),
-        ('Fatura no', fatura_no),
-        ('Tutar', f'{tutar} {birim}'),
-        ('Vade tarihi', vade),
-    ]
-    detay = ''.join(
-        f'<tr>'
-        f'<td style="padding:7px 0;color:{SOLUK};font-size:13px;width:140px;'
-        f'vertical-align:top">{ad}</td>'
-        f'<td style="padding:7px 0;color:{METIN};font-size:14px;font-weight:600">'
-        f'{deger}</td></tr>'
-        for ad, deger in satirlar
-    )
-
-    eylem = ('Vade geçmiş, tahsilat takibi gerekiyor.' if kalan < 0
-             else 'Ödeme yaklaşıyor, takip listesine alın.')
-
-    body = f'''<div style="font-family:'Segoe UI',system-ui,sans-serif;max-width:560px;
-     margin:0 auto;color:{METIN};line-height:1.55">
-  <div style="border:1px solid {CIZGI};border-radius:12px;overflow:hidden">
-    <div style="background:{renk};padding:14px 22px">
-      <span style="color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em">
-        {etiket}
-      </span>
-    </div>
-    <div style="padding:22px">
-      <p style="margin:0 0 18px;font-size:15px">
-        <strong>{musteri}</strong> firmasına kesilen faturanın ödemesi
-        <strong style="color:{renk}">{sure_ifadesi}</strong>.
-      </p>
-      <table style="width:100%;border-collapse:collapse;border-top:1px solid {CIZGI};
-             border-bottom:1px solid {CIZGI}">{detay}</table>
-      <p style="margin:18px 0 0;font-size:14px;color:{SOLUK}">{eylem}</p>
-    </div>
-  </div>
-  <p style="margin:14px 0 0;font-size:11px;color:#8b8b95;text-align:center">
-    Piramit Lisans Takip — otomatik hatırlatma
-  </p>
-</div>'''
-
-    return subject, body
-
-
-def send_invoice_reminder(invoice_data, stage):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    subject, body_html = fatura_maili(invoice_data)
-    settings = get_settings()
-    recipients = get_internal_recipients(settings)
-
-    if not recipients:
-        conn.close()
-        return False, "İç bildirim alıcı listesi boş. Ayarlar sekmesinden muhasebe/satış e-postalarını ekleyin."
-
-    basarili, mesaj = smtp_gonder(settings, recipients, subject, body_html)
-    if not basarili:
-        conn.close()
-        return False, mesaj
-
-    _gonderim_kaydet(
-        cursor, subject, body_html, recipients,
-        f"Muhasebe & Satış Ekibi (İlgili müşteri: {invoice_data.get('client_name', '')})",
-        f'INVOICE_{stage}', invoice_id=invoice_data.get('id'),
-    )
-    conn.commit()
-    conn.close()
-    return True, "Fatura hatırlatması gönderildi."
