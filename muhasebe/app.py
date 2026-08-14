@@ -91,7 +91,10 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
                    'application/javascript; charset=utf-8' if path.endswith('.js') else \
                    'image/png' if path.endswith('.png') else \
                    'image/svg+xml' if path.endswith('.svg') else \
-                   'image/jpeg' if path.endswith(('.jpg', '.jpeg')) else 'text/html'
+                   'image/jpeg' if path.endswith(('.jpg', '.jpeg')) else \
+                   'font/woff2' if path.endswith('.woff2') else \
+                   'application/json; charset=utf-8' if path.endswith('.json') else \
+                   'application/json; charset=utf-8' if path.endswith('.map') else 'text/html'
             self._send_file(file_path, mime)
             return
 
