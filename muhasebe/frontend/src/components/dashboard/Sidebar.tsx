@@ -32,7 +32,7 @@ export function Sidebar({ active, onSelect, onLogout }: SidebarProps) {
             className={cn(
               'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
               active === id
-                ? 'bg-brand-soft text-brand dark:bg-brand/15'
+                ? 'bg-brand-soft text-brand-dark dark:bg-brand/15 dark:text-brand'
                 : 'text-black/60 hover:bg-black/5 dark:text-white/60 dark:hover:bg-white/5'
             )}
           >
