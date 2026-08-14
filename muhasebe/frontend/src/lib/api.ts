@@ -80,3 +80,30 @@ export function getSubscriptions(): Promise<Subscription[] | null> {
 export function getProducts(): Promise<Product[] | null> {
   return getJson<Product[]>('/api/products')
 }
+
+export type ReminderStage = 'FIRST_REMINDER' | 'FINAL_REMINDER'
+
+export function getSettings(): Promise<Record<string, string> | null> {
+  return getJson<Record<string, string>>('/api/settings')
+}
+
+export async function sendReminder(
+  saleId: number,
+  stage: ReminderStage
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/sales/${saleId}/send-reminder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ stage }),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Hatırlatma gönderildi.' : 'Gönderim başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
