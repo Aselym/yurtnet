@@ -1,12 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-    <script type="module" crossorigin src="/static/assets/index-CgljXF5b.js"></script>
-    <link rel="stylesheet" crossorigin href="/static/assets/index-D64VDMd1.css">
+    <title>Piramit Lisans Takip</title>
+    <link rel="icon" type="image/png" href="/static/images/logo2.png" />
+    <script>
+      try {
+        if (localStorage.getItem('piramit.tema') === 'koyu') {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/static/assets/index-BJiB3gq0.js"></script>
+    <link rel="stylesheet" crossorigin href="/static/assets/index-VcOygQaA.css">
   </head>
   <body>
     <div id="root"></div>
