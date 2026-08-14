@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { RoleSelectPage } from '@/pages/RoleSelectPage'
 import { LoadingTransition } from '@/pages/LoadingTransition'
 import { PlaceholderPanel } from '@/pages/PlaceholderPanel'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { checkAuth, logout } from '@/lib/auth'
 import type { Role } from '@/lib/types'
 
@@ -59,8 +60,11 @@ export default function App() {
       {step === 'login' && <LoginPage key="login" onSuccess={handleLoginSuccess} />}
       {step === 'role-select' && <RoleSelectPage key="role-select" onSelect={handleRoleSelect} />}
       {step === 'transition' && <LoadingTransition key="transition" onDone={handleTransitionDone} />}
-      {step === 'panel' && role && (
-        <PlaceholderPanel key="panel" role={role} onLogout={handleLogout} />
+      {step === 'panel' && role === 'satis' && (
+        <DashboardPage key="panel-satis" onLogout={handleLogout} />
+      )}
+      {step === 'panel' && role === 'yonetici' && (
+        <PlaceholderPanel key="panel-yonetici" role={role} onLogout={handleLogout} />
       )}
     </AnimatePresence>
   )
