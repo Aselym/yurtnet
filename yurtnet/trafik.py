@@ -12,6 +12,7 @@ bakabilmek için Zabbix geçmişi gerekiyor.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -37,6 +38,9 @@ TRAFIK_CSS = """
 .gosterge i{width:16px;height:3px;border-radius:2px;display:inline-block}
 .ozet{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--muted)}
 .ozet b{color:var(--ink);font-variant-numeric:tabular-nums}
+.isaret-alani{cursor:crosshair}
+.ipucu-kutu{fill:var(--plane);stroke:var(--line)}
+#trafik-alan.yukleniyor{opacity:.5;transition:opacity .1s}
 """
 
 
@@ -157,8 +161,17 @@ def cizgi_grafik(seriler: list[tuple[str, list[tuple[int, float]]]], kimlik: str
             f'stroke-linejoin="round" stroke-dasharray="{"" if sira == 0 else "4 3"}"/>'
         )
 
+    # Fare ile üzerine gelince o andaki değeri göstermek için: her serinin
+    # (zaman, değer) noktaları JSON olarak gömülüyor, konum/ölçek bilgisiyle
+    # birlikte. Ayrı bir istek atmadan, tarayıcıda JS ile okunuyor.
+    veri = {
+        "sol": SOL, "ust": UST, "cw": cw, "ch": ch,
+        "t0": t0, "t1": t1, "tepe": tepe,
+        "seriler": [{"ad": ad, "noktalar": noktalar} for ad, noktalar in dolu],
+    }
+
     return f"""<div class="grafik"><svg viewBox="0 0 {EN:.0f} {BOY:.0f}" width="100%"
-  role="img" aria-label="Trafik grafiği">
+  role="img" aria-label="Trafik grafiği" data-grafik="{kimlik}">
 <defs>
   <linearGradient id="cizgi{kimlik}" x1="0" y1="{UST + ch:.0f}" x2="0" y2="{UST:.0f}"
                   gradientUnits="userSpaceOnUse">
@@ -177,7 +190,149 @@ def cizgi_grafik(seriler: list[tuple[str, list[tuple[int, float]]]], kimlik: str
       stroke="var(--axis)" stroke-width="1"/>
 {"".join(yollar)}
 {"".join(etiketler)}
-</svg></div>"""
+<g class="capraz" style="display:none" pointer-events="none">
+  <line class="capraz-cizgi" x1="0" y1="{UST:.1f}" x2="0" y2="{UST + ch:.1f}"
+        stroke="var(--ink2)" stroke-width="1" stroke-dasharray="3 3"/>
+  <circle r="3.5" fill="var(--ink)"/>
+  <circle r="3.5" fill="var(--plane)" stroke="var(--ink)" stroke-width="1.5"/>
+</g>
+<g class="ipucu" style="display:none" pointer-events="none">
+  <rect class="ipucu-kutu" width="128" height="54" rx="5"/>
+  <text class="ipucu-satir" x="8" y="16" font-size="10.5" fill="var(--ink)" font-weight="650"></text>
+  <text class="ipucu-satir" x="8" y="32" font-size="10.5" fill="var(--ink2)"></text>
+  <text class="ipucu-satir" x="8" y="47" font-size="10.5" fill="var(--ink2)"></text>
+</g>
+<rect class="isaret-alani" x="{SOL:.1f}" y="{UST:.1f}" width="{cw:.1f}" height="{ch:.1f}" fill="transparent"/>
+</svg>
+<script type="application/json" class="grafik-verisi">{json.dumps(veri)}</script>
+</div>"""
+
+
+TRAFIK_JS = """
+(function(){
+  function fmtBps(v){
+    if (v==null) return '—';
+    var birimler=[['Gbps',1e9],['Mbps',1e6],['Kbps',1e3]];
+    for (var i=0;i<birimler.length;i++){
+      if (v>=birimler[i][1]) return (v/birimler[i][1]).toFixed(1)+' '+birimler[i][0];
+    }
+    return Math.round(v)+' bps';
+  }
+  function fmtSaat(t){
+    var d=new Date(t*1000);
+    function iki(n){ return (n<10?'0':'')+n; }
+    return iki(d.getHours())+':'+iki(d.getMinutes());
+  }
+  function enYakinIndeks(noktalar, t){
+    var en=0, fark=Infinity;
+    for (var i=0;i<noktalar.length;i++){
+      var f=Math.abs(noktalar[i][0]-t);
+      if (f<fark){ fark=f; en=i; }
+    }
+    return en;
+  }
+  function grafikKur(svg){
+    var betikEl = svg.parentElement.querySelector('.grafik-verisi');
+    var hit = svg.querySelector('.isaret-alani');
+    var capraz = svg.querySelector('.capraz');
+    var caprazCizgi = capraz.querySelector('.capraz-cizgi');
+    var noktalar = capraz.querySelectorAll('circle');
+    var ipucu = svg.querySelector('.ipucu');
+    var kutu = ipucu.querySelector('.ipucu-kutu');
+    var satirlar = ipucu.querySelectorAll('.ipucu-satir');
+    if (!betikEl || !hit) return;
+    var veri = JSON.parse(betikEl.textContent);
+
+    function gizle(){
+      capraz.style.display = 'none';
+      ipucu.style.display = 'none';
+    }
+
+    function goster(clientX, clientY){
+      var pt = svg.createSVGPoint();
+      pt.x = clientX; pt.y = clientY;
+      var ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      var loc = pt.matrixTransform(ctm.inverse());
+      if (loc.x < veri.sol || loc.x > veri.sol + veri.cw){ gizle(); return; }
+      var t = veri.t0 + (loc.x - veri.sol) / veri.cw * (veri.t1 - veri.t0);
+
+      var xpix = null, satirMetni = [], zamanMetni = '';
+      veri.seriler.forEach(function(seri, i){
+        if (!seri.noktalar.length) return;
+        var idx = enYakinIndeks(seri.noktalar, t);
+        var nk = seri.noktalar[idx];
+        var xx = veri.sol + (nk[0] - veri.t0) / (veri.t1 - veri.t0) * veri.cw;
+        var yy = veri.ust + veri.ch - (nk[1] / veri.tepe) * veri.ch;
+        if (xpix === null){ xpix = xx; zamanMetni = fmtSaat(nk[0]); }
+        if (noktalar[i]){
+          noktalar[i].setAttribute('cx', xx.toFixed(1));
+          noktalar[i].setAttribute('cy', yy.toFixed(1));
+          noktalar[i].style.display = 'block';
+        }
+        satirMetni.push(seri.ad + ': ' + fmtBps(nk[1]));
+      });
+      if (xpix === null){ gizle(); return; }
+
+      caprazCizgi.setAttribute('x1', xpix.toFixed(1));
+      caprazCizgi.setAttribute('x2', xpix.toFixed(1));
+      capraz.style.display = 'block';
+
+      satirlar[0].textContent = zamanMetni;
+      satirlar[1].textContent = satirMetni[0] || '';
+      satirlar[2].textContent = satirMetni[1] || '';
+      var kutuGenislik = 128;
+      var tx = xpix + 10;
+      if (tx + kutuGenislik > veri.sol + veri.cw) tx = xpix - 10 - kutuGenislik;
+      ipucu.setAttribute('transform', 'translate(' + tx.toFixed(1) + ',' + veri.ust.toFixed(1) + ')');
+      ipucu.style.display = 'block';
+    }
+
+    hit.addEventListener('mousemove', function(e){ goster(e.clientX, e.clientY); });
+    hit.addEventListener('mouseleave', gizle);
+    hit.addEventListener('touchstart', function(e){
+      if (e.touches[0]) goster(e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive:true});
+    hit.addEventListener('touchmove', function(e){
+      if (e.touches[0]) goster(e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive:true});
+  }
+
+  function tumGrafikleriKur(kok){
+    (kok || document).querySelectorAll('svg[data-grafik]').forEach(grafikKur);
+  }
+  window.__trafikKur = tumGrafikleriKur;
+
+  // Yurt/saat seçimi değişince tüm sayfa yeniden yüklenmeden yalnızca
+  // grafik alanı tazelenir — form içeriği AJAX ile değiştiği için doğrudan
+  // dinleyici yerine document üzerinden olay devretme kullanılıyor.
+  var alan = document.getElementById('trafik-alan');
+  if (alan){
+    function yukle(url, gecmiseEkle){
+      alan.classList.add('yukleniyor');
+      fetch(url).then(function(r){ return r.text(); }).then(function(html){
+        var yeni = new DOMParser().parseFromString(html, 'text/html');
+        var yeniAlan = yeni.getElementById('trafik-alan');
+        if (!yeniAlan){ window.location.href = url; return; }
+        alan.innerHTML = yeniAlan.innerHTML;
+        alan.classList.remove('yukleniyor');
+        if (gecmiseEkle) history.pushState({trafik:url}, '', url);
+        tumGrafikleriKur(alan);
+      }).catch(function(){ window.location.href = url; });
+    }
+    document.addEventListener('change', function(e){
+      var form = e.target.closest('form.tsec');
+      if (!form) return;
+      e.preventDefault();
+      var params = new URLSearchParams(new FormData(form));
+      yukle('/trafik?' + params.toString(), true);
+    });
+    window.addEventListener('popstate', function(){ yukle(location.href, false); });
+  }
+
+  tumGrafikleriKur(document);
+})();
+"""
 
 
 def _ozet_satiri(noktalar: list[tuple[int, float]], etiket: str) -> str:
@@ -236,17 +391,20 @@ def sayfa(
         f'<option value="{s}"{" selected" if s == saat else ""}>son {s} saat</option>'
         for s in (1, 3, 6, 12, 24, 48)
     )
-    govde.append(
+    # trafik-alan: yurt/saat seçimi değişince JS bu bloğu, sayfadan çıkmadan,
+    # ağa yeni bir GET atıp yalnızca bunun içeriğini değiştirerek tazeler.
+    alan = [
         f'<p class="alt">{esc(secili["name"])} · {len(arayuzler)} arayüz · '
         f'son {saat} saat · veri doğrudan Zabbix geçmişinden</p>'
         f'<form class="tsec" method="GET" action="/trafik">'
-        f'<select name="yurt" onchange="this.form.submit()">{secenekler}</select>'
-        f'<select name="saat" onchange="this.form.submit()">{saat_secenek}</select>'
-        f'<span class="bilgi">Seçim değişince grafik yeniden çizilir.</span></form>'
-    )
+        f'<select name="yurt">{secenekler}</select>'
+        f'<select name="saat">{saat_secenek}</select>'
+        f'<span class="bilgi">Grafik üzerinde gezinince o andaki değeri gösterir; '
+        f"seçim değişince sayfadan çıkmadan tazelenir.</span></form>"
+    ]
 
     if not arayuzler:
-        govde.append(
+        alan.append(
             pages.kart(
                 "Arayüz bulunamadı",
                 '<p class="bos">Bu yurtta SNMP arayüz keşfi tamamlanmamış; '
@@ -254,7 +412,8 @@ def sayfa(
                 "veren politikayı kontrol edin.</p>",
             )
         )
-        return _kabuk(logo, "".join(govde))
+        govde.append(f'<div id="trafik-alan">{"".join(alan)}</div>')
+        return _kabuk(logo, "".join(govde) + f"<script>{TRAFIK_JS}</script>")
 
     kartlar = []
     for sira, (ad, idler) in enumerate(arayuzler.items()):
@@ -274,20 +433,39 @@ def sayfa(
         )
         kartlar.append(
             pages.kart(
-                f"{_kisa(secili['name'])} — {ad}",
+                f"{_kisa(secili['name'])} — {_hat_basligi(config, secili['host'], ad)}",
                 icerik,
                 aciklama=f"{len(gelen)} ölçüm noktası · renk yükseldikçe kırmızıya döner.",
             )
         )
 
-    govde.append(f'<div class="grafikler">{"".join(kartlar)}</div>')
-    return _kabuk(logo, "".join(govde))
+    alan.append(f'<div class="grafikler">{"".join(kartlar)}</div>')
+    govde.append(f'<div id="trafik-alan">{"".join(alan)}</div>')
+    return _kabuk(logo, "".join(govde) + f"<script>{TRAFIK_JS}</script>")
 
 
 def _kisa(ad: str) -> str:
     from .reports_html import _kisa_ad
 
     return _kisa_ad(ad)
+
+
+def _hat_basligi(config: dict[str, Any], host: str, arayuz: str) -> str:
+    """Panoda ad ve hız girilmişse onu, girilmemişse çıplak arayüz adını gösterir."""
+    from . import hat_ayarlari
+
+    bilgi = hat_ayarlari.hat_bilgisi(config, host, arayuz)
+    if not bilgi:
+        return arayuz
+    isim = (bilgi.get("isim") or "").strip()
+    hiz = bilgi.get("hiz_mbps")
+    if isim and hiz:
+        return f"{isim} — {arayuz} · {hiz:g} Mbps"
+    if isim:
+        return f"{isim} — {arayuz}"
+    if hiz:
+        return f"{arayuz} · {hiz:g} Mbps"
+    return arayuz
 
 
 def _kabuk(logo: str, govde: str) -> str:

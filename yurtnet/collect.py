@@ -306,10 +306,23 @@ def _select_wan(snapshot: HostSnapshot, config: dict[str, Any]) -> None:
 
     Cihazdan cihaza değiştiği için sabit bir isim varsayılamaz. Kural:
     indirmenin göndermeden baskın olduğu, en çok trafik alan fiziksel arayüz.
-    Yapılandırmada elle verilmişse o kullanılır.
+
+    Bu heuristik turdan tura değişebilir (ör. yedek hatta geçiş) — panodaki
+    Hat Ayarları sayfasından bir arayüz "birincil" işaretlenmişse önce o
+    denenir, sonra config.yaml'daki elle atama, en son heuristik.
     """
-    overrides = config.get("wan", {}).get("interfaces") or {}
-    manual = overrides.get(snapshot.host) or overrides.get(snapshot.name)
+    from . import hat_ayarlari
+
+    # Öncelik: panodaki "birincil hat" işareti > config.yaml'daki elle atama.
+    # İkisi de aynı şekilde uygulanır: arayüz gerçekten varsa kullanılır, yoksa
+    # (yeniden adlandırılmış/kaldırılmış olabilir) uyarıyla heuristiğe düşülür.
+    manual = hat_ayarlari.birincil_arayuz(config, snapshot.host)
+    kaynak = "panodaki birincil hat işareti"
+    if not manual:
+        overrides = config.get("wan", {}).get("interfaces") or {}
+        manual = overrides.get(snapshot.host) or overrides.get(snapshot.name)
+        kaynak = "config.yaml'daki elle atama"
+
     if manual:
         for iface in snapshot.interfaces.values():
             if iface.name == manual:
@@ -318,8 +331,8 @@ def _select_wan(snapshot: HostSnapshot, config: dict[str, Any]) -> None:
                 snapshot.in_bps, snapshot.out_bps = iface.in_bps, iface.out_bps
                 return
         log.warning(
-            "%s için elle verilen WAN arayüzü '%s' bulunamadı, otomatik seçime dönülüyor.",
-            snapshot.host, manual,
+            "%s için %s ('%s') bulunamadı, otomatik seçime dönülüyor.",
+            snapshot.host, kaynak, manual,
         )
 
     candidates = [
@@ -342,11 +355,24 @@ def _select_wan(snapshot: HostSnapshot, config: dict[str, Any]) -> None:
 
 
 def _resolve_capacity(snapshot: HostSnapshot, config: dict[str, Any], capacity_lookup) -> None:
-    """Hat kapasitesini belirler: elle > öğrenilmiş > kapalı.
+    """Hat kapasitesini belirler: panodan girilen hat hızı > config.yaml > öğrenilmiş > kapalı.
 
     net.if.speed bilinçli olarak kullanılmaz: fiziksel port hızını (çoğunlukla
     1 Gbps) verir, ISP'den alınan gerçek hat hızını değil.
+
+    Panodaki Hat Ayarları sayfasından girilen hız en yüksek önceliğe sahiptir:
+    en spesifik (yurt + arayüz bazlı) ve servis ekibinin doğrudan güncellediği
+    değer budur. Tüm doluluk değerlendirmeleri (SATURATION bulgusu, analiz
+    bölümü, PDF, ekran modu) buradan geçer.
     """
+    if snapshot.wan:
+        from . import hat_ayarlari
+
+        elle_girilen = hat_ayarlari.hiz(config, snapshot.host, snapshot.wan)
+        if elle_girilen:
+            snapshot.capacity_mbps = elle_girilen
+            return
+
     bandwidth = config["bandwidth"]
     mode = bandwidth.get("mode", "learned")
 

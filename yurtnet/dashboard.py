@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from . import auth, pages
-from .brand import LOGO_DATA_URI
+from .brand import FAVICON_DATA_URI, LOGO_DATA_URI, LOGO_KOYU_DATA_URI
 from .collect import HostSnapshot
 from .diagnose import Finding
 from .render import SEVERITY_COLOR, esc, fmt_bps, fmt_duration, fmt_ms, fmt_pct, fmt_time
@@ -70,6 +70,16 @@ input{min-width:220px;flex:1}
            border:1px solid var(--line);background:var(--surface);color:var(--ink2);cursor:pointer}
 .pl button:hover{color:var(--ink);border-color:var(--axis)}
 .pl button.geri{border-color:rgba(12,163,12,.4);color:var(--iyi-ink)}
+/* not sütunu: varsayılan dar, odaklanınca genişler — 34 satırlık tabloda
+   hepsi geniş dursa yatay kaydırmayı gereksiz büyütürdü. */
+.not-td{min-width:150px}
+.nt{display:flex;gap:5px;align-items:center}
+.nt input[type=text]{min-width:0;width:130px;flex:none;padding:5px 8px;font-size:12px;
+  border-radius:5px;transition:width .15s}
+.nt input[type=text]:focus{width:230px}
+.nt button{font-family:inherit;font-size:12px;padding:4px 9px;border-radius:5px;flex:none;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink2);cursor:pointer}
+.nt button:hover{color:var(--iyi-ink);border-color:rgba(12,163,12,.4)}
 """
 
 JS = """
@@ -141,6 +151,7 @@ LOGIN_PAGE = """<!doctype html>
 <html lang="tr"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="__FAVICON__">
 <title>Giriş — Yurt İnternet Durumu</title>
 <script>__TEMA_ON__</script>
 <style>
@@ -156,11 +167,14 @@ body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:c
      font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 .box{background:var(--card);border:1px solid var(--line);border-radius:12px;
      padding:28px;width:100%;max-width:370px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-/* Logo siyah yazı içerdiği için koyu temada okunmaz kalır; her iki temada da
-   beyaz bir zemin üzerinde gösterilir, böylece kasıtlı bir levha gibi durur. */
-.logo{display:block;background:#fff;border-radius:9px;padding:13px 16px;margin:0 0 20px;
-      text-align:center}
-.logo img{width:100%;max-width:205px;height:auto;display:inline-block}
+/* İki logo üst üste durur; tema hangisini gösterdiğine karar verir. Beyaz
+   kutu/levha kaldırıldı — beyaz metinli sürüm koyu zemine doğrudan oturuyor. */
+.logo{display:block;margin:0 0 20px;text-align:center}
+.logo img{width:100%;max-width:205px;height:auto}
+.logo .logo-koyu{display:inline-block}
+.logo .logo-acik{display:none}
+:root[data-tema="acik"] .logo .logo-koyu{display:none}
+:root[data-tema="acik"] .logo .logo-acik{display:inline-block}
 h1{font-size:16.5px;margin:0 0 3px;font-weight:650}
 .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
 label{display:block;font-size:12.5px;font-weight:600;margin:0 0 6px;color:var(--fg)}
@@ -181,7 +195,10 @@ button:hover{filter:brightness(1.08)}
 </style>
 </head><body>
   <form class="box" method="POST" action="/login">
-    <span class="logo"><img src="__LOGO__" alt="Piramit Bilgisayar"></span>
+    <span class="logo">
+      <img class="logo-acik" src="__LOGO__" alt="Piramit Bilgisayar">
+      <img class="logo-koyu" src="__LOGO_KOYU__" alt="Piramit Bilgisayar">
+    </span>
     <h1>Yurt İnternet Durumu</h1>
     <p class="sub">Devam etmek için giriş yapın.</p>
     __ERROR__
@@ -219,6 +236,8 @@ def render_login(error: str = "") -> str:
     return (
         LOGIN_PAGE.replace("__ERROR__", block)
         .replace("__LOGO__", LOGO_DATA_URI)
+        .replace("__LOGO_KOYU__", LOGO_KOYU_DATA_URI)
+        .replace("__FAVICON__", FAVICON_DATA_URI)
         .replace("__TEMA_ON__", pages.TEMA_ONYUKLEME)
     )
 
@@ -243,6 +262,10 @@ def render(
     for snap in snapshots:
         counts[_worst_severity(findings_by_host.get(snap.hostid, []))] += 1
         _HOST_ADLARI[snap.hostid] = (snap.name, snap.host)
+
+    from . import notlar as not_deposu
+
+    notlar = not_deposu.yukle(config)
 
     regions = sorted({s.region for s in snapshots})
     banners = "".join(
@@ -277,10 +300,10 @@ def render(
 <thead><tr>
   <th data-k>Durum</th><th data-k>Yurt</th><th data-k>Bölge</th><th data-k>Gecikme</th>
   <th data-k>Kayıp</th><th data-k>İndirme</th><th data-k>Yükleme</th><th data-k>Doluluk</th>
-  <th data-k>WAN</th><th data-k>Çalışma süresi</th><th data-k>Ön tanı</th>
+  <th data-k>WAN</th><th data-k>Çalışma süresi</th><th data-k>Ön tanı</th><th>Not</th>
 </tr></thead>
 <tbody>
-{"".join(_row(s, findings_by_host.get(s.hostid, []), config) for s in rows)}
+{"".join(_row(s, findings_by_host.get(s.hostid, []), config, notlar) for s in rows)}
 </tbody></table></div>
 <script>{JS}</script>"""
 
@@ -294,7 +317,10 @@ def render(
     )
 
 
-def _row(snap: HostSnapshot, findings: list[Finding], config: dict[str, Any]) -> str:
+def _row(
+    snap: HostSnapshot, findings: list[Finding], config: dict[str, Any],
+    notlar: dict[str, str] | None = None,
+) -> str:
     severity = _worst_severity(findings)
     color = SEVERITY_COLOR[severity]
     label = {"critical": "KRİTİK", "warning": "UYARI", "info": "BİLGİ", "ok": "NORMAL"}[severity]
@@ -328,6 +354,7 @@ def _row(snap: HostSnapshot, findings: list[Finding], config: dict[str, Any]) ->
         diagnosis = '<span class="dim">Sorun tespit edilmedi</span>'
 
     diagnosis += _planli_dugme(snap, findings)
+    not_cell = _not_hucresi(snap.hostid, (notlar or {}).get(snap.hostid, ""))
 
     search = f"{snap.name} {snap.host} {snap.region} {snap.address}".lower()
     return f"""<tr data-search="{esc(search)}" data-region="{esc(snap.region)}" data-sev="{severity}">
@@ -346,7 +373,24 @@ def _row(snap: HostSnapshot, findings: list[Finding], config: dict[str, Any]) ->
 <td class="num">{wan_cell}</td>
 <td class="num" data-v="{snap.uptime_seconds or -1}">{uptime_cell}</td>
 <td class="diag">{diagnosis}</td>
+<td class="not-td">{not_cell}</td>
 </tr>"""
+
+
+def _not_hucresi(hostid: str, mevcut: str) -> str:
+    """Serbest metin not: tek satır giriş + kaydet düğmesi, /not'a POST eder.
+
+    Var olan not tıklanana kadar kısaltılmış görünür (title tam metni taşır);
+    tıklayınca odaklanan input tam genişliğe açılır (bkz. CSS .not-td input:focus).
+    """
+    return (
+        f'<form class="nt" method="POST" action="/not">'
+        f'<input type="hidden" name="hostid" value="{esc(hostid)}">'
+        f'<input type="text" name="metin" value="{esc(mevcut)}" maxlength="300"'
+        f' placeholder="Not ekle…" title="{esc(mevcut)}" autocomplete="off">'
+        f'<button type="submit" title="Notu kaydet">✓</button>'
+        f"</form>"
+    )
 
 
 def _planli_dugme(snap: HostSnapshot, findings: list[Finding]) -> str:
@@ -506,6 +550,8 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
                 return self._ayarlar_goster()
             if self.path.split("?")[0].rstrip("/") == "/trafik":
                 return self._trafik()
+            if self.path.rstrip("/") == "/hatlar":
+                return self._hatlar_goster()
             hedef = SAYFALAR.get(self.path.rstrip("/") or "/")
             if hedef:
                 if not (output_path.parent / hedef).exists():
@@ -544,6 +590,16 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
                 if self._session_user() is None:
                     return self._send_html(render_login(), status=401)
                 return self._kapat()
+
+            if self.path.startswith("/hatlar"):
+                if self._session_user() is None:
+                    return self._send_html(render_login(), status=401)
+                return self._hatlar_kaydet()
+
+            if self.path.startswith("/not"):
+                if self._session_user() is None:
+                    return self._send_html(render_login(), status=401)
+                return self._not_kaydet()
 
             if not self.path.startswith("/login"):
                 return self._send_html("<p>Bulunamadı</p>", status=404)
@@ -647,6 +703,32 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
                 )
             return self._send_html(html)
 
+        # ------------------------------------------------------------ hatlar
+
+        def _hatlar_goster(self, mesaj: tuple[str, str] | None = None) -> None:
+            from . import hatlar_sayfa
+
+            try:
+                html = hatlar_sayfa.sayfa(config, LOGO_DATA_URI, mesaj)
+            except Exception:
+                log.exception("Hat Ayarları sayfası üretilemedi")
+                return self._send_html(
+                    "<p style='font-family:sans-serif;padding:24px'>Sayfa üretilemedi. "
+                    "Sunucu günlüğüne bakın.</p>", status=500
+                )
+            return self._send_html(html)
+
+        def _hatlar_kaydet(self) -> None:
+            from . import hatlar_sayfa
+
+            alanlar = self._form_oku()
+            try:
+                durum, msj = hatlar_sayfa.formdan_kaydet(config, alanlar)
+            except Exception:
+                log.exception("Hat ayarları kaydedilemedi")
+                durum, msj = "kotu", "Kaydedilirken beklenmeyen bir hata oluştu."
+            return self._hatlar_goster((durum, msj))
+
         # ----------------------------------------------------------- ayarlar
 
         def _ayarlar_goster(self, mesaj: tuple[str, str] | None = None) -> None:
@@ -708,6 +790,23 @@ def serve(config: dict[str, Any], store=None, yeniden_ciz=None) -> threading.Thr
                          "Sunucu adresi, port, şifreleme kipi ve parolayı kontrol edin; "
                          "ayrıntılı hata sunucu günlüğünde.")
             )
+
+        def _not_kaydet(self) -> None:
+            """Yurt İnternet Durumu tablosundaki not hücresini kaydeder."""
+            from . import notlar as not_deposu
+
+            alanlar = self._form_oku()
+            hostid = (alanlar.get("hostid") or [""])[0]
+            metin = (alanlar.get("metin") or [""])[0]
+            if hostid:
+                not_deposu.kaydet(config, hostid, metin)
+
+            if yeniden_ciz is not None:
+                try:
+                    yeniden_ciz()
+                except Exception:
+                    log.exception("Tablo yeniden çizilemedi.")
+            return self._redirect("/")
 
         def _planli(self) -> None:
             """'Bilinçli kapalı' işaretini açar/kapatır ve tabloyu hemen tazeler."""

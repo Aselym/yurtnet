@@ -323,12 +323,21 @@ saniye ilerler; veri bayatlarsa (sunucu veya ağ durduysa) saat kırmızıya dö
 
 ### Ekran tarafındaki kurulum
 
-Ekrana bağlı bir mini PC yeterli. Chromium kiosk modunda açılışta başlatın:
+Ekrana bağlı bir mini PC yeterli. Açılışta başlatın:
 
 ```bash
-chromium --kiosk --noerrdialogs --disable-infobars \
+chromium --start-fullscreen --noerrdialogs --disable-infobars \
          --incognito=false https://yurtnet.piramit.com.tr/ekran
 ```
+
+`--kiosk` **değil**, `--start-fullscreen` kullanılıyor. `--kiosk` tarayıcının
+klavye kısayollarının çoğunu (Ctrl +/− ile büyütme-küçültme, pencereyi kapatma)
+tamamen kapatıyor ve geri dönüşü olmayan bir kilide sokuyordu. `--start-fullscreen`
+aynı şekilde tam ekranda açılır ama Ctrl +/− ile yakınlaştırma ve normal tarayıcı
+kısayolları çalışmaya devam eder; `F11` ile tam ekrandan çıkılabilir.
+
+Sayfadan çıkıp panoya dönmek için **logoya veya sağ üstteki ✕ düğmesine**
+tıklayın — ikisi de `/` adresine götürür.
 
 İlk açılışta bir kez kullanıcı adı/parola sorar. `session_days: 0` olduğu için
 bir daha sormaz — oturum süresiz. (Bu ayar bilerek böyle: süre dolsaydı ekran

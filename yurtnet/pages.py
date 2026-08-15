@@ -10,6 +10,7 @@ her zaman yazıyla birlikte gösterilir, renk tek başına anlam taşımaz.
 
 from __future__ import annotations
 
+from .brand import FAVICON_DATA_URI, LOGO_KOYU_DATA_URI
 from .render import esc
 
 # Sekmeler: (yol, başlık)
@@ -52,7 +53,14 @@ a{color:inherit}
 .ust-ic{max-width:1180px;margin:0 auto;display:flex;align-items:center;
         justify-content:space-between;gap:16px;flex-wrap:wrap}
 .marka{display:flex;align-items:center;gap:10px;padding:11px 0}
-.marka img{height:26px;width:auto;display:block;background:#fff;border-radius:5px;padding:3px 6px}
+/* İki logo aynı yerde üst üste durur, tema hangisini gösterdiğine karar
+   verir. Beyaz kutu kaldırıldı: metin siyah olan sürüm açık zeminde, beyaz
+   olan sürüm koyu zeminde doğrudan okunuyor, kutuya gerek yok. */
+.marka img{height:26px;width:auto;display:block}
+.marka .logo-koyu{display:block}
+.marka .logo-acik{display:none}
+:root[data-tema="acik"] .marka .logo-koyu{display:none}
+:root[data-tema="acik"] .marka .logo-acik{display:block}
 .sekmeler{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 .sekmeler::-webkit-scrollbar{display:none}
 .sekme{padding:13px 14px 11px;font-size:13.5px;font-weight:550;color:var(--ink2);
@@ -180,17 +188,24 @@ def shell(
 <html lang="tr"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="{FAVICON_DATA_URI}">
 <title>{esc(baslik)}</title>
 <script>{TEMA_ONYUKLEME}</script>
 <style>{TEMA}{ek_css}</style>
 </head><body>
 <header class="ust"><div class="ust-ic">
-  <div class="marka"><img src="{logo}" alt="Piramit Bilgisayar"></div>
+  <div class="marka">
+    <img class="logo-acik" src="{logo}" alt="Piramit Bilgisayar">
+    <img class="logo-koyu" src="{LOGO_KOYU_DATA_URI}" alt="Piramit Bilgisayar">
+  </div>
   <nav class="sekmeler">{sekmeler}</nav>
   <div style="display:flex;gap:8px;align-items:center">
     <a class="tema-dugme" href="/ekran" target="_blank"
        title="Ekran modu — televizyona yansıtmak için" aria-label="Ekran modu"
        style="text-decoration:none;font-size:12.5px;font-weight:600">Ekran</a>
+    <a class="tema-dugme{' aktif-ayar' if aktif == '/hatlar' else ''}" href="/hatlar"
+       title="Hat adı, hızı ve cihaz sayısı" aria-label="Hat Ayarları"
+       style="text-decoration:none;font-size:12.5px;font-weight:600">Hatlar</a>
     <a class="tema-dugme{' aktif-ayar' if aktif == '/ayarlar' else ''}" href="/ayarlar"
        title="Mail ayarları" aria-label="Ayarlar"
        style="text-decoration:none">⚙</a>

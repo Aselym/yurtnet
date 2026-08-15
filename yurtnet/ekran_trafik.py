@@ -1,10 +1,16 @@
-"""Ekran modunun ikinci slaydı: tüm yurtların eth1 trafiği.
+"""Ekran modunun ikinci slaydı: tüm yurtların birincil hat trafiği.
 
 Televizyonda 34 küçük grafik yan yana. Tek tek okunmaları değil, **bir bakışta
 karşılaştırılmaları** amaçlanıyor: hangi yurt yüklü, hangisi sessiz, nerede
 sıra dışı bir sıçrama var. Bu yüzden her grafik kendi ölçeğinde çiziliyor ve
 tepe değeri yanına yazılıyor — ortak ölçek kullanılsaydı küçük yurtlar düz
 çizgi olarak görünürdü.
+
+Çoğu yurtta internet eth1'den çekiliyor ama hepsinde değil (bkz. Hat Ayarları).
+Sabit "eth1" kullanılınca birincil hattı farklı olan yurtlarda (ör. Kayseri)
+yanlış arayüzün trafiği gösteriliyordu. Bu yüzden her yurt için
+`hat_ayarlari.birincil_arayuz()` ile elle işaretlenmiş arayüz varsa o kullanılır;
+işaretlenmemişse VARSAYILAN_BACAK'a düşülür.
 
 Veri Zabbix geçmişinden geliyor ve birkaç dakika önbellekte tutuluyor: ekran
 her dakika yeniden çiziliyor, 60 item'lık sorguyu her seferinde tekrarlamanın
@@ -18,6 +24,7 @@ import re
 import time
 from typing import Any
 
+from . import hat_ayarlari
 from .render import esc, fmt_bps
 from .zabbix import ZabbixClient
 
@@ -25,7 +32,7 @@ log = logging.getLogger(__name__)
 
 ARAYUZ_DESENI = re.compile(r"Interface\s+([^(]+)\(.*?\):\s*Bits\s+(received|sent)", re.I)
 
-BACAK = "eth1"          # kullanıcı isteği: internet bacağı olarak eth1
+VARSAYILAN_BACAK = "eth1"   # Hatlar sayfasında birincil arayüz işaretlenmemişse
 PENCERE_SAAT = 3        # televizyonda 3 saat, 6 saatten daha okunaklı bir eğri veriyor
 ONBELLEK_SN = 180
 NOKTA = 80              # küçük grafikte 360 nokta gereksiz; tepe koruyarak seyreltilir
@@ -58,6 +65,12 @@ def veri(config: dict[str, Any], now: int) -> dict[str, dict[str, Any]]:
     try:
         with ZabbixClient(config["zabbix"]) as z:
             hostlar = z.get_hosts(config["zabbix"]["host_groups"])
+            # Her yurdun kendi birincil hattı — Hatlar sayfasında işaretlenmemişse
+            # varsayılana (eth1) düşülür.
+            hedef_arayuz = {
+                h["hostid"]: hat_ayarlari.birincil_arayuz(config, h["host"]) or VARSAYILAN_BACAK
+                for h in hostlar
+            }
             items = z.get_items([h["hostid"] for h in hostlar])
 
             esleme: dict[str, dict[str, str]] = {}
@@ -66,7 +79,7 @@ def veri(config: dict[str, Any], now: int) -> dict[str, dict[str, Any]]:
                 if not (anahtar.startswith("net.if.in[") or anahtar.startswith("net.if.out[")):
                     continue
                 m = ARAYUZ_DESENI.search(it.get("name", ""))
-                if not m or m.group(1).strip() != BACAK:
+                if not m or m.group(1).strip() != hedef_arayuz.get(it["hostid"], VARSAYILAN_BACAK):
                     continue
                 yon = "gelen" if m.group(2).lower() == "received" else "giden"
                 esleme.setdefault(it["hostid"], {})[yon] = it["itemid"]
@@ -148,19 +161,37 @@ def slayt(config: dict[str, Any], snapshots, durumlar: dict[str, str], now: int)
         d = g.get(s.hostid) or {}
         svg, tepe, son = _mini_grafik(d.get("gelen", []), d.get("giden", []), f"t{sira}")
         durum = durumlar.get(s.hostid, "iyi")
+
+        # Her yurdun kendi birincil hattı olabilir (bkz. Hatlar sayfası);
+        # arayüz farklıysa etiket bunu açıkça belirtir, aksi halde "hangi
+        # bacağa bakıyorum" belirsiz kalır.
+        arayuz = hat_ayarlari.birincil_arayuz(config, s.host) or VARSAYILAN_BACAK
+        bilgi = hat_ayarlari.hat_bilgisi(config, s.host, arayuz) or {}
+        isim = (bilgi.get("isim") or "").strip()
+        hiz_mbps = bilgi.get("hiz_mbps")
+        etiket_parcalari = [_kisa(s.name)]
+        if isim:
+            etiket_parcalari.append(isim)
+        elif arayuz != VARSAYILAN_BACAK:
+            etiket_parcalari.append(arayuz)
+        yurt_etiket = esc(" · ".join(etiket_parcalari))
+        alt_yazi = f"{hiz_mbps:g} Mbps hat · tepe {fmt_bps(tepe)}" if hiz_mbps and tepe \
+            else (f"hat {hiz_mbps:g} Mbps" if hiz_mbps else
+                  (f"tepe {fmt_bps(tepe)}" if tepe else "&nbsp;"))
+
         kartlar.append(
             f'<div class="tkart {durum}">'
-            f'<div class="tbas"><span class="tad">{esc(_kisa(s.name))}</span>'
+            f'<div class="tbas"><span class="tad">{yurt_etiket}</span>'
             f'<span class="tson">{esc(fmt_bps(son)) if tepe else ""}</span></div>'
             f'<div class="tgrafik">{svg}</div>'
-            f'<div class="ttepe">{("tepe " + fmt_bps(tepe)) if tepe else "&nbsp;"}</div>'
+            f'<div class="ttepe">{alt_yazi}</div>'
             f"</div>"
         )
 
     olcum_var = sum(1 for v in g.values() if v.get("gelen"))
     return f"""
 <header class="ust">
-  <div class="baslik">İNTERNET TRAFİĞİ · {esc(BACAK.upper())}</div>
+  <div class="baslik">İNTERNET TRAFİĞİ · Birincil Hat</div>
   <div class="tgosterge">
     <span><i class="alan"></i>gelen</span>
     <span><i class="cizgi"></i>giden</span>
@@ -202,5 +233,7 @@ CSS = """
 .tgrafik .mini{width:100%;height:100%;display:block}
 .tgrafik .yok{font-size:.85vw;color:var(--muted);display:flex;align-items:center;
   justify-content:center;height:100%}
-.ttepe{font-size:.78vw;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+/* nowrap+ellipsis: hat adı satırı uzasa bile kartın sabit yüksekliği bozulmaz. */
+.ttepe{font-size:.78vw;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 """

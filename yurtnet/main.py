@@ -64,7 +64,7 @@ def run_cycle(config: dict[str, Any], store: Store) -> dict[str, Any]:
         log.warning("Bu turda hiç yurt verisi alınamadı.")
         return {"hosts": 0}
 
-    planned = _planli_temizle(store, snapshots)
+    planned = _planli_temizle(store, snapshots, config)
     # Arayüz hata sayacı karşılaştırması için önceki değerler, YENİ ölçüm
     # kaydedilmeden önce okunmalı; sonra okunursa kendisiyle karşılaştırılır.
     onceki_hatalar = store.onceki_if_errors()
@@ -104,24 +104,46 @@ def run_cycle(config: dict[str, Any], store: Store) -> dict[str, Any]:
 # bir sonraki turu beklemeden yeniden çizebilmek için tutulur.
 _son_snapshotlar: list = []
 
+# Planlı kapalı bir yurt için ardışık "erişilebilir" tur sayısı: tek bir turluk
+# yanlış pozitif (ör. ping item'ı o turda boş dönüp has_data'dan reachable=True
+# türetilmesi) yüzünden işaretin erkenden düşmesini önler.
+_gecici_gecikme: dict[str, int] = {}
 
-def _planli_temizle(store: Store, snapshots: list) -> dict[str, dict]:
+
+def _planli_temizle(store: Store, snapshots: list, config: dict[str, Any]) -> dict[str, dict]:
     """Planlı kapalı listesini okur, geri gelen yurtların işaretini kaldırır.
 
     Unutulan bir işaret sessizce tehlikeli olurdu: yazın "kapalı" işaretlenen
     yurtta sonbaharda gerçek bir arıza çıksa gizlenirdi. Cihaz ping'e cevap
-    vermeye başladığı an işaret otomatik düşer.
+    vermeye başladığı an işaret otomatik düşer — ama TEK bir turluk "erişilebilir"
+    okuması yeterli sayılmaz: has_data varken ping item'ı o tur boş dönerse
+    reachable=True'ya düşülüyor (bkz. collect.py), bu da hâlâ gerçekten kapalı
+    bir yurdun işaretini erkenden kaldırıp sahte bir arıza kaydı doğurabiliyor.
     """
     planned = store.planned_down()
     if not planned:
+        _gecici_gecikme.clear()
         return {}
+    gereken = max(1, int(config["thresholds"].get("confirm_cycles", 2)))
+    for hostid in list(_gecici_gecikme):
+        if hostid not in planned:
+            del _gecici_gecikme[hostid]  # işaret başka yoldan kalktı
+
     for snap in snapshots:
-        if snap.hostid in planned and snap.reachable is True:
-            store.clear_planned(snap.hostid)
-            planned.pop(snap.hostid, None)
-            log.info(
-                "%s yeniden çevrimiçi — 'bilinçli kapalı' işareti kaldırıldı.", snap.name
-            )
+        if snap.hostid not in planned:
+            continue
+        if snap.reachable is True:
+            _gecici_gecikme[snap.hostid] = _gecici_gecikme.get(snap.hostid, 0) + 1
+            if _gecici_gecikme[snap.hostid] >= gereken:
+                store.clear_planned(snap.hostid)
+                planned.pop(snap.hostid, None)
+                del _gecici_gecikme[snap.hostid]
+                log.info(
+                    "%s yeniden çevrimiçi — 'bilinçli kapalı' işareti kaldırıldı.", snap.name
+                )
+        else:
+            _gecici_gecikme.pop(snap.hostid, None)
+
     return planned
 
 

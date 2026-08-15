@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .brand import LOGO_DATA_URI
+from .brand import FAVICON_DATA_URI, LOGO_KOYU_DATA_URI
 from .collect import HostSnapshot
 from .diagnose import Finding
 from .render import esc, fmt_duration
@@ -44,7 +44,19 @@ body{background:var(--zemin);color:var(--ink);overflow:hidden;
 /* ---- üst şerit ---- */
 .ust{display:flex;align-items:center;justify-content:space-between;
   padding:1.1vw 2vw 0.9vw;border-bottom:1px solid var(--cizgi);flex:none}
-.ust img{height:2.4vw;background:#fff;border-radius:.4vw;padding:.35vw .6vw;display:block}
+.ust-sol{display:flex;align-items:center;gap:1.1vw}
+.ust-sag{display:flex;align-items:center;gap:1vw}
+.ust img{height:2.4vw;display:block}
+/* Logo ve ✕ düğmesi: ekran modundan çıkıp panoya dönmenin iki yolu.
+   Kiosk tarayıcısında adres çubuğu/geri düğmesi olmadığı için bir çıkış
+   yolu şart; tıklanabilir olduklarını belli etsin diye imleçte el işareti
+   ve hover'da hafif parlama var — geri kalan sayfa tamamen etkileşimsiz. */
+.cikis-logo{display:block;cursor:pointer;border-radius:.4vw;transition:opacity .15s}
+.cikis-logo:hover{opacity:.82}
+.cikis-dugme{display:flex;align-items:center;justify-content:center;width:2vw;height:2vw;
+  border-radius:50%;border:1px solid var(--cizgi);color:var(--muted);
+  font-size:1.05vw;line-height:1;text-decoration:none;cursor:pointer;flex:none}
+.cikis-dugme:hover{color:var(--ink);border-color:var(--axis);background:var(--kart)}
 .baslik{font-size:1.85vw;font-weight:700;letter-spacing:-.02em}
 .saat{text-align:right;line-height:1.25}
 .saat .t{font-size:2.5vw;font-weight:700;font-variant-numeric:tabular-nums}
@@ -53,9 +65,14 @@ body{background:var(--zemin);color:var(--ink);overflow:hidden;
 .saat.bayat .g{color:var(--kritik)}
 
 /* ---- KPI bandı ---- */
+/* Dört kart da bu satırda; grid varsayılan olarak en uzun karta göre
+   hepsini eşit boyda geriyor. Sabit yükseklik olmazsa "dikkat gereken yurt"
+   kartı rozet sayısı arttıkça büyür, dördü birden şişer ve aşağıdaki ızgarayı
+   ekrandan taşırırdı. Yükseklik sabit, taşan içerik kart içinde kırpılır. */
 .bant{display:grid;grid-template-columns:repeat(4,1fr);gap:.9vw;padding:1vw 2vw;flex:none}
 .bant .k{background:var(--kart);border:1px solid var(--cizgi);border-radius:.9vw;
-  padding:.9vw 1.2vw;display:flex;flex-direction:column;min-width:0}
+  padding:.9vw 1.2vw;display:flex;flex-direction:column;min-width:0;
+  height:10.4vw;overflow:hidden}
 .bant .e{font-size:1.02vw;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
   font-weight:650;margin-bottom:.45vw}
 .bant .n{font-size:3.2vw;font-weight:730;line-height:1;font-variant-numeric:tabular-nums}
@@ -63,16 +80,17 @@ body{background:var(--zemin);color:var(--ink);overflow:hidden;
 .bant .k.iyi .n{color:var(--iyi)}
 .bant .k.uyari .n{color:var(--uyari)}
 .bant .k.kritik .n{color:var(--kritik)}
-/* Dikkat gereken yurtların adları: yönetici raporundaki rozetlerin ekran boyu. */
-/* Yükseklik sınırı yok: dikkat gereken her yurdun adı görünmeli. Liste
-   uzayınca kart büyür, aşağıdaki ızgara kısalır — hangi yurda bakılacağı
-   bilgisi, ızgaradaki birkaç satırdan daha değerli. */
-.rozetler{display:flex;flex-wrap:wrap;gap:.35vw;margin-top:.55vw;align-content:flex-start}
+/* Dikkat gereken yurtların adları. flex:1 + min-height:0 + overflow:hidden:
+   kartın sabit yüksekliğinden artanı alır, taşanı gösterip kartı büyütmez.
+   Sığmayan rozetler JS ile gizlenip yerine "+N" rozeti konur (aşağıda). */
+.rozetler{display:flex;flex-wrap:wrap;gap:.35vw;margin-top:.55vw;
+  align-content:flex-start;flex:1;min-height:0;overflow:hidden}
 .rozet{display:inline-flex;align-items:center;gap:.4vw;font-size:1.02vw;
   border:1px solid var(--cizgi);border-radius:1vw;padding:.15vw .6vw .15vw .45vw;
-  background:var(--kart2);white-space:nowrap}
+  background:var(--kart2);white-space:nowrap;flex:none}
 .rozet i{width:.55vw;height:.55vw;border-radius:50%;background:var(--uyari);flex:none}
 .rozet.kritik i{background:var(--kritik)}
+.rozet.artan{background:transparent;border-style:dashed;color:var(--ink2);font-weight:700}
 
 /* ---- sorun kartları ---- */
 .orta{flex:1;min-height:0;padding:0 2vw 1vw;display:flex;flex-direction:column;gap:1vw}
@@ -169,7 +187,12 @@ SLAYT_JS = """
 
   ciz(false);   // yenileme sonrası aynı slaytta, animasyonsuz devam
   kur();
-  document.addEventListener('click', function(){ ilerle(); });
+  // Logo ve çıkış düğmesine tıklanınca slayt ilerlemesin — sayfadan zaten
+  // ayrılınıyor, ilerletmek gereksiz bir titreşim yaratır.
+  document.addEventListener('click', function(e){
+    if(e.target.closest('.cikis-logo,.cikis-dugme')) return;
+    ilerle();
+  });
 
   // İmleç: hareket edince görünür, 3 saniye durunca kaybolur.
   var imlec=null;
@@ -179,6 +202,36 @@ SLAYT_JS = """
     clearTimeout(imlec);
     imlec=setTimeout(function(){ document.body.classList.add('imlecsiz'); }, 3000);
   });
+})();
+"""
+
+ROZET_JS = """
+// "Dikkat gereken yurt" kartı sabit yükseklikte (bkz. CSS); rozet sayısı
+// kutuya sığmayacak kadar artabiliyor. Kaçının sığacağı yurt adının
+// uzunluğuna bağlı olduğu için sabit bir sayı yetmiyor — tarayıcı gerçekten
+// ölçüyor: taşma bitene kadar sondan bir rozet gizleyip "+N" sayacını artırıyor.
+(function(){
+  var kap=document.querySelector('.rozetler');
+  if(!kap) return;
+  var hepsi=[].slice.call(kap.querySelectorAll('.rozet'));
+  if(!hepsi.length) return;
+  var artan=document.createElement('span');
+  artan.className='rozet artan';
+  kap.appendChild(artan);
+  function sigdir(){
+    hepsi.forEach(function(r){ r.style.display=''; });
+    artan.style.display='none';
+    if(kap.scrollHeight<=kap.clientHeight+1) return;   // hepsi sığıyor
+    artan.style.display='';
+    var gizli=0;
+    for(var i=hepsi.length-1;i>=0;i--){
+      hepsi[i].style.display='none';
+      artan.textContent='+'+(++gizli);
+      if(kap.scrollHeight<=kap.clientHeight+1) break;
+    }
+  }
+  sigdir();
+  addEventListener('resize',sigdir);
 })();
 """
 
@@ -325,7 +378,10 @@ def render(
     for d in durumlar.values():
         sayim[d] += 1
 
-    bant, dikkat_sayisi = _bant(store, config, now, snapshots, sayim, durumlar)
+    # İkinci değer (dikkat listesindeki yurt sayısı) artık ızgara boyutunu
+    # etkilemiyor — kart yüksekliği sabit, taşan rozetler JS ile "+N" olarak
+    # toplanıyor (bkz. ROZET_JS).
+    bant, _ = _bant(store, config, now, snapshots, sayim, durumlar)
 
     # Sorunlu yurtlar: önce kritik, sonra uyarı; her birinde en ağır bulgu yazılır.
     sirali = sorted(
@@ -380,19 +436,11 @@ def render(
         f'<span class="ad">{esc(_kisa(s.name))}</span></div>'
         for s in sorted(snapshots, key=lambda s: _kisa(s.name).lower())
     )
-    # Dikkat listesi uzayınca üstteki kart büyüyor ve ızgaraya az yer kalıyor.
-    # Satırlar içeriklerinden kısalamadığı için alttakiler kırpılıyordu; sütun
-    # sayısını artırmak satır sayısını düşürüp hepsinin görünmesini sağlıyor.
-    # 20'yi geçtiğinde hiçbir sütun düzeni yetmiyor — ama o noktada ızgara zaten
-    # gereksiz, çünkü yurtların çoğu yukarıdaki listede adıyla yazılı. Yarım
-    # kırpılmış bir ızgara göstermektense hiç gösterilmiyor.
-    sutun = 6 if dikkat_sayisi <= 12 else 9
-    izgara = (
-        f'<div class="izgara" style="grid-template-columns:repeat({sutun},1fr)">'
-        f"{hucreler}</div>"
-        if dikkat_sayisi <= 20
-        else ""
-    )
+    # Sütun sayısı sabit: "dikkat gereken yurt" kartı artık yükseklik sınırlı
+    # olduğu için (bkz. CSS) ızgaraya kalan alan dikkat listesinin uzunluğundan
+    # etkilenmiyor. Değişken sütun sayısı bu yüzden gereksizleşti — 34 yurt
+    # için 6 sütun her zaman rahat sığıyor.
+    izgara = f'<div class="izgara">{hucreler}</div>'
 
     bolgesel = "".join(
         f'<div class="sorun kritik" style="grid-column:1/-1">'
@@ -419,6 +467,7 @@ def render(
     return f"""<!doctype html>
 <html lang="tr"><head>
 <meta charset="utf-8">
+<link rel="icon" type="image/png" href="{FAVICON_DATA_URI}">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="{aralik}">
 <title>Yurt İnternet Durumu — Ekran</title>
@@ -427,11 +476,17 @@ def render(
 <div class="slaytlar" id="slaytlar" style="--adet:{2 if slayt2 else 1}">
 <section class="slayt">
 <header class="ust">
-  <img src="{LOGO_DATA_URI}" alt="Piramit Bilgisayar">
-  <div class="baslik">YURT İNTERNET DURUMU</div>
-  <div class="saat" id="saat" data-uretim="{now}" data-bayat="{aralik * BAYAT_KAT}">
-    <div class="t" id="t">--:--:--</div>
-    <div class="g">son güncelleme {time.strftime('%H:%M', time.localtime(now))}</div>
+  <div class="ust-sol">
+    <a class="cikis-logo" href="/" title="Panoya dön">
+      <img src="{LOGO_KOYU_DATA_URI}" alt="Piramit Bilgisayar"></a>
+    <div class="baslik">YURT İNTERNET DURUMU</div>
+  </div>
+  <div class="ust-sag">
+    <a class="cikis-dugme" href="/" title="Panoya dön" aria-label="Panoya dön">✕</a>
+    <div class="saat" id="saat" data-uretim="{now}" data-bayat="{aralik * BAYAT_KAT}">
+      <div class="t" id="t">--:--:--</div>
+      <div class="g">son güncelleme {time.strftime('%H:%M', time.localtime(now))}</div>
+    </div>
   </div>
 </header>
 
@@ -447,6 +502,6 @@ def render(
 </div>
 {noktalar}
 <div class="imza">aselym</div>
-<script>{JS}{SLAYT_JS}</script>
+<script>{JS}{ROZET_JS}{SLAYT_JS}</script>
 </body></html>
 """

@@ -164,7 +164,20 @@ def sayfa(
   <option value="info" {"selected" if seviye == "info" else ""}>Hepsi — izleme eksikleri dâhil</option>
 </select>''',
         f"Bir arıza {sure_dk} dakikadan uzun sürmeden mail gitmez; kendiliğinden düzelen kısa "
-        f"dalgalanmalar bildirilmez. Aynı arıza için {soguma_dk} dakika içinde ikinci mail atılmaz.")}
+        f"dalgalanmalar bildirilmez.")}
+
+{_satir("Sorun çözülmezse ne sıklıkla hatırlatma maili gitsin", f'''<select name="alert_cooldown_minutes">
+  {"".join(
+      f'<option value="{d}"{" selected" if d == soguma_dk else ""}>{etiket}</option>'
+      for d, etiket in (
+          (15, "15 dakikada bir"), (30, "30 dakikada bir"), (60, "1 saatte bir"),
+          (120, "2 saatte bir"), (180, "3 saatte bir"), (360, "6 saatte bir"),
+          (720, "12 saatte bir"), (1440, "günde bir"),
+      )
+  )}
+</select>''',
+        "Aynı arıza sürerken bu süre dolmadan ikinci mail atılmaz. Kısa tutulursa "
+        "uzun süren bir kesintide sık sık aynı mail gelir.")}
 
 {_satir("", f'''<div class="onay">
   <input type="checkbox" id="send_recovery" name="send_recovery" value="1"
@@ -256,6 +269,12 @@ def formdan_oku(alanlar: dict[str, list[str]], mevcut: dict[str, Any]) -> tuple[
         port = int(tek("smtp_port", "465"))
     except ValueError:
         return {}, {}, "Port bir sayı olmalı."
+    try:
+        soguma_dk = int(tek("alert_cooldown_minutes", "60"))
+    except ValueError:
+        return {}, {}, "Hatırlatma sıklığı bir sayı olmalı."
+    if soguma_dk <= 0:
+        soguma_dk = 60
 
     email = {
         "enabled": acik,
@@ -267,6 +286,7 @@ def formdan_oku(alanlar: dict[str, list[str]], mevcut: dict[str, Any]) -> tuple[
         "sender": tek("sender"),
         "recipients": satirlar("recipients"),
         "min_severity": tek("min_severity", "critical"),
+        "alert_cooldown_minutes": soguma_dk,
         "send_recovery": bool(alanlar.get("send_recovery")),
     }
     if email["min_severity"] not in ("info", "warning", "critical"):
