@@ -1,0 +1,53 @@
+/*
+ * Tarif Akademi LMS - Ozel giris formu stilleri.
+ * Sitenin ana temasindaki --primary / --secondary / --background degiskenlerini
+ * kullanir; degiskenler yuklu degilse "Dark Academia" paletine uygun
+ * fallback (espresso bordo / parsomen krem) degerlere duser.
+ */
+
+.tlms-auth-wrap {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 4rem 1.25rem;
+	min-height: 60vh;
+}
+
+.tlms-auth-card {
+	width: 100%;
+	max-width: 420px;
+	padding: 2.5rem;
+	border-radius: 1.5rem;
+	background: var(--card, #FFFFFF);
+	border: 1px solid var(--border, #E4DFD6);
+	box-shadow: 0 20px 40px -20px rgba(93, 31, 52, 0.25);
+}
+
+.tlms-auth-error {
+	background: rgba(93, 31, 52, 0.08);
+	border: 1px solid var(--primary, #5D1F34);
+	color: var(--primary, #5D1F34);
+	border-radius: 0.75rem;
+	padding: 0.75rem 1rem;
+	font-size: 0.9rem;
+	margin-bottom: 1.25rem;
+}
+
+.tlms-auth-form .form-field {
+	margin-bottom: 1.1rem;
+}
+
+.tlms-auth-remember label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.9rem;
+	color: var(--muted-foreground, #6B5F55);
+	cursor: pointer;
+}
+
+.tlms-auth-submit {
+	width: 100%;
+	justify-content: center;
+	margin-top: 0.5rem;
+}
