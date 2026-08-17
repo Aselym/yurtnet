@@ -8,6 +8,13 @@ export function isExpiringSoon(sale: Sale): boolean {
   return !INACTIVE_STATUSES.includes(sale.status) && sale.days_left >= 0 && sale.days_left <= EXPIRING_SOON_DAYS
 }
 
+// Lisanslar listesini kalabalıklaştıran, çoktan 2024'te süresi dolmuş kayıtlar.
+// Logo'dan otomatik senkron her gün tekrar çektiği için veritabanından
+// silinmiyor, sadece varsayılan görünümden gizleniyor.
+export function isStaleExpired(sale: Sale): boolean {
+  return sale.status === 'EXPIRED' && sale.expiration_date.startsWith('2024')
+}
+
 export function getExpiringSoon(sales: Sale[]): Sale[] {
   return sales.filter(isExpiringSoon).sort((a, b) => a.days_left - b.days_left)
 }

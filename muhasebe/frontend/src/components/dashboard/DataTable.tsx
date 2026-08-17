@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,19 @@ interface DataTableProps<T> {
   onSearchChange: (value: string) => void
   getRowKey: (row: T) => string | number
   emptyMessage: string
+  /** When set, rows are clustered under a header row per group (e.g. client name), sorted alphabetically. */
+  groupBy?: (row: T) => string
+}
+
+function groupRows<T>(rows: T[], groupBy: (row: T) => string) {
+  const groups = new Map<string, T[]>()
+  for (const row of rows) {
+    const key = groupBy(row)
+    const bucket = groups.get(key)
+    if (bucket) bucket.push(row)
+    else groups.set(key, [row])
+  }
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr'))
 }
 
 export function DataTable<T>({
@@ -31,7 +44,9 @@ export function DataTable<T>({
   onSearchChange,
   getRowKey,
   emptyMessage,
+  groupBy,
 }: DataTableProps<T>) {
+  const grouped = groupBy && status === 'ready' ? groupRows(rows, groupBy) : null
   return (
     <div className="space-y-4">
       <Input
@@ -74,15 +89,37 @@ export function DataTable<T>({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={getRowKey(row)} className="border-b border-black/5 last:border-0 dark:border-white/5">
-                  {columns.map((col) => (
-                    <td key={col.key} className="px-5 py-3 text-black/80 dark:text-white/80">
-                      {col.render(row)}
-                    </td>
+              {grouped
+                ? grouped.map(([groupName, groupRows]) => (
+                    <Fragment key={groupName}>
+                      <tr className="bg-black/[0.03] dark:bg-white/[0.04]">
+                        <td
+                          colSpan={columns.length}
+                          className="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50"
+                        >
+                          {groupName} <span className="font-normal normal-case text-black/30 dark:text-white/30">({groupRows.length})</span>
+                        </td>
+                      </tr>
+                      {groupRows.map((row) => (
+                        <tr key={getRowKey(row)} className="border-b border-black/5 last:border-0 dark:border-white/5">
+                          {columns.map((col) => (
+                            <td key={col.key} className="px-5 py-3 text-black/80 dark:text-white/80">
+                              {col.render(row)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))
+                : rows.map((row) => (
+                    <tr key={getRowKey(row)} className="border-b border-black/5 last:border-0 dark:border-white/5">
+                      {columns.map((col) => (
+                        <td key={col.key} className="px-5 py-3 text-black/80 dark:text-white/80">
+                          {col.render(row)}
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
-              ))}
             </tbody>
           </table>
         )}

@@ -5,7 +5,7 @@ import { StatusPill } from './StatusPill'
 import { ReminderModal } from './ReminderModal'
 import { SetDurationModal } from './SetDurationModal'
 import { getSales, type Sale } from '@/lib/api'
-import { EXPIRING_SOON_DAYS, isExpiringSoon } from '@/lib/licenseAnalytics'
+import { EXPIRING_SOON_DAYS, isExpiringSoon, isStaleExpired } from '@/lib/licenseAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -15,6 +15,7 @@ export function LicensesTab() {
   const [search, setSearch] = useState('')
   const [reminderSale, setReminderSale] = useState<Sale | null>(null)
   const [durationSale, setDurationSale] = useState<Sale | null>(null)
+  const [showStale, setShowStale] = useState(false)
 
   async function load() {
     setStatus('loading')
@@ -31,16 +32,18 @@ export function LicensesTab() {
     load()
   }, [])
 
+  const staleCount = useMemo(() => sales.filter(isStaleExpired).length, [sales])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return sales
-    return sales.filter(
-      (s) => s.client_name.toLowerCase().includes(q) || s.product_name.toLowerCase().includes(q)
-    )
-  }, [sales, search])
+    return sales.filter((s) => {
+      if (!showStale && isStaleExpired(s)) return false
+      if (!q) return true
+      return s.client_name.toLowerCase().includes(q) || s.product_name.toLowerCase().includes(q)
+    })
+  }, [sales, search, showStale])
 
   const columns: DataTableColumn<Sale>[] = [
-    { key: 'client', header: 'Müşteri', render: (s) => s.client_name },
     { key: 'product', header: 'Ürün', render: (s) => s.product_name },
     {
       key: 'expiration',
@@ -83,6 +86,12 @@ export function LicensesTab() {
 
   return (
     <>
+      {staleCount > 0 && (
+        <label className="mb-3 flex w-fit items-center gap-2 text-sm text-black/50 dark:text-white/50">
+          <input type="checkbox" checked={showStale} onChange={(e) => setShowStale(e.target.checked)} />
+          2024'te süresi dolmuş eski kayıtları göster ({staleCount})
+        </label>
+      )}
       <DataTable
         columns={columns}
         rows={filtered}
@@ -93,6 +102,7 @@ export function LicensesTab() {
         onSearchChange={setSearch}
         getRowKey={(s) => s.id}
         emptyMessage="Henüz lisans kaydı yok."
+        groupBy={(s) => s.client_name}
       />
       {reminderSale && (
         <ReminderModal

@@ -33,7 +33,6 @@ export function ProductsTab() {
   }, [products, search])
 
   const columns: DataTableColumn<Product>[] = [
-    { key: 'client', header: 'Müşteri', render: (p) => p.client_name },
     { key: 'product', header: 'Ürün', render: (p) => p.product_name },
     { key: 'quantity', header: 'Adet', render: (p) => String(p.quantity) },
     {
@@ -55,6 +54,7 @@ export function ProductsTab() {
       onSearchChange={setSearch}
       getRowKey={(p) => p.id}
       emptyMessage="Henüz ürün kaydı yok."
+      groupBy={(p) => p.client_name}
     />
   )
 }
