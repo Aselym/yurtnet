@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
 from database import init_db, get_db_connection, calculate_dates, hash_password, verify_password
@@ -557,7 +557,8 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
 def run_server():
     init_db()
     start_background_scheduler()
-    server = HTTPServer(('0.0.0.0', PORT), LicenseReminderHTTPHandler)
+    server = ThreadingHTTPServer(('0.0.0.0', PORT), LicenseReminderHTTPHandler)
+    server.daemon_threads = True
     print(f"============================================================")
     print(f"  PIRAMIT LISANS TAKIP & E-POSTA HATIRLATMA UYGULAMASI     ")
     print(f"  Adres: http://localhost:{PORT}                              ")
