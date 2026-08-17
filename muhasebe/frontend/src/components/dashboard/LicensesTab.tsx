@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Mail } from 'lucide-react'
+import { AlertTriangle, Clock, Mail } from 'lucide-react'
 import { DataTable, type DataTableColumn } from './DataTable'
 import { StatusPill } from './StatusPill'
 import { ReminderModal } from './ReminderModal'
 import { SetDurationModal } from './SetDurationModal'
 import { getSales, type Sale } from '@/lib/api'
+import { EXPIRING_SOON_DAYS, isExpiringSoon } from '@/lib/licenseAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -41,7 +42,19 @@ export function LicensesTab() {
   const columns: DataTableColumn<Sale>[] = [
     { key: 'client', header: 'Müşteri', render: (s) => s.client_name },
     { key: 'product', header: 'Ürün', render: (s) => s.product_name },
-    { key: 'expiration', header: 'Bitiş Tarihi', render: (s) => s.expiration_date },
+    {
+      key: 'expiration',
+      header: 'Bitiş Tarihi',
+      render: (s) =>
+        isExpiringSoon(s) ? (
+          <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400">
+            <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-label={`${EXPIRING_SOON_DAYS} gün içinde doluyor`} />
+            {s.expiration_date}
+          </span>
+        ) : (
+          s.expiration_date
+        ),
+    },
     { key: 'days_left', header: 'Kalan Gün', render: (s) => (s.days_left >= 0 ? `${s.days_left} gün` : '-') },
     { key: 'status', header: 'Durum', render: (s) => <StatusPill status={s.status} /> },
     {
