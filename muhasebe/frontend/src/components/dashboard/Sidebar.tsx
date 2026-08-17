@@ -1,7 +1,7 @@
-import { FileText, KeyRound, LayoutGrid, LogOut, Package, RefreshCcw, type LucideIcon } from 'lucide-react'
+import { FileText, KeyRound, LayoutGrid, LogOut, Package, RefreshCcw, Users, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
-export type DashboardTab = 'overview' | 'licenses' | 'subscriptions' | 'products' | 'offers'
+export type DashboardTab = 'overview' | 'licenses' | 'subscriptions' | 'products' | 'offers' | 'reps'
 
 interface SidebarProps {
   active: DashboardTab
@@ -15,6 +15,7 @@ const ITEMS: { id: DashboardTab; label: string; icon: LucideIcon }[] = [
   { id: 'subscriptions', label: 'Abonelikler', icon: RefreshCcw },
   { id: 'products', label: 'Ürünler', icon: Package },
   { id: 'offers', label: 'Teklifler', icon: FileText },
+  { id: 'reps', label: 'Temsilciler', icon: Users },
 ]
 
 export function Sidebar({ active, onSelect, onLogout }: SidebarProps) {

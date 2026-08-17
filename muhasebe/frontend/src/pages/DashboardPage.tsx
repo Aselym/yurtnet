@@ -5,6 +5,7 @@ import { LicensesTab } from '@/components/dashboard/LicensesTab'
 import { SubscriptionsTab } from '@/components/dashboard/SubscriptionsTab'
 import { ProductsTab } from '@/components/dashboard/ProductsTab'
 import { OffersTab } from '@/components/dashboard/OffersTab'
+import { RepsTab } from '@/components/dashboard/RepsTab'
 
 interface DashboardPageProps {
   onLogout: () => void
@@ -16,6 +17,7 @@ const TITLES: Record<DashboardTab, string> = {
   subscriptions: 'Abonelikler',
   products: 'Ürünler',
   offers: 'Teklifler',
+  reps: 'Temsilciler',
 }
 
 export function DashboardPage({ onLogout }: DashboardPageProps) {
@@ -31,6 +33,7 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
         {tab === 'subscriptions' && <SubscriptionsTab />}
         {tab === 'products' && <ProductsTab />}
         {tab === 'offers' && <OffersTab />}
+        {tab === 'reps' && <RepsTab />}
       </main>
     </div>
   )
