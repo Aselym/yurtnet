@@ -5,8 +5,9 @@ import { Card } from '@/components/ui/card'
 import { StatCard } from './StatCard'
 import { MonthlyExpiryChart, StatusBarChart } from './AnalyticsCharts'
 import { ReminderModal } from './ReminderModal'
+import { RenewalsPanel } from './RenewalsPanel'
 import { getSales, getStats, type Sale, type StatsResponse } from '@/lib/api'
-import { EXPIRING_SOON_DAYS, getExpiringSoon } from '@/lib/licenseAnalytics'
+import { EXPIRING_SOON_DAYS, getExpiringSoon, getLostCustomers } from '@/lib/licenseAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -54,6 +55,7 @@ export function OverviewTab() {
   }
 
   const expiringSoon = getExpiringSoon(sales)
+  const lostCustomers = getLostCustomers(sales)
 
   return (
     <div className="space-y-6">
@@ -124,6 +126,39 @@ export function OverviewTab() {
           </div>
         )}
       </Card>
+
+      <RenewalsPanel />
+
+      {lostCustomers.length > 0 && (
+        <Card className="p-5">
+          <h3 className="mb-1 text-sm font-semibold text-black/70 dark:text-white/70">
+            Kayıp Müşteriler ({lostCustomers.length})
+          </h3>
+          <p className="mb-4 text-xs text-black/40 dark:text-white/40">
+            Süresi dolmuş ve yenilendiğine dair bir kayıt bulunamayan lisanslar — satış ekibinin araması gerekebilir.
+          </p>
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/5 text-xs uppercase tracking-wide text-black/40 dark:border-white/10 dark:text-white/40">
+                  <th className="px-3 py-2 font-medium">Müşteri</th>
+                  <th className="px-3 py-2 font-medium">Ürün</th>
+                  <th className="px-3 py-2 font-medium">Süresi Dolduğu Tarih</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lostCustomers.map((s) => (
+                  <tr key={s.id} className="border-b border-black/5 last:border-0 dark:border-white/5">
+                    <td className="px-3 py-2 text-black/80 dark:text-white/80">{s.client_name}</td>
+                    <td className="px-3 py-2 text-black/80 dark:text-white/80">{s.product_name}</td>
+                    <td className="px-3 py-2 text-black/80 dark:text-white/80">{s.expiration_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {reminderSale && (
         <ReminderModal

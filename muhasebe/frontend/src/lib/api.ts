@@ -22,6 +22,20 @@ export interface Sale {
   notes: string | null
   days_left: number
   created_at: string
+  renewal_state: 'SUSPECT' | 'CONFIRMED' | 'REJECTED' | null
+  renewed_by: number | null
+}
+
+export interface RenewalCandidate {
+  eski_id: number
+  musteri: string
+  eski_urun: string
+  eski_satis: string
+  eski_bitis: string
+  yeni_id: number
+  yeni_urun: string
+  yeni_satis: string
+  yeni_bitis: string
 }
 
 export interface Subscription {
@@ -122,6 +136,31 @@ export async function setSaleDuration(
       success: !!data.success,
       message: data.message ?? (res.ok ? 'Süre kaydedildi.' : 'Kayıt başarısız.'),
       expiration_date: data.expiration_date,
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export function getRenewals(): Promise<RenewalCandidate[] | null> {
+  return getJson<RenewalCandidate[]>('/api/renewals')
+}
+
+export async function confirmRenewal(
+  saleId: number,
+  karar: 'CONFIRMED' | 'REJECTED'
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/sales/${saleId}/renewal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ karar }),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Kaydedildi.' : 'İşlem başarısız.'),
     }
   } catch {
     return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }

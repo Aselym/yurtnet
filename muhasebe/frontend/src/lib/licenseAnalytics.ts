@@ -15,6 +15,16 @@ export function isStaleExpired(sale: Sale): boolean {
   return sale.status === 'EXPIRED' && sale.expiration_date.startsWith('2024')
 }
 
+// Süresi dolmuş ve otomatik yenileme eşleştiricisinin (yenileme_adaylari_bul)
+// ya hiç aday bulamadığı ya da satış ekibinin yanlış eşleşme dediği kayıtlar.
+export function isLostCustomer(sale: Sale): boolean {
+  return sale.status === 'EXPIRED' && (sale.renewal_state === null || sale.renewal_state === 'REJECTED')
+}
+
+export function getLostCustomers(sales: Sale[]): Sale[] {
+  return sales.filter(isLostCustomer).sort((a, b) => a.expiration_date.localeCompare(b.expiration_date))
+}
+
 export function getExpiringSoon(sales: Sale[]): Sale[] {
   return sales.filter(isExpiringSoon).sort((a, b) => a.days_left - b.days_left)
 }

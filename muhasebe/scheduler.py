@@ -2,7 +2,7 @@ import threading
 import time
 from datetime import datetime
 from database import get_db_connection, sure_dolmuslari_isaretle
-from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products
+from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products, yenileme_adaylari_bul
 from mailer import send_reminder_email
 from notifier import send_windows_toast
 
@@ -106,8 +106,9 @@ def logo_sync_loop(check_interval_seconds=60):
                 eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
                 abone, riskli = sync_logo_subscriptions()
                 urun, urun_atlanan = sync_logo_products()
+                yenileme_adayi = yenileme_adaylari_bul()
                 print(f"Logo senkronizasyonu ({now.hour}:00): {eklenen} lisans, "
-                      f"{abone} abonelik, {urun} ürün.")
+                      f"{abone} abonelik, {urun} ürün, {yenileme_adayi} yenileme adayı.")
         except Exception as e:
             print(f"Logo Sync Scheduler Error: {e}")
         time.sleep(check_interval_seconds)
