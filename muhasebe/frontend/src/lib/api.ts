@@ -106,6 +106,28 @@ export function getProducts(): Promise<Product[] | null> {
   return getJson<Product[]>('/api/products')
 }
 
+export async function setSaleDuration(
+  saleId: number,
+  durationMonths: number
+): Promise<{ success: boolean; message: string; expiration_date?: string }> {
+  try {
+    const res = await fetch(`/api/sales/${saleId}/set-duration`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ duration_months: durationMonths }),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Süre kaydedildi.' : 'Kayıt başarısız.'),
+      expiration_date: data.expiration_date,
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
 export function getOffers(): Promise<Offer[] | null> {
   return getJson<Offer[]>('/api/offers')
 }
