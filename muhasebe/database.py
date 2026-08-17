@@ -150,6 +150,9 @@ def init_db():
     if 'renewal_state' not in sales_cols:
         # NULL | 'SUSPECT' (aday) | 'CONFIRMED' (onaylandi) | 'REJECTED' (degil)
         cursor.execute('ALTER TABLE sales ADD COLUMN renewal_state TEXT')
+    if 'price' not in sales_cols:
+        # Logo'daki STLINE.TOTAL (satir tutari, TRY). NULL = fiyat bilinmiyor.
+        cursor.execute('ALTER TABLE sales ADD COLUMN price REAL')
 
     default_admin_salt, default_admin_hash = hash_password('Aa123456')
     default_settings = [

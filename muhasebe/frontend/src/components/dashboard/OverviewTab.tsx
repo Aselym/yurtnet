@@ -7,7 +7,13 @@ import { MonthlyExpiryChart, StatusBarChart } from './AnalyticsCharts'
 import { ReminderModal } from './ReminderModal'
 import { RenewalsPanel } from './RenewalsPanel'
 import { getSales, getStats, type Sale, type StatsResponse } from '@/lib/api'
-import { EXPIRING_SOON_DAYS, getBrandStats, getExpiringSoon, getLostCustomers } from '@/lib/licenseAnalytics'
+import {
+  EXPIRING_SOON_DAYS,
+  getBrandStats,
+  getExpiringSoon,
+  getLostCustomers,
+  getRevenueForecast,
+} from '@/lib/licenseAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -57,6 +63,9 @@ export function OverviewTab() {
   const expiringSoon = getExpiringSoon(sales)
   const lostCustomers = getLostCustomers(sales)
   const brandStats = getBrandStats(sales)
+  const revenueForecast = getRevenueForecast(sales)
+  const totalForecast = revenueForecast.reduce((sum, b) => sum + b.revenue, 0)
+  const totalMissingPrice = revenueForecast.reduce((sum, b) => sum + b.missingPrice, 0)
 
   return (
     <div className="space-y-6">
@@ -67,6 +76,30 @@ export function OverviewTab() {
         <StatCard label="Gönderilen Hatırlatma" value={stats.reminders_sent} icon={Mail} />
         <StatCard label="Süresi Dolmuş" value={stats.expired_licenses} icon={XCircle} tone="danger" />
       </div>
+
+      <Card className="p-5">
+        <h3 className="mb-1 text-sm font-semibold text-black/70 dark:text-white/70">
+          Beklenen Yenileme Geliri (Önümüzdeki 3 Ay)
+        </h3>
+        <p className="mb-4 text-2xl font-semibold text-black/90 dark:text-white">
+          {totalForecast.toLocaleString('tr-TR')} TRY
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {revenueForecast.map((b) => (
+            <div key={b.key} className="rounded-xl bg-black/[0.03] p-3 text-center dark:bg-white/[0.05]">
+              <p className="text-base font-semibold text-black/90 dark:text-white">
+                {b.revenue.toLocaleString('tr-TR')} TRY
+              </p>
+              <p className="text-xs text-black/50 dark:text-white/50">{b.label}</p>
+            </div>
+          ))}
+        </div>
+        {totalMissingPrice > 0 && (
+          <p className="mt-3 text-xs text-black/40 dark:text-white/40">
+            {totalMissingPrice} kayıtta fiyat bilgisi yok, toplama dahil edilmedi.
+          </p>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StatusBarChart sales={sales} />

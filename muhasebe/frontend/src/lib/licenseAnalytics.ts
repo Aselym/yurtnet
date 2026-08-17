@@ -103,6 +103,35 @@ export function getMonthlyExpiryBuckets(sales: Sale[], months = 6): MonthlyExpir
   return buckets
 }
 
+export interface RevenueForecastBucket {
+  key: string
+  label: string
+  revenue: number
+  missingPrice: number
+}
+
+export function getRevenueForecast(sales: Sale[], months = 3): RevenueForecastBucket[] {
+  const now = new Date()
+  const buckets: RevenueForecastBucket[] = []
+  for (let i = 0; i < months; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    buckets.push({ key, label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, revenue: 0, missingPrice: 0 })
+  }
+  const byKey = new Map(buckets.map((b) => [b.key, b]))
+
+  for (const s of sales) {
+    if (INACTIVE_STATUSES.includes(s.status)) continue
+    const key = s.expiration_date.slice(0, 7)
+    const bucket = byKey.get(key)
+    if (!bucket) continue
+    if (s.price) bucket.revenue += s.price
+    else bucket.missingPrice += 1
+  }
+
+  return buckets
+}
+
 // logo_sync.py'deki LISANS_MARKALARI ile aynı marka gruplaması (yazım hatalı
 // varyantlar dahil) — kanonik marka adına katlanmış hali.
 const BRAND_PATTERNS: { label: string; keywords: string[] }[] = [

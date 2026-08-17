@@ -24,6 +24,7 @@ export interface Sale {
   created_at: string
   renewal_state: 'SUSPECT' | 'CONFIRMED' | 'REJECTED' | null
   renewed_by: number | null
+  price: number | null
 }
 
 export interface RenewalCandidate {

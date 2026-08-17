@@ -220,7 +220,8 @@ def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
                CAST(CLC.CODE AS NVARCHAR(50))          AS cari_kod,
                CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
                CAST(ITM.CODE AS NVARCHAR(50))          AS urun_kod,
-               CAST(SLS.DEFINITION_ AS NVARCHAR(100))  AS temsilci
+               CAST(SLS.DEFINITION_ AS NVARCHAR(100))  AS temsilci,
+               STL.TOTAL                               AS satir_tutar
         FROM LG_{firma}_{donem}_INVOICE INV WITH (NOLOCK)
         JOIN LG_{firma}_{donem}_STLINE STL WITH (NOLOCK)
              ON STL.INVOICEREF = INV.LOGICALREF
@@ -281,16 +282,17 @@ def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
             sure_bekleyen += 1
 
         temsilci = (r.temsilci or '').strip()
+        fiyat = float(r.satir_tutar) if r.satir_tutar else None
 
         yc.execute('''
             INSERT INTO sales (product_name, client_name, client_email, sales_rep,
                                license_key, sale_date, duration_type, duration_months,
                                expiration_date, reminder_type, status, notes,
-                               logo_ref, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STAGED', ?, ?, ?, 'LOGO')
+                               logo_ref, source, price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STAGED', ?, ?, ?, 'LOGO', ?)
         ''', (urun, cari, mail, temsilci, (r.urun_kod or '').strip(), satis_tarihi,
               sure_tipi, ay, bitis, durum,
-              f"Logo faturası {r.FICHENO} (cari {r.cari_kod or '-'})", logo_ref))
+              f"Logo faturası {r.FICHENO} (cari {r.cari_kod or '-'})", logo_ref, fiyat))
         eklenen += 1
 
     yerel.commit()
