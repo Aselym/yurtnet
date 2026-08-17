@@ -4,7 +4,7 @@ import { OverviewTab } from '@/components/dashboard/OverviewTab'
 import { LicensesTab } from '@/components/dashboard/LicensesTab'
 import { SubscriptionsTab } from '@/components/dashboard/SubscriptionsTab'
 import { ProductsTab } from '@/components/dashboard/ProductsTab'
-import { ComingSoonTab } from '@/components/dashboard/ComingSoonTab'
+import { OffersTab } from '@/components/dashboard/OffersTab'
 
 interface DashboardPageProps {
   onLogout: () => void
@@ -30,7 +30,7 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
         {tab === 'licenses' && <LicensesTab />}
         {tab === 'subscriptions' && <SubscriptionsTab />}
         {tab === 'products' && <ProductsTab />}
-        {tab === 'offers' && <ComingSoonTab />}
+        {tab === 'offers' && <OffersTab />}
       </main>
     </div>
   )

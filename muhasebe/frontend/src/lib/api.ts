@@ -55,6 +55,31 @@ export interface Product {
   created_at: string
 }
 
+export interface Offer {
+  id: number
+  product_name: string
+  quantity: number
+  client_name: string
+  offer_price: number | null
+  currency: string
+  offer_date: string
+  sales_rep: string | null
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  notes: string | null
+  created_at: string
+}
+
+export interface NewOffer {
+  product_name: string
+  quantity: number
+  client_name: string
+  offer_price: number
+  currency: string
+  offer_date: string
+  sales_rep: string
+  notes: string
+}
+
 async function getJson<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(path, { credentials: 'include' })
@@ -79,6 +104,65 @@ export function getSubscriptions(): Promise<Subscription[] | null> {
 
 export function getProducts(): Promise<Product[] | null> {
   return getJson<Product[]>('/api/products')
+}
+
+export function getOffers(): Promise<Offer[] | null> {
+  return getJson<Offer[]>('/api/offers')
+}
+
+export async function createOffer(offer: NewOffer): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/offers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(offer),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Teklif kaydedildi.' : 'Kayıt başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export async function updateOfferStatus(
+  offerId: number,
+  status: Offer['status']
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/offers/${offerId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ status }),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Durum güncellendi.' : 'Güncelleme başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export async function deleteOffer(offerId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/offers/${offerId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Teklif silindi.' : 'Silme başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
 }
 
 export type ReminderStage = 'FIRST_REMINDER' | 'FINAL_REMINDER'
