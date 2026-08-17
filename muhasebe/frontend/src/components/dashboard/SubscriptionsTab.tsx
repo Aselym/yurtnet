@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, type DataTableColumn } from './DataTable'
 import { StatusPill } from './StatusPill'
+import { CustomerProfileModal } from './CustomerProfileModal'
 import { getSubscriptions, type Subscription } from '@/lib/api'
 
 type Status = 'loading' | 'error' | 'ready'
@@ -9,6 +10,7 @@ export function SubscriptionsTab() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [status, setStatus] = useState<Status>('loading')
   const [search, setSearch] = useState('')
+  const [profileClient, setProfileClient] = useState<string | null>(null)
 
   async function load() {
     setStatus('loading')
@@ -34,7 +36,18 @@ export function SubscriptionsTab() {
   }, [subscriptions, search])
 
   const columns: DataTableColumn<Subscription>[] = [
-    { key: 'client', header: 'Müşteri', render: (s) => s.client_name },
+    {
+      key: 'client',
+      header: 'Müşteri',
+      render: (s) => (
+        <button
+          onClick={() => setProfileClient(s.client_name)}
+          className="hover:text-brand-dark dark:hover:text-brand text-left hover:underline"
+        >
+          {s.client_name}
+        </button>
+      ),
+    },
     { key: 'product', header: 'Ürün', render: (s) => s.product_name },
     { key: 'invoice_count', header: 'Fatura Sayısı', render: (s) => String(s.invoice_count) },
     {
@@ -46,16 +59,19 @@ export function SubscriptionsTab() {
   ]
 
   return (
-    <DataTable
-      columns={columns}
-      rows={filtered}
-      status={status}
-      onRetry={load}
-      searchPlaceholder="Müşteri veya ürün ara..."
-      searchValue={search}
-      onSearchChange={setSearch}
-      getRowKey={(s) => s.id}
-      emptyMessage="Henüz abonelik kaydı yok."
-    />
+    <>
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        status={status}
+        onRetry={load}
+        searchPlaceholder="Müşteri veya ürün ara..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        getRowKey={(s) => s.id}
+        emptyMessage="Henüz abonelik kaydı yok."
+      />
+      {profileClient && <CustomerProfileModal clientName={profileClient} onClose={() => setProfileClient(null)} />}
+    </>
   )
 }

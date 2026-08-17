@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { NewOfferModal } from './NewOfferModal'
+import { CustomerProfileModal } from './CustomerProfileModal'
 import { deleteOffer, getOffers, updateOfferStatus, type Offer } from '@/lib/api'
 import { cn } from '@/lib/cn'
 
@@ -30,6 +31,7 @@ export function OffersTab() {
   const [status, setStatus] = useState<LoadStatus>('loading')
   const [showNew, setShowNew] = useState(false)
   const [dragOverColumn, setDragOverColumn] = useState<Offer['status'] | null>(null)
+  const [profileClient, setProfileClient] = useState<string | null>(null)
 
   async function load() {
     setStatus('loading')
@@ -131,7 +133,12 @@ export function OffersTab() {
                 className="group cursor-grab p-3 active:cursor-grabbing"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-black/90 dark:text-white">{offer.client_name}</p>
+                  <button
+                    onClick={() => setProfileClient(offer.client_name)}
+                    className="hover:text-brand-dark dark:hover:text-brand text-left text-sm font-medium text-black/90 hover:underline dark:text-white"
+                  >
+                    {offer.client_name}
+                  </button>
                   <button
                     onClick={() => handleDelete(offer.id)}
                     title="Teklifi Sil"
@@ -167,6 +174,7 @@ export function OffersTab() {
           onCreated={load}
         />
       )}
+      {profileClient && <CustomerProfileModal clientName={profileClient} onClose={() => setProfileClient(null)} />}
     </div>
   )
 }

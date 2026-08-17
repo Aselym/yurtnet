@@ -10,6 +10,8 @@ const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
   AT_RISK: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
   LOST: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+  ACCEPTED: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+  REJECTED: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,6 +24,8 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Aktif',
   AT_RISK: 'Riskli',
   LOST: 'Kayıp',
+  ACCEPTED: 'Kabul Edildi',
+  REJECTED: 'Reddedildi',
 }
 
 interface StatusPillProps {

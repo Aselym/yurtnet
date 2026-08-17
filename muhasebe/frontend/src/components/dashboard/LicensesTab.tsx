@@ -4,6 +4,7 @@ import { DataTable, type DataTableColumn } from './DataTable'
 import { StatusPill } from './StatusPill'
 import { ReminderModal } from './ReminderModal'
 import { SetDurationModal } from './SetDurationModal'
+import { CustomerProfileModal } from './CustomerProfileModal'
 import { getSales, type Sale } from '@/lib/api'
 import { EXPIRING_SOON_DAYS, isExpiringSoon, isStaleExpired } from '@/lib/licenseAnalytics'
 
@@ -16,6 +17,7 @@ export function LicensesTab() {
   const [reminderSale, setReminderSale] = useState<Sale | null>(null)
   const [durationSale, setDurationSale] = useState<Sale | null>(null)
   const [showStale, setShowStale] = useState(false)
+  const [profileClient, setProfileClient] = useState<string | null>(null)
 
   async function load() {
     setStatus('loading')
@@ -103,7 +105,9 @@ export function LicensesTab() {
         getRowKey={(s) => s.id}
         emptyMessage="Henüz lisans kaydı yok."
         groupBy={(s) => s.client_name}
+        onGroupClick={setProfileClient}
       />
+      {profileClient && <CustomerProfileModal clientName={profileClient} onClose={() => setProfileClient(null)} />}
       {reminderSale && (
         <ReminderModal
           saleId={reminderSale.id}

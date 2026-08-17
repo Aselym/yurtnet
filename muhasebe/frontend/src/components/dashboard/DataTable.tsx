@@ -21,6 +21,8 @@ interface DataTableProps<T> {
   emptyMessage: string
   /** When set, rows are clustered under a header row per group (e.g. client name), sorted alphabetically. */
   groupBy?: (row: T) => string
+  /** When set alongside groupBy, the group header becomes clickable (e.g. to open a customer profile). */
+  onGroupClick?: (groupName: string) => void
 }
 
 function groupRows<T>(rows: T[], groupBy: (row: T) => string) {
@@ -45,6 +47,7 @@ export function DataTable<T>({
   getRowKey,
   emptyMessage,
   groupBy,
+  onGroupClick,
 }: DataTableProps<T>) {
   const grouped = groupBy && status === 'ready' ? groupRows(rows, groupBy) : null
   return (
@@ -97,7 +100,17 @@ export function DataTable<T>({
                           colSpan={columns.length}
                           className="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-black/50 dark:text-white/50"
                         >
-                          {groupName} <span className="font-normal normal-case text-black/30 dark:text-white/30">({groupRows.length})</span>
+                          {onGroupClick ? (
+                            <button
+                              onClick={() => onGroupClick(groupName)}
+                              className="hover:text-brand-dark dark:hover:text-brand hover:underline"
+                            >
+                              {groupName}
+                            </button>
+                          ) : (
+                            groupName
+                          )}{' '}
+                          <span className="font-normal normal-case text-black/30 dark:text-white/30">({groupRows.length})</span>
                         </td>
                       </tr>
                       {groupRows.map((row) => (
