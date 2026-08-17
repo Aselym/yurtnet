@@ -7,22 +7,23 @@ import { createOffer, type NewOffer } from '@/lib/api'
 interface NewOfferModalProps {
   onClose: () => void
   onCreated: () => void
+  initial?: { client_name: string; product_name: string; notes?: string }
 }
 
 type SendStatus = 'idle' | 'saving' | 'error'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function NewOfferModal({ onClose, onCreated }: NewOfferModalProps) {
+export function NewOfferModal({ onClose, onCreated, initial }: NewOfferModalProps) {
   const [form, setForm] = useState({
-    product_name: '',
+    product_name: initial?.product_name ?? '',
     quantity: '1',
-    client_name: '',
+    client_name: initial?.client_name ?? '',
     offer_price: '',
     currency: 'TRY',
     offer_date: today(),
     sales_rep: '',
-    notes: '',
+    notes: initial?.notes ?? '',
   })
   const [status, setStatus] = useState<SendStatus>('idle')
   const [message, setMessage] = useState('')

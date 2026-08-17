@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Clock, Mail } from 'lucide-react'
+import { AlertTriangle, Clock, FileText, Mail } from 'lucide-react'
 import { DataTable, type DataTableColumn } from './DataTable'
 import { StatusPill } from './StatusPill'
 import { ReminderModal } from './ReminderModal'
 import { SetDurationModal } from './SetDurationModal'
 import { CustomerProfileModal } from './CustomerProfileModal'
+import { NewOfferModal } from './NewOfferModal'
 import { getSales, type Sale } from '@/lib/api'
 import { EXPIRING_SOON_DAYS, isExpiringSoon, isStaleExpired } from '@/lib/licenseAnalytics'
 
@@ -18,6 +19,7 @@ export function LicensesTab() {
   const [durationSale, setDurationSale] = useState<Sale | null>(null)
   const [showStale, setShowStale] = useState(false)
   const [profileClient, setProfileClient] = useState<string | null>(null)
+  const [offerSale, setOfferSale] = useState<Sale | null>(null)
 
   async function load() {
     setStatus('loading')
@@ -75,13 +77,24 @@ export function LicensesTab() {
             <Clock className="h-4 w-4" strokeWidth={1.75} />
           </button>
         ) : (
-          <button
-            onClick={() => setReminderSale(s)}
-            title="Müşteriye Mail Gönder"
-            className="rounded-lg p-1.5 text-black/40 transition-colors hover:bg-brand-soft hover:text-brand-dark dark:text-white/40 dark:hover:bg-brand/15 dark:hover:text-brand"
-          >
-            <Mail className="h-4 w-4" strokeWidth={1.75} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setReminderSale(s)}
+              title="Müşteriye Mail Gönder"
+              className="rounded-lg p-1.5 text-black/40 transition-colors hover:bg-brand-soft hover:text-brand-dark dark:text-white/40 dark:hover:bg-brand/15 dark:hover:text-brand"
+            >
+              <Mail className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+            {(s.status === 'EXPIRED' || isExpiringSoon(s)) && (
+              <button
+                onClick={() => setOfferSale(s)}
+                title="Yenileme Teklifi Oluştur"
+                className="rounded-lg p-1.5 text-black/40 transition-colors hover:bg-brand-soft hover:text-brand-dark dark:text-white/40 dark:hover:bg-brand/15 dark:hover:text-brand"
+              >
+                <FileText className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            )}
+          </div>
         ),
     },
   ]
@@ -125,6 +138,17 @@ export function LicensesTab() {
           productName={durationSale.product_name}
           onClose={() => setDurationSale(null)}
           onSaved={load}
+        />
+      )}
+      {offerSale && (
+        <NewOfferModal
+          onClose={() => setOfferSale(null)}
+          onCreated={() => {}}
+          initial={{
+            client_name: offerSale.client_name,
+            product_name: offerSale.product_name,
+            notes: `Yenileme teklifi — eski bitiş tarihi: ${offerSale.expiration_date}`,
+          }}
         />
       )}
     </>
