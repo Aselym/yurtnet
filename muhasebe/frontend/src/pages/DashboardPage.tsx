@@ -25,7 +25,7 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
     <div className="flex h-screen overflow-hidden bg-bg dark:bg-neutral-950">
       <Sidebar active={tab} onSelect={setTab} onLogout={onLogout} />
       <main className="flex-1 overflow-y-auto px-8 py-8">
-        <h1 className="mb-6 text-2xl font-semibold text-black/90 dark:text-white">{TITLES[tab]}</h1>
+        <h1 className="font-display mb-6 text-3xl italic text-black/90 dark:text-white">{TITLES[tab]}</h1>
         {tab === 'overview' && <OverviewTab />}
         {tab === 'licenses' && <LicensesTab />}
         {tab === 'subscriptions' && <SubscriptionsTab />}

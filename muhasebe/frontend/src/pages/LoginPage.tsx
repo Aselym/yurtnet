@@ -41,8 +41,8 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
         <Card className="w-full max-w-[380px] border-white/15 bg-white/10 p-8 backdrop-blur-md">
           <div className="mb-8 flex flex-col items-center text-center">
             <img src="/static/images/logo-dark.png" alt="Piramit Bilgisayar" className="mb-4 h-12" />
-            <h1 className="text-lg font-semibold text-white">Piramit Lisans Takip</h1>
-            <p className="mt-1 text-sm text-white/60">
+            <h1 className="font-display text-2xl italic text-white">Piramit Lisans Takip</h1>
+            <p className="mt-1 text-sm tracking-wide text-white/60">
               Analiz &amp; Takip Platformu
             </p>
           </div>

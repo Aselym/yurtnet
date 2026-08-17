@@ -19,7 +19,7 @@ export function RoleSelectPage({ onSelect }: RoleSelectPageProps) {
       <motion.h1
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative text-xl font-semibold text-white/90"
+        className="font-display relative text-3xl italic text-white/90"
       >
         Nasıl devam etmek istersiniz?
       </motion.h1>

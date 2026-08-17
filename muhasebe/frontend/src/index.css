@@ -1,5 +1,9 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource/instrument-serif/latin-ext-400.css";
+@import "@fontsource/instrument-serif/latin-400.css";
+@import "@fontsource/instrument-serif/latin-ext-400-italic.css";
+@import "@fontsource/instrument-serif/latin-400-italic.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -9,7 +13,8 @@
   --color-brand-dark: #a8410c;
   --color-brand-soft: #fdf0e8;
   --color-bg: #f5f5f6;
-  --font-sans: "InterVariable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
 }
 
 @layer base {

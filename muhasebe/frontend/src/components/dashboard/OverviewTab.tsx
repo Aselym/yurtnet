@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StatCard } from './StatCard'
 import { MonthlyExpiryChart, StatusBarChart } from './AnalyticsCharts'
+import { ReminderModal } from './ReminderModal'
 import { getSales, getStats, type Sale, type StatsResponse } from '@/lib/api'
 import { EXPIRING_SOON_DAYS, getExpiringSoon } from '@/lib/licenseAnalytics'
 
@@ -13,6 +14,7 @@ export function OverviewTab() {
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [sales, setSales] = useState<Sale[]>([])
   const [status, setStatus] = useState<Status>('loading')
+  const [reminderSale, setReminderSale] = useState<Sale | null>(null)
 
   async function load() {
     setStatus('loading')
@@ -85,6 +87,7 @@ export function OverviewTab() {
                   <th className="px-3 py-2 font-medium">Ürün</th>
                   <th className="px-3 py-2 font-medium">Bitiş Tarihi</th>
                   <th className="px-3 py-2 font-medium">Kalan Gün</th>
+                  <th className="px-3 py-2 font-medium" />
                 </tr>
               </thead>
               <tbody>
@@ -105,6 +108,15 @@ export function OverviewTab() {
                         {s.days_left} gün
                       </span>
                     </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={() => setReminderSale(s)}
+                        title="Müşteriye Mail Gönder"
+                        className="rounded-lg p-1.5 text-black/40 transition-colors hover:bg-brand-soft hover:text-brand-dark dark:text-white/40 dark:hover:bg-brand/15 dark:hover:text-brand"
+                      >
+                        <Mail className="h-4 w-4" strokeWidth={1.75} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -112,6 +124,17 @@ export function OverviewTab() {
           </div>
         )}
       </Card>
+
+      {reminderSale && (
+        <ReminderModal
+          saleId={reminderSale.id}
+          clientName={reminderSale.client_name}
+          productName={reminderSale.product_name}
+          expirationDate={reminderSale.expiration_date}
+          daysLeft={reminderSale.days_left}
+          onClose={() => setReminderSale(null)}
+        />
+      )}
     </div>
   )
 }
