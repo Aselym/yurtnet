@@ -7,7 +7,7 @@ import { MonthlyExpiryChart, StatusBarChart } from './AnalyticsCharts'
 import { ReminderModal } from './ReminderModal'
 import { RenewalsPanel } from './RenewalsPanel'
 import { getSales, getStats, type Sale, type StatsResponse } from '@/lib/api'
-import { EXPIRING_SOON_DAYS, getExpiringSoon, getLostCustomers } from '@/lib/licenseAnalytics'
+import { EXPIRING_SOON_DAYS, getBrandStats, getExpiringSoon, getLostCustomers } from '@/lib/licenseAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -56,6 +56,7 @@ export function OverviewTab() {
 
   const expiringSoon = getExpiringSoon(sales)
   const lostCustomers = getLostCustomers(sales)
+  const brandStats = getBrandStats(sales)
 
   return (
     <div className="space-y-6">
@@ -71,6 +72,34 @@ export function OverviewTab() {
         <StatusBarChart sales={sales} />
         <MonthlyExpiryChart sales={sales} />
       </div>
+
+      <Card className="p-5">
+        <h3 className="mb-4 text-sm font-semibold text-black/70 dark:text-white/70">Marka Performansı</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-black/5 text-xs uppercase tracking-wide text-black/40 dark:border-white/10 dark:text-white/40">
+                <th className="px-3 py-2 font-medium">Marka</th>
+                <th className="px-3 py-2 font-medium">Aktif</th>
+                <th className="px-3 py-2 font-medium">Süresi Dolmuş</th>
+                <th className="px-3 py-2 font-medium">Yenileme Oranı</th>
+              </tr>
+            </thead>
+            <tbody>
+              {brandStats.map((b) => (
+                <tr key={b.brand} className="border-b border-black/5 last:border-0 dark:border-white/5">
+                  <td className="px-3 py-2 font-medium text-black/80 dark:text-white/80">{b.brand}</td>
+                  <td className="px-3 py-2 text-black/80 dark:text-white/80">{b.active}</td>
+                  <td className="px-3 py-2 text-black/80 dark:text-white/80">{b.expired}</td>
+                  <td className="px-3 py-2 text-black/80 dark:text-white/80">
+                    {b.renewalRate !== null ? `%${b.renewalRate} (${b.renewed}/${b.expired})` : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Card className="p-5">
         <h3 className="mb-4 text-sm font-semibold text-black/70 dark:text-white/70">

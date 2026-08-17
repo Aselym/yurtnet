@@ -102,3 +102,64 @@ export function getMonthlyExpiryBuckets(sales: Sale[], months = 6): MonthlyExpir
 
   return buckets
 }
+
+// logo_sync.py'deki LISANS_MARKALARI ile aynı marka gruplaması (yazım hatalı
+// varyantlar dahil) — kanonik marka adına katlanmış hali.
+const BRAND_PATTERNS: { label: string; keywords: string[] }[] = [
+  { label: 'WatchGuard', keywords: ['WATCHGUARD', 'WATCGUARD', 'WATCGHUARD'] },
+  { label: 'FortiGate', keywords: ['FORTIGATE', 'FOTIGATE', 'FORTINET'] },
+  { label: 'Veeam', keywords: ['VEEAM'] },
+  { label: '5651 / Loglama', keywords: ['PLOG', '5651', 'SIGNLOGGER', 'CRYPTTECH'] },
+  { label: 'Sophos', keywords: ['SOPHOS'] },
+  { label: 'ESET', keywords: ['ESET'] },
+  { label: 'Kaspersky', keywords: ['KASPERSKY'] },
+  { label: 'Bitdefender', keywords: ['BITDEFENDER'] },
+  { label: 'Trellix', keywords: ['TRELLIX'] },
+  { label: 'Adobe', keywords: ['ADOBE'] },
+  { label: 'AutoCAD / Autodesk', keywords: ['AUTOCAD', 'AUTODESK'] },
+  { label: 'VMware', keywords: ['VMWARE'] },
+]
+
+function brandOf(productName: string): string | null {
+  const upper = productName.toUpperCase()
+  for (const { label, keywords } of BRAND_PATTERNS) {
+    if (keywords.some((k) => upper.includes(k))) return label
+  }
+  return null
+}
+
+export interface BrandStats {
+  brand: string
+  active: number
+  expired: number
+  renewed: number
+  renewalRate: number | null // yüzde, 0-100
+}
+
+export function getBrandStats(sales: Sale[]): BrandStats[] {
+  const byBrand = new Map<string, BrandStats>()
+
+  for (const s of sales) {
+    const brand = brandOf(s.product_name)
+    if (!brand) continue
+    let stats = byBrand.get(brand)
+    if (!stats) {
+      stats = { brand, active: 0, expired: 0, renewed: 0, renewalRate: null }
+      byBrand.set(brand, stats)
+    }
+    if (s.status === 'EXPIRED') {
+      stats.expired += 1
+      if (s.renewal_state === 'CONFIRMED') stats.renewed += 1
+    } else if (s.status !== 'NEEDS_DURATION') {
+      stats.active += 1
+    }
+  }
+
+  for (const stats of byBrand.values()) {
+    stats.renewalRate = stats.expired > 0 ? Math.round((stats.renewed / stats.expired) * 100) : null
+  }
+
+  return [...byBrand.values()]
+    .filter((s) => s.active + s.expired > 0)
+    .sort((a, b) => b.active + b.expired - (a.active + a.expired))
+}
