@@ -1,3 +1,4 @@
+import html
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -69,11 +70,19 @@ def lisans_maili(sale_data):
 
     subject = f'[{etiket}] {musteri} — {tur} {sure_ifadesi}'
 
-    satirlar = [('Müşteri', musteri), ('Ürün', urun), ('Bitiş tarihi', bitis)]
+    # Bu degerler Logo'dan geliyor (musteri/urun kartlari staff tarafindan
+    # elle giriliyor) — HTML maile basmadan once kacirilmazsa, iceride
+    # yanlislikla ya da kotu niyetle "<" gibi bir karakter geçen bir kayit
+    # alici mail istemcisinde HTML olarak yorumlanabilir.
+    satirlar = [
+        ('Müşteri', html.escape(musteri)),
+        ('Ürün', html.escape(urun)),
+        ('Bitiş tarihi', html.escape(bitis)),
+    ]
     if anahtar:
-        satirlar.append(('Lisans anahtarı', anahtar))
+        satirlar.append(('Lisans anahtarı', html.escape(anahtar)))
     if temsilci:
-        satirlar.append(('Satış temsilcisi', temsilci))
+        satirlar.append(('Satış temsilcisi', html.escape(temsilci)))
 
     detay = ''.join(
         f'<tr>'
@@ -103,7 +112,7 @@ def lisans_maili(sale_data):
     </div>
     <div style="padding:22px">
       <p style="margin:0 0 18px;font-size:15px">
-        <strong>{musteri}</strong> firmasına satılan {tur}
+        <strong>{html.escape(musteri)}</strong> firmasına satılan {tur}
         <strong style="color:{renk}">{sure_ifadesi}</strong>.
       </p>
       <table style="width:100%;border-collapse:collapse;border-top:1px solid {CIZGI};

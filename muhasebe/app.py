@@ -17,6 +17,17 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 ACTIVE_SESSIONS = set()
 
+# Uygulama normalde ayni origin'den servis ediliyor (React build'i static/
+# altina konup ayni Python sunucusundan sunuluyor) — gercek kullanimda CORS
+# hic gerekmiyor. Yine de "npm run dev" ile ayri bir Vite sunucusundan
+# gelistirme yapilabilsin ve baska bir cihazdan LAN uzerinden erisim
+# engellenmesin diye (bkz. muhasebe skill: 192.168.x.x), joker (*) yerine
+# sadece bilinen origin'ler yansitilir.
+ALLOWED_ORIGIN_PREFIXES = ('http://localhost:', 'http://127.0.0.1:', 'http://192.168.')
+
+def _allowed_origin(origin):
+    return bool(origin) and origin.startswith(ALLOWED_ORIGIN_PREFIXES)
+
 def _get_credentials():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -41,10 +52,21 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         token = self._get_session_token()
         return token in ACTIVE_SESSIONS if token else False
 
+    def _cors_headers(self):
+        origin = self.headers.get('Origin')
+        if _allowed_origin(origin):
+            return {
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Credentials': 'true',
+                'Vary': 'Origin',
+            }
+        return {}
+
     def _send_json(self, data, status_code=200, headers=None):
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        for k, v in self._cors_headers().items():
+            self.send_header(k, v)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         if headers:
@@ -68,7 +90,8 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        for k, v in self._cors_headers().items():
+            self.send_header(k, v)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
@@ -355,7 +378,10 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
                 abone, riskli = sync_logo_subscriptions()
                 urun, urun_atlanan = sync_logo_products()
             except Exception as e:
-                self._send_json({'success': False, 'message': f'Aktarım hatası: {e}'}, 500)
+                # Ham exception metni (SQL sunucu adi, sorgu detayi vb. icerebilir)
+                # istemciye donmuyor — sadece sunucu konsoluna yaziliyor.
+                print(f"[Logo sync hatasi] {e}")
+                self._send_json({'success': False, 'message': 'Aktarım sırasında bir hata oluştu. Sunucu loglarını kontrol edin.'}, 500)
                 return
 
             mesaj = f'{eklenen} yeni lisans aktarıldı'

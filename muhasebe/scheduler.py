@@ -1,7 +1,9 @@
+import os
+import shutil
 import threading
 import time
 from datetime import datetime
-from database import get_db_connection, sure_dolmuslari_isaretle
+from database import DB_PATH, get_db_connection, sure_dolmuslari_isaretle
 from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products, yenileme_adaylari_bul, get_logo_settings
 from mailer import send_reminder_email
 from notifier import send_windows_toast
@@ -9,6 +11,13 @@ from notifier import send_windows_toast
 # Logo'dan otomatik veri cekme saatleri. Muhasebe/satis ekibinin gun icinde
 # baktigi saatlerle hizali: ogleden once, ogleden sonra, aksam kapanistan once.
 LOGO_SYNC_SAATLERI = (11, 15, 17)
+
+# license_reminders.db Logo'dan cekilemeyen veriyi de tutuyor (teklifler,
+# hatirlatma gecmisi, yenileme kararlari) — hicbir yere yedeklenmiyordu.
+# Gece, kullanim olmayan bir saatte gunluk yedek alinir.
+BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups')
+BACKUP_SAATI = 4
+BACKUP_TUTULACAK_ADET = 14
 
 def check_and_send_reminders():
     sure_dolmuslari_isaretle()
@@ -116,12 +125,47 @@ def logo_sync_loop(check_interval_seconds=60):
             print(f"Logo Sync Scheduler Error: {e}")
         time.sleep(check_interval_seconds)
 
+def yedekle_veritabani():
+    if not os.path.exists(DB_PATH):
+        return None
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    zaman_damgasi = datetime.now().strftime('%Y%m%d_%H%M%S')
+    hedef = os.path.join(BACKUP_DIR, f'license_reminders_{zaman_damgasi}.db')
+    shutil.copy2(DB_PATH, hedef)
+
+    yedekler = sorted(
+        f for f in os.listdir(BACKUP_DIR)
+        if f.startswith('license_reminders_') and f.endswith('.db')
+    )
+    while len(yedekler) > BACKUP_TUTULACAK_ADET:
+        eski = yedekler.pop(0)
+        os.remove(os.path.join(BACKUP_DIR, eski))
+
+    return hedef
+
+def backup_loop(check_interval_seconds=300):
+    calisan_gunler = set()  # tekrar yedek almamak icin gun bazinda isaretleme
+    while True:
+        try:
+            now = datetime.now()
+            if now.hour == BACKUP_SAATI and now.date() not in calisan_gunler:
+                calisan_gunler.add(now.date())
+                hedef = yedekle_veritabani()
+                if hedef:
+                    print(f"Veritabani yedeklendi: {hedef}")
+        except Exception as e:
+            print(f"Backup Scheduler Error: {e}")
+        time.sleep(check_interval_seconds)
+
 def start_background_scheduler():
     thread = threading.Thread(target=scheduler_loop, args=(300,), daemon=True)
     thread.start()
 
     logo_thread = threading.Thread(target=logo_sync_loop, daemon=True)
     logo_thread.start()
+
+    backup_thread = threading.Thread(target=backup_loop, daemon=True)
+    backup_thread.start()
 
     print("Background reminder scheduler started.")
 
