@@ -81,7 +81,7 @@ export interface MonthlyExpiryBucket {
   count: number
 }
 
-const MONTH_LABELS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+export const MONTH_LABELS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 
 export function getMonthlyExpiryBuckets(sales: Sale[], months = 6): MonthlyExpiryBucket[] {
   const now = new Date()

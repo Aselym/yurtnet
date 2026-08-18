@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import { LoginPage } from '@/pages/LoginPage'
 import { RoleSelectPage } from '@/pages/RoleSelectPage'
 import { LoadingTransition } from '@/pages/LoadingTransition'
-import { PlaceholderPanel } from '@/pages/PlaceholderPanel'
+import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { checkAuth, logout } from '@/lib/auth'
@@ -70,7 +70,7 @@ export default function App() {
         <DashboardPage key="panel-satis" onLogout={handleLogout} />
       )}
       {step === 'panel' && role === 'yonetici' && (
-        <PlaceholderPanel key="panel-yonetici" role={role} onLogout={handleLogout} />
+        <AdminDashboardPage key="panel-yonetici" onLogout={handleLogout} />
       )}
       {step === 'settings' && <SettingsPage key="settings" onBack={handleCloseSettings} />}
     </AnimatePresence>

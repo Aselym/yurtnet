@@ -2,54 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { getOffers, getSales, type Offer, type Sale } from '@/lib/api'
-import { isExpiringSoon } from '@/lib/licenseAnalytics'
+import { getRepPerformance } from '@/lib/adminAnalytics'
 
 type Status = 'loading' | 'error' | 'ready'
-
-const UNKNOWN_REP = '(Bilinmeyen)'
-
-interface RepStats {
-  rep: string
-  activeLicenses: number
-  expiringSoon: number
-  openOffers: number
-  wonOffers: number
-  lostOffers: number
-}
-
-function buildRepStats(sales: Sale[], offers: Offer[]): RepStats[] {
-  const reps = new Map<string, RepStats>()
-
-  function get(rep: string) {
-    const key = rep.trim() || UNKNOWN_REP
-    let stats = reps.get(key)
-    if (!stats) {
-      stats = { rep: key, activeLicenses: 0, expiringSoon: 0, openOffers: 0, wonOffers: 0, lostOffers: 0 }
-      reps.set(key, stats)
-    }
-    return stats
-  }
-
-  for (const s of sales) {
-    if (s.status === 'EXPIRED' || s.status === 'NEEDS_DURATION') continue
-    const stats = get(s.sales_rep ?? '')
-    stats.activeLicenses += 1
-    if (isExpiringSoon(s)) stats.expiringSoon += 1
-  }
-
-  for (const o of offers) {
-    const stats = get(o.sales_rep ?? '')
-    if (o.status === 'PENDING') stats.openOffers += 1
-    else if (o.status === 'ACCEPTED') stats.wonOffers += 1
-    else if (o.status === 'REJECTED') stats.lostOffers += 1
-  }
-
-  return [...reps.values()].sort((a, b) => {
-    if (a.rep === UNKNOWN_REP) return 1
-    if (b.rep === UNKNOWN_REP) return -1
-    return a.rep.localeCompare(b.rep, 'tr')
-  })
-}
 
 export function RepsTab() {
   const [sales, setSales] = useState<Sale[]>([])
@@ -72,7 +27,7 @@ export function RepsTab() {
     load()
   }, [])
 
-  const stats = useMemo(() => buildRepStats(sales, offers), [sales, offers])
+  const stats = useMemo(() => getRepPerformance(sales, offers), [sales, offers])
 
   if (status === 'loading') {
     return (
