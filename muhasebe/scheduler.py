@@ -2,7 +2,7 @@ import threading
 import time
 from datetime import datetime
 from database import get_db_connection, sure_dolmuslari_isaretle
-from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products, yenileme_adaylari_bul
+from logo_sync import sync_logo_invoices, sync_logo_subscriptions, sync_logo_products, yenileme_adaylari_bul, get_logo_settings
 from mailer import send_reminder_email
 from notifier import send_windows_toast
 
@@ -103,12 +103,15 @@ def logo_sync_loop(check_interval_seconds=60):
             anahtar = (now.date(), now.hour)
             if now.hour in LOGO_SYNC_SAATLERI and anahtar not in calisan_saatler:
                 calisan_saatler.add(anahtar)
-                eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
-                abone, riskli = sync_logo_subscriptions()
-                urun, urun_atlanan = sync_logo_products()
-                yenileme_adayi = yenileme_adaylari_bul()
-                print(f"Logo senkronizasyonu ({now.hour}:00): {eklenen} lisans, "
-                      f"{abone} abonelik, {urun} ürün, {yenileme_adayi} yenileme adayı.")
+                if get_logo_settings().get('logo_auto_sync') != 'ON':
+                    print(f"Logo senkronizasyonu ({now.hour}:00): otomatik senkron kapalı, atlandı.")
+                else:
+                    eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
+                    abone, riskli = sync_logo_subscriptions()
+                    urun, urun_atlanan = sync_logo_products()
+                    yenileme_adayi = yenileme_adaylari_bul()
+                    print(f"Logo senkronizasyonu ({now.hour}:00): {eklenen} lisans, "
+                          f"{abone} abonelik, {urun} ürün, {yenileme_adayi} yenileme adayı.")
         except Exception as e:
             print(f"Logo Sync Scheduler Error: {e}")
         time.sleep(check_interval_seconds)
