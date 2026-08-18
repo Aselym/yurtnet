@@ -5,10 +5,11 @@ import { RoleSelectPage } from '@/pages/RoleSelectPage'
 import { LoadingTransition } from '@/pages/LoadingTransition'
 import { PlaceholderPanel } from '@/pages/PlaceholderPanel'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { checkAuth, logout } from '@/lib/auth'
 import type { Role } from '@/lib/types'
 
-type Step = 'checking' | 'login' | 'role-select' | 'transition' | 'panel'
+type Step = 'checking' | 'login' | 'role-select' | 'transition' | 'panel' | 'settings'
 
 const ROLE_STORAGE_KEY = 'piramit.rol'
 
@@ -47,6 +48,9 @@ export default function App() {
 
   const handleTransitionDone = useCallback(() => setStep('panel'), [])
 
+  const handleOpenSettings = useCallback(() => setStep('settings'), [])
+  const handleCloseSettings = useCallback(() => setStep('role-select'), [])
+
   const handleLogout = useCallback(async () => {
     await logout()
     sessionStorage.removeItem(ROLE_STORAGE_KEY)
@@ -58,7 +62,9 @@ export default function App() {
     <AnimatePresence mode="wait">
       {step === 'checking' && <div key="checking" className="min-h-screen bg-bg dark:bg-neutral-950" />}
       {step === 'login' && <LoginPage key="login" onSuccess={handleLoginSuccess} />}
-      {step === 'role-select' && <RoleSelectPage key="role-select" onSelect={handleRoleSelect} />}
+      {step === 'role-select' && (
+        <RoleSelectPage key="role-select" onSelect={handleRoleSelect} onOpenSettings={handleOpenSettings} />
+      )}
       {step === 'transition' && <LoadingTransition key="transition" onDone={handleTransitionDone} />}
       {step === 'panel' && role === 'satis' && (
         <DashboardPage key="panel-satis" onLogout={handleLogout} />
@@ -66,6 +72,7 @@ export default function App() {
       {step === 'panel' && role === 'yonetici' && (
         <PlaceholderPanel key="panel-yonetici" role={role} onLogout={handleLogout} />
       )}
+      {step === 'settings' && <SettingsPage key="settings" onBack={handleCloseSettings} />}
     </AnimatePresence>
   )
 }

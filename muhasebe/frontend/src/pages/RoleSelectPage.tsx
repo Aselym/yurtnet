@@ -5,6 +5,7 @@ import type { Role } from '@/lib/types'
 
 interface RoleSelectPageProps {
   onSelect: (role: Role) => void
+  onOpenSettings: () => void
 }
 
 const roles: { id: Role; label: string; icon: LucideIcon }[] = [
@@ -12,7 +13,7 @@ const roles: { id: Role; label: string; icon: LucideIcon }[] = [
   { id: 'satis', label: 'Satış ve Muhasebe', icon: Users },
 ]
 
-export function RoleSelectPage({ onSelect }: RoleSelectPageProps) {
+export function RoleSelectPage({ onSelect, onOpenSettings }: RoleSelectPageProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-12 overflow-hidden px-4">
       <AnimatedBackground />
@@ -40,6 +41,15 @@ export function RoleSelectPage({ onSelect }: RoleSelectPageProps) {
           </motion.button>
         ))}
       </div>
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        onClick={onOpenSettings}
+        className="relative text-xs font-medium text-white/40 transition-colors hover:text-white/70"
+      >
+        ⚙ Ayarlar
+      </motion.button>
     </div>
   )
 }
