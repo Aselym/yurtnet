@@ -11,12 +11,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       <AnimatedBackground />
       <div className="relative mx-auto max-w-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="font-display text-3xl italic text-black/90 dark:text-white">Ayarlar</h1>
-          <Button variant="ghost" onClick={onBack}>
+          <h1 className="font-display text-3xl italic text-white">Ayarlar</h1>
+          <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10" onClick={onBack}>
             Geri
           </Button>
         </div>
-        <p className="text-sm text-black/50 dark:text-white/50">Yükleniyor...</p>
+        <p className="text-sm text-white/50">Yükleniyor...</p>
       </div>
     </div>
   )
