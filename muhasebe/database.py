@@ -153,6 +153,26 @@ def init_db():
     if 'price' not in sales_cols:
         # Logo'daki STLINE.TOTAL (satir tutari, TRY). NULL = fiyat bilinmiyor.
         cursor.execute('ALTER TABLE sales ADD COLUMN price REAL')
+    if 'client_phone' not in sales_cols:
+        # Logo'daki CLCARD.TELNRS1 (sabit telefon). Cep telefonu alani
+        # (CELLPHONE) firma tarafindan hic kullanilmamis, o yuzden cekilmiyor.
+        cursor.execute('ALTER TABLE sales ADD COLUMN client_phone TEXT')
+    if 'client_city' not in sales_cols:
+        cursor.execute('ALTER TABLE sales ADD COLUMN client_city TEXT')
+
+    cursor.execute("PRAGMA table_info(products)")
+    products_cols = {row[1] for row in cursor.fetchall()}
+    if 'client_phone' not in products_cols:
+        cursor.execute('ALTER TABLE products ADD COLUMN client_phone TEXT')
+    if 'client_city' not in products_cols:
+        cursor.execute('ALTER TABLE products ADD COLUMN client_city TEXT')
+
+    cursor.execute("PRAGMA table_info(subscriptions)")
+    subscriptions_cols = {row[1] for row in cursor.fetchall()}
+    if 'client_phone' not in subscriptions_cols:
+        cursor.execute('ALTER TABLE subscriptions ADD COLUMN client_phone TEXT')
+    if 'client_city' not in subscriptions_cols:
+        cursor.execute('ALTER TABLE subscriptions ADD COLUMN client_city TEXT')
 
     default_admin_salt, default_admin_hash = hash_password('Aa123456')
     default_settings = [

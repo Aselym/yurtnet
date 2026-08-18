@@ -25,6 +25,8 @@ export interface Sale {
   renewal_state: 'SUSPECT' | 'CONFIRMED' | 'REJECTED' | null
   renewed_by: number | null
   price: number | null
+  client_phone: string | null
+  client_city: string | null
 }
 
 export interface RenewalCandidate {
@@ -52,6 +54,8 @@ export interface Subscription {
   status: 'ACTIVE' | 'AT_RISK' | 'LOST'
   source: string | null
   updated_at: string
+  client_phone: string | null
+  client_city: string | null
 }
 
 export interface Product {
@@ -68,6 +72,8 @@ export interface Product {
   invoice_no: string | null
   source: string | null
   created_at: string
+  client_phone: string | null
+  client_city: string | null
 }
 
 export interface Offer {

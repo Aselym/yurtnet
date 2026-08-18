@@ -190,9 +190,13 @@ def _like_kosulu(markalar, alan='ITM.NAME'):
     return ' OR '.join(f"{alan} LIKE '%{k}%'" for k in markalar)
 
 
+def _temiz_metin(deger):
+    metin = (deger or '').strip()
+    return '' if metin in ('-', '.', '_') else metin
+
+
 def _temiz_mail(deger):
-    mail = (deger or '').strip()
-    return '' if mail in ('-', '.', '_') else mail
+    return _temiz_metin(deger)
 
 
 # Bitisi bu tarihten onceye dusen lisanslar alinmaz. Coktan gecmis bir
@@ -218,6 +222,8 @@ def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
                CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
                CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
                CAST(CLC.CODE AS NVARCHAR(50))          AS cari_kod,
+               CAST(CLC.TELNRS1 AS NVARCHAR(50))       AS cari_tel,
+               CAST(CLC.CITY AS NVARCHAR(50))          AS cari_sehir,
                CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
                CAST(ITM.CODE AS NVARCHAR(50))          AS urun_kod,
                CAST(SLS.DEFINITION_ AS NVARCHAR(100))  AS temsilci,
@@ -259,6 +265,8 @@ def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
         satis_tarihi = r.DATE_.strftime('%Y-%m-%d')
         cari = (r.cari_ad or 'Bilinmeyen Müşteri').strip()
         mail = _temiz_mail(r.cari_mail)
+        telefon = _temiz_metin(r.cari_tel)
+        sehir = _temiz_metin(r.cari_sehir)
 
         ay = sure_ay_bul(urun)
         if ay:
@@ -288,11 +296,12 @@ def sync_logo_invoices(gecmis_yil=3, en_eski_bitis=EN_ESKI_BITIS):
             INSERT INTO sales (product_name, client_name, client_email, sales_rep,
                                license_key, sale_date, duration_type, duration_months,
                                expiration_date, reminder_type, status, notes,
-                               logo_ref, source, price)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STAGED', ?, ?, ?, 'LOGO', ?)
+                               logo_ref, source, price, client_phone, client_city)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'STAGED', ?, ?, ?, 'LOGO', ?, ?, ?)
         ''', (urun, cari, mail, temsilci, (r.urun_kod or '').strip(), satis_tarihi,
               sure_tipi, ay, bitis, durum,
-              f"Logo faturası {r.FICHENO} (cari {r.cari_kod or '-'})", logo_ref, fiyat))
+              f"Logo faturası {r.FICHENO} (cari {r.cari_kod or '-'})", logo_ref, fiyat,
+              telefon, sehir))
         eklenen += 1
 
     yerel.commit()
@@ -321,6 +330,8 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
     cur.execute(f"""
         SELECT CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
                CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
+               CAST(CLC.TELNRS1 AS NVARCHAR(50))       AS cari_tel,
+               CAST(CLC.CITY AS NVARCHAR(50))          AS cari_sehir,
                CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
                COUNT(*) AS adet,
                MIN(INV.DATE_) AS ilk_tarih,
@@ -338,6 +349,8 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
           AND ({_like_kosulu(ABONELIK_MARKALARI)})
         GROUP BY CAST(CLC.DEFINITION_ AS NVARCHAR(200)),
                  CAST(CLC.EMAILADDR AS NVARCHAR(200)),
+                 CAST(CLC.TELNRS1 AS NVARCHAR(50)),
+                 CAST(CLC.CITY AS NVARCHAR(50)),
                  CAST(ITM.NAME AS NVARCHAR(200))
         HAVING COUNT(*) >= 2
         ORDER BY MAX(INV.DATE_) DESC
@@ -384,8 +397,8 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
             INSERT INTO subscriptions
                 (client_name, client_email, product_name, first_invoice_date,
                  last_invoice_date, invoice_count, avg_interval_days,
-                 days_since_last, status, source, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'LOGO', CURRENT_TIMESTAMP)
+                 days_since_last, status, source, updated_at, client_phone, client_city)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'LOGO', CURRENT_TIMESTAMP, ?, ?)
             ON CONFLICT (client_name, product_name) DO UPDATE SET
                 client_email = excluded.client_email,
                 first_invoice_date = excluded.first_invoice_date,
@@ -394,9 +407,12 @@ def sync_logo_subscriptions(gecmis_yil=2, risk_kat=2.0):
                 avg_interval_days = excluded.avg_interval_days,
                 days_since_last = excluded.days_since_last,
                 status = excluded.status,
+                client_phone = excluded.client_phone,
+                client_city = excluded.client_city,
                 updated_at = CURRENT_TIMESTAMP
         ''', (cari, _temiz_mail(r.cari_mail), urun, ilk.isoformat(),
-              son.isoformat(), adet, round(ortalama, 1), gecen, durum))
+              son.isoformat(), adet, round(ortalama, 1), gecen, durum,
+              _temiz_metin(r.cari_tel), _temiz_metin(r.cari_sehir)))
         yazilan += 1
 
     yerel.commit()
@@ -510,6 +526,8 @@ def sync_logo_products(gecmis_yil=2):
                STL.TOTAL AS satir_tutar,
                CAST(CLC.DEFINITION_ AS NVARCHAR(200)) AS cari_ad,
                CAST(CLC.EMAILADDR AS NVARCHAR(200))    AS cari_mail,
+               CAST(CLC.TELNRS1 AS NVARCHAR(50))       AS cari_tel,
+               CAST(CLC.CITY AS NVARCHAR(50))          AS cari_sehir,
                CAST(ITM.NAME AS NVARCHAR(200))         AS urun_adi,
                CAST(ITM.CODE AS NVARCHAR(50))          AS urun_kod
         FROM LG_{firma}_{donem}_INVOICE INV WITH (NOLOCK)
@@ -552,13 +570,14 @@ def sync_logo_products(gecmis_yil=2):
         yc.execute("""
             INSERT INTO products (product_name, product_code, client_name, client_email,
                                   quantity, unit_price, line_total, sale_date,
-                                  invoice_no, logo_ref, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'LOGO')
+                                  invoice_no, logo_ref, source, client_phone, client_city)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'LOGO', ?, ?)
         """, (
             urun, (r.urun_kod or '').strip(),
             (r.cari_ad or 'Bilinmeyen Müşteri').strip(), _temiz_mail(r.cari_mail),
             float(r.miktar or 0), float(r.birim_fiyat or 0), float(r.satir_tutar or 0),
             r.DATE_.strftime('%Y-%m-%d'), (r.FICHENO or '').strip(), logo_ref,
+            _temiz_metin(r.cari_tel), _temiz_metin(r.cari_sehir),
         ))
         eklenen += 1
 

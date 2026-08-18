@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { Mail, MapPin, Phone } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from './StatusPill'
@@ -52,12 +53,43 @@ export function CustomerProfileModal({ clientName, onClose }: CustomerProfileMod
   const totalSpent = products.reduce((sum, p) => sum + (p.line_total ?? 0), 0)
   const openOffers = offers.filter((o) => o.status === 'PENDING').length
 
+  // Iletisim bilgisi her satista ayni musteriye ait tekrarlaniyor; ilk dolu
+  // kaydi almak yeterli. Logo'daki CLCARD'dan geliyor (bkz. logo_sync.py).
+  const contactSource = [...sales, ...products, ...subscriptions]
+  const email = contactSource.find((r) => r.client_email)?.client_email
+  const phone = contactSource.find((r) => r.client_phone)?.client_phone
+  const city = contactSource.find((r) => r.client_city)?.client_city
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <Card className="max-h-[85vh] w-full max-w-2xl overflow-y-auto p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-black/90 dark:text-white">{clientName}</h2>
-          <Button variant="ghost" onClick={onClose} className="h-8 px-3">
+          <div>
+            <h2 className="text-lg font-semibold text-black/90 dark:text-white">{clientName}</h2>
+            {status === 'ready' && (email || phone || city) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-black/50 dark:text-white/50">
+                {email && (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    {email}
+                  </span>
+                )}
+                {phone && (
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    {phone}
+                  </span>
+                )}
+                {city && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    {city}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <Button variant="ghost" onClick={onClose} className="h-8 px-3 shrink-0">
             Kapat
           </Button>
         </div>
