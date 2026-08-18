@@ -46,7 +46,7 @@ export function RoleSelectPage({ onSelect, onOpenSettings }: RoleSelectPageProps
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
         onClick={onOpenSettings}
-        className="relative text-xs font-medium text-white/40 transition-colors hover:text-white/70"
+        className="relative text-base font-medium text-white/40 transition-colors hover:text-white/70"
       >
         ⚙ Ayarlar
       </motion.button>
