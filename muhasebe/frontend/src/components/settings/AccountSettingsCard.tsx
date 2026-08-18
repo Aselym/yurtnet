@@ -51,12 +51,14 @@ export function AccountSettingsCard({ settings }: AccountSettingsCardProps) {
           placeholder="Yeni Şifre (opsiyonel)"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
+          autoComplete="new-password"
         />
         <Input
           type="password"
           placeholder="Mevcut Şifre (onay için gerekli)"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
+          autoComplete="current-password"
         />
       </div>
 

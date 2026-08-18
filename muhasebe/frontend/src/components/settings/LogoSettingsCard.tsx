@@ -47,6 +47,13 @@ export function LogoSettingsCard({ settings, onChanged }: LogoSettingsCardProps)
 
   async function handleTest() {
     setTestStatus('running')
+    const saveResult = await updateSettings(form)
+    if (!saveResult.success) {
+      setTestMessage(saveResult.message)
+      setTestStatus('error')
+      return
+    }
+    onChanged(form)
     const result = await testLogoConnection()
     setTestMessage(result.message)
     setTestStatus(result.success ? 'success' : 'error')
@@ -54,6 +61,13 @@ export function LogoSettingsCard({ settings, onChanged }: LogoSettingsCardProps)
 
   async function handleSync() {
     setSyncStatus('running')
+    const saveResult = await updateSettings(form)
+    if (!saveResult.success) {
+      setSyncMessage(saveResult.message)
+      setSyncStatus('error')
+      return
+    }
+    onChanged(form)
     const result = await triggerLogoSync()
     setSyncMessage(result.message)
     setSyncStatus(result.success ? 'success' : 'error')
@@ -92,6 +106,7 @@ export function LogoSettingsCard({ settings, onChanged }: LogoSettingsCardProps)
           placeholder="SQL Şifre"
           value={form.logo_sql_pass}
           onChange={(e) => update('logo_sql_pass', e.target.value)}
+          autoComplete="new-password"
         />
         <div className="flex gap-3">
           <Input

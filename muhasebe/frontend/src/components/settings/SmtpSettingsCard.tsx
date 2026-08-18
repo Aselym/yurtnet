@@ -46,6 +46,13 @@ export function SmtpSettingsCard({ settings, onChanged }: SmtpSettingsCardProps)
 
   async function handleTest() {
     setTestStatus('sending')
+    const saveResult = await updateSettings(form)
+    if (!saveResult.success) {
+      setTestMessage(saveResult.message)
+      setTestStatus('error')
+      return
+    }
+    onChanged(form)
     const result = await sendTestEmail(form.internal_recipients)
     setTestMessage(result.message)
     setTestStatus(result.success ? 'success' : 'error')
@@ -79,6 +86,7 @@ export function SmtpSettingsCard({ settings, onChanged }: SmtpSettingsCardProps)
           placeholder="SMTP Şifre"
           value={form.smtp_password}
           onChange={(e) => update('smtp_password', e.target.value)}
+          autoComplete="new-password"
         />
         <div className="flex gap-3">
           <Input
