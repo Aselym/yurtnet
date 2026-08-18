@@ -233,6 +233,102 @@ export function getSettings(): Promise<Record<string, string> | null> {
   return getJson<Record<string, string>>('/api/settings')
 }
 
+export async function updateSettings(
+  partial: Record<string, string>
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(partial),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Kaydedildi.' : 'Kayıt başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export interface UpdateAccountPayload {
+  current_password: string
+  new_username?: string
+  new_password?: string
+}
+
+export async function updateAccount(
+  payload: UpdateAccountPayload
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Hesap güncellendi.' : 'Güncelleme başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export async function sendTestEmail(recipients?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/test-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ recipients: recipients ?? '' }),
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Test e-postası gönderildi.' : 'Gönderim başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export async function testLogoConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/logo/test-connection', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Bağlantı başarılı.' : 'Bağlantı başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
+export async function triggerLogoSync(): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/logo/sync', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    const data = await res.json()
+    return {
+      success: !!data.success,
+      message: data.message ?? (res.ok ? 'Senkronizasyon tamamlandı.' : 'Senkronizasyon başarısız.'),
+    }
+  } catch {
+    return { success: false, message: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.' }
+  }
+}
+
 export async function sendReminder(
   saleId: number,
   stage: ReminderStage
