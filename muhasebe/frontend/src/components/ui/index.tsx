@@ -128,7 +128,7 @@ export function Popover({ trigger, children, align = 'left', width = 300, open: 
 }) {
   const [own, setOwn] = useState(false)
   const open = ctrlOpen ?? own
-  const set = (o: boolean) => { onOpenChange ? onOpenChange(o) : setOwn(o) }
+  const set = (o: boolean) => { if (ctrlOpen === undefined) setOwn(o); onOpenChange?.(o) }
   const ref = useRef<HTMLDivElement>(null)
   useOutside(ref, () => set(false), open)
   return (
