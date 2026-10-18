@@ -439,7 +439,7 @@ def donem_raporu(istek):
     alis = sorgu({**temel, 'direction': 'ALIS_NET', 'group_by': [boyut],
                   'measures': ['qty', 'net_tl', 'net_usd', 'invoices']})
     satis = sorgu({**temel, 'direction': 'SATIS_NET', 'group_by': [boyut],
-                   'measures': ['qty', 'net_tl', 'net_usd', 'cost_tl', 'profit_tl', 'margin', 'invoices', 'clients']})
+                   'measures': ['qty', 'net_tl', 'net_usd', 'cost_tl', 'profit_tl', 'margin', 'invoices', 'clients', 'lines']})
     onceki_gun = (date.fromisoformat(bas) - timedelta(days=1)).isoformat()
     acilis, acilis_top = stok_grup_ozeti(onceki_gun, boyut)
     kapanis, kapanis_top = stok_grup_ozeti(bit, boyut)
@@ -455,7 +455,7 @@ def donem_raporu(istek):
             'open_qty': acilis.get(g, {}).get('qty', 0), 'open_value_tl': acilis.get(g, {}).get('value_tl', 0),
             'buy_qty': a.get('m_qty') or 0, 'buy_tl': a.get('m_net_tl') or 0, 'buy_usd': a.get('m_net_usd') or 0,
             'sell_qty': s.get('m_qty') or 0, 'sell_tl': s.get('m_net_tl') or 0, 'sell_usd': s.get('m_net_usd') or 0,
-            'profit_tl': s.get('m_profit_tl'), 'margin': s.get('m_margin'),
+            'profit_tl': s.get('m_profit_tl'), 'margin': s.get('m_margin'), 'cogs_tl': s.get('m_cost_tl'),
             'close_qty': kapanis.get(g, {}).get('qty', 0), 'close_value_tl': kapanis.get(g, {}).get('value_tl', 0),
             'close_value_usd': kapanis.get(g, {}).get('value_usd', 0),
         })
@@ -474,6 +474,7 @@ def donem_raporu(istek):
             'buy_invoices': alis['totals'].get('m_invoices') or 0,
             'sell_tl': satis['totals'].get('m_net_tl') or 0, 'sell_usd': satis['totals'].get('m_net_usd') or 0,
             'profit_tl': satis['totals'].get('m_profit_tl'), 'margin': satis['totals'].get('m_margin'),
+            'cogs_tl': satis['totals'].get('m_cost_tl'),
             'sell_invoices': satis['totals'].get('m_invoices') or 0, 'clients': satis['totals'].get('m_clients') or 0,
         },
         'top_customers': en_cok('SATIS_NET', 'client', 'net_tl'),
@@ -501,7 +502,7 @@ def genel_bakis(istek):
     else:
         kb, ke = onceki_donem(bas, bit)
 
-    olc = ['net_tl', 'net_usd', 'qty', 'profit_tl', 'margin', 'invoices', 'clients', 'items']
+    olc = ['net_tl', 'net_usd', 'qty', 'profit_tl', 'profit_usd', 'margin', 'margin_usd', 'invoices', 'clients', 'items']
 
     def ozet(b, e):
         s = sorgu({'date_from': b, 'date_to': e, 'filters': filtreler, 'direction': 'SATIS_NET',
@@ -522,7 +523,7 @@ def genel_bakis(istek):
     seri_alis = sorgu({'date_from': bas, 'date_to': bit, 'filters': filtreler, 'direction': 'ALIS_NET',
                        'group_by': [kirilim], 'measures': [istek.get('measure') or 'net_tl']})
     en_iyi = lambda gb: sorgu({'date_from': bas, 'date_to': bit, 'filters': filtreler, 'direction': 'SATIS_NET',
-                               'group_by': [gb], 'measures': ['net_tl', 'net_usd', 'profit_tl', 'margin'],
+                               'group_by': [gb], 'measures': ['net_tl', 'net_usd', 'profit_tl', 'margin', 'margin_usd'],
                                'limit': 8})['rows']
     return {
         'date_from': bas, 'date_to': bit, 'compare_from': kb, 'compare_to': ke, 'compare': karsi,

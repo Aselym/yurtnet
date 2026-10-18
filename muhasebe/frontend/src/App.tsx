@@ -1,78 +1,68 @@
-import { useCallback, useEffect, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
-import { LoginPage } from '@/pages/LoginPage'
-import { RoleSelectPage } from '@/pages/RoleSelectPage'
-import { LoadingTransition } from '@/pages/LoadingTransition'
-import { AdminDashboardPage } from '@/pages/AdminDashboardPage'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { checkAuth, logout } from '@/lib/auth'
-import type { Role } from '@/lib/types'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { api, setUnauthorizedHandler } from './lib/api'
+import { useRoute } from './lib/router'
+import { StateProvider } from './lib/state'
+import { Shell } from './components/Shell'
+import { Loading, Toaster } from './components/ui'
+import { LoginPage } from './pages/LoginPage'
 
-type Step = 'checking' | 'login' | 'role-select' | 'transition' | 'panel' | 'settings'
+const Overview = lazy(() => import('./pages/Overview'))
+const Movements = lazy(() => import('./pages/Movements'))
+const Stock = lazy(() => import('./pages/Stock'))
+const Customers = lazy(() => import('./pages/Customers'))
+const Analysis = lazy(() => import('./pages/Analysis'))
+const PeriodReport = lazy(() => import('./pages/PeriodReport'))
+const Licenses = lazy(() => import('./pages/Licenses'))
+const Subscriptions = lazy(() => import('./pages/Subscriptions'))
+const Offers = lazy(() => import('./pages/Offers'))
+const Reps = lazy(() => import('./pages/Reps'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
-const ROLE_STORAGE_KEY = 'piramit.rol'
+type Auth = 'checking' | 'in' | 'out'
 
 export default function App() {
-  const [step, setStep] = useState<Step>('checking')
-  const [role, setRole] = useState<Role | null>(null)
+  const [auth, setAuth] = useState<Auth>('checking')
 
   useEffect(() => {
-    let cancelled = false
-    checkAuth().then((authenticated) => {
-      if (cancelled) return
-      if (!authenticated) {
-        setStep('login')
-        return
-      }
-      const storedRole = sessionStorage.getItem(ROLE_STORAGE_KEY) as Role | null
-      if (storedRole === 'yonetici' || storedRole === 'satis') {
-        setRole(storedRole)
-        setStep('panel')
-      } else {
-        setStep('role-select')
-      }
-    })
-    return () => {
-      cancelled = true
-    }
+    setUnauthorizedHandler(() => setAuth('out'))
+    api.get('/api/check-auth').then(() => setAuth('in'), () => setAuth('out'))
   }, [])
 
-  const handleLoginSuccess = useCallback(() => setStep('role-select'), [])
-
-  const handleRoleSelect = useCallback((selected: Role) => {
-    sessionStorage.setItem(ROLE_STORAGE_KEY, selected)
-    setRole(selected)
-    setStep('transition')
-  }, [])
-
-  const handleTransitionDone = useCallback(() => setStep('panel'), [])
-
-  const handleOpenSettings = useCallback(() => setStep('settings'), [])
-  const handleCloseSettings = useCallback(() => setStep('role-select'), [])
-
-  const handleLogout = useCallback(async () => {
-    await logout()
-    sessionStorage.removeItem(ROLE_STORAGE_KEY)
-    setRole(null)
-    setStep('login')
-  }, [])
+  if (auth === 'checking') return <Loading label="Açılıyor" className="h-full" />
+  if (auth === 'out') return <><LoginPage onLogin={() => setAuth('in')} /><Toaster /></>
 
   return (
-    <AnimatePresence mode="wait">
-      {step === 'checking' && <div key="checking" className="min-h-screen bg-bg dark:bg-neutral-950" />}
-      {step === 'login' && <LoginPage key="login" onSuccess={handleLoginSuccess} />}
-      {step === 'role-select' && (
-        <RoleSelectPage key="role-select" onSelect={handleRoleSelect} onOpenSettings={handleOpenSettings} />
-      )}
-      {step === 'transition' && <LoadingTransition key="transition" onDone={handleTransitionDone} />}
-      {step === 'panel' && role === 'satis' && (
-        <DashboardPage key="panel-satis" onLogout={handleLogout} />
-      )}
-      {step === 'panel' && role === 'yonetici' && (
-        <AdminDashboardPage key="panel-yonetici" onLogout={handleLogout} />
-      )}
-      {step === 'settings' && <SettingsPage key="settings" onBack={handleCloseSettings} />}
-    </AnimatePresence>
+    <StateProvider>
+      <Routed onLogout={async () => {
+        try { await api.post('/api/logout') } catch { /* yok say */ }
+        setAuth('out')
+      }} />
+      <Toaster />
+    </StateProvider>
+  )
+}
+
+function Routed({ onLogout }: { onLogout: () => void }) {
+  const { page, params } = useRoute()
+  const sayfa = (() => {
+    switch (page) {
+      case 'satislar': return <Movements key="satis" direction="SATIS_NET" />
+      case 'alislar': return <Movements key="alis" direction="ALIS_NET" />
+      case 'stok': return <Stock />
+      case 'musteriler': return <Customers />
+      case 'analiz': return <Analysis params={params} />
+      case 'donem': return <PeriodReport />
+      case 'lisanslar': return <Licenses params={params} />
+      case 'abonelikler': return <Subscriptions />
+      case 'teklifler': return <Offers />
+      case 'temsilciler': return <Reps />
+      case 'ayarlar': return <SettingsPage />
+      default: return <Overview />
+    }
+  })()
+  return (
+    <Shell page={page} onLogout={onLogout}>
+      <Suspense fallback={<Loading />}>{sayfa}</Suspense>
+    </Shell>
   )
 }
