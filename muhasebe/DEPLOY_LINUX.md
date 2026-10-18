@@ -107,7 +107,7 @@ Bu `muhasebe` klasörünü sunucuya kopyalayın (örn. `/opt/piramit-muhasebe`).
 ```bash
 cd /opt/piramit-muhasebe
 python3 -m venv venv
-venv/bin/pip install -r requirements.txt   # sadece Logo bağlantısı gerekiyorsa
+venv/bin/pip install -r requirements.txt   # pyodbc (Logo) + openpyxl (Excel çıktısı)
 ```
 
 ### 4. LAN'dan erişime aç

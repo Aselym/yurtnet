@@ -44,7 +44,7 @@ tarayıcıyla `http://<sunucu-ip>:5000` adresine gidip giriş yapabilmelisiniz.
 
 ### 1. Gereksinimler
 - Python 3.10+ kurulu olmalı (`pythonw.exe` de python ile birlikte gelir, ayrıca kurulum gerektirmez).
-- İsteğe bağlı: Logo bağlantısı için `pip install -r requirements.txt` (pyodbc) ve "ODBC Driver 17/18 for SQL Server".
+- Gerekli: `pip install -r requirements.txt` (openpyxl → Excel çıktısı, pyodbc → Logo bağlantısı). Logo için ayrıca "ODBC Driver 17/18 for SQL Server".
 
 ### 2. Klasörü kopyala
 Bu `muhasebe` klasörünü sunucuya kopyalayın (örn. `C:\PiramitMuhasebe`).
