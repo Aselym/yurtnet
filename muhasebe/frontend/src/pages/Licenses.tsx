@@ -7,7 +7,7 @@ import { useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
 import { LicenseBadge } from './Customers'
-import { Button, ErrorBox, InfoTip, Loading, Modal, Panel, Segmented, Select, cn, inputCls, toast } from '../components/ui'
+import { Button, ErrorBox, InfoTip, Loading, Modal, Panel, Segmented, Select, cn, inputCls, toast, Figure } from '../components/ui'
 
 type Tab = 'yaklasan' | 'aktif' | 'sure' | 'kayip' | 'yenilendi' | 'tumu'
 
@@ -65,6 +65,14 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
 
   const byId = useMemo(() => new Map(list.map((s) => [s.id, s])), [list])
   const cols: GridCol<Sale & Record<string, unknown>>[] = [
+    { key: '_actions', label: '', type: 'text', width: 84, sortable: false, render: (s) => (
+      <span className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+        {s.status === 'NEEDS_DURATION'
+          ? <IconBtn title="Süre girin" onClick={() => setDurFor(s)}><Clock className="size-4" /></IconBtn>
+          : <IconBtn title="Hatırlatma gönder" onClick={() => setMailFor(s)}><Mail className="size-4" /></IconBtn>}
+        <IconBtn title="Yenileme teklifi oluştur" onClick={() => setOfferFor(s)}><FileText className="size-4" /></IconBtn>
+      </span>
+    ) },
     { key: 'client_name', label: 'Müşteri', type: 'text', width: 280 },
     { key: 'product_name', label: 'Ürün', type: 'text', width: 340 },
     { key: 'sales_rep', label: 'Temsilci', type: 'text', width: 140 },
@@ -80,14 +88,6 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
     { key: 'client_phone', label: 'Telefon', type: 'text', hidden: true },
     { key: 'client_city', label: 'Şehir', type: 'text', hidden: true },
     { key: 'license_key', label: 'Ürün kodu', type: 'text', hidden: true },
-    { key: '_actions', label: '', type: 'text', width: 128, sortable: false, render: (s) => (
-      <span className="flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-        {s.status === 'NEEDS_DURATION'
-          ? <IconBtn title="Süre girin" onClick={() => setDurFor(s)}><Clock className="size-4" /></IconBtn>
-          : <IconBtn title="Hatırlatma gönder" onClick={() => setMailFor(s)}><Mail className="size-4" /></IconBtn>}
-        <IconBtn title="Yenileme teklifi oluştur" onClick={() => setOfferFor(s)}><FileText className="size-4" /></IconBtn>
-      </span>
-    ) },
   ]
 
   const tabs: { value: Tab; label: string }[] = [
@@ -108,13 +108,13 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
           <div className="panel grid grid-cols-2 divide-line max-md:divide-y md:grid-cols-4 md:divide-x">
             {[
               [`${gun} gün içinde dolacak`, fmt(sayac.yaklasan, 'num'), null],
-              ['Beklenen yenileme geliri', fmt(beklenen, 'tl'), `Önümüzdeki ${gun} günde süresi dolacak aktif lisansların ilk satış tutarlarının toplamı. Tahmindir; yenileme fiyatı farklı olabilir.`],
+              ['Beklenen yenileme geliri', <Figure value={beklenen} type="tl" />, `Önümüzdeki ${gun} günde süresi dolacak aktif lisansların ilk satış tutarlarının toplamı. Tahmindir; yenileme fiyatı farklı olabilir.`],
               ['Süre girilmeli', fmt(sayac.sure, 'num'), 'Ürün adından süresi anlaşılamayan lisanslar. Süre girilene kadar hatırlatma üretmezler.'],
               ['Yenilenmemiş', fmt(sayac.kayip, 'num'), 'Süresi dolmuş ve yenilendiğine dair kayıt bulunamamış lisanslar.'],
             ].map(([l, v, h]) => (
               <div key={l as string} className="px-5 py-4">
                 <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">{l}{h && <InfoTip>{h}</InfoTip>}</p>
-                <p className="tnum mt-0.5 text-[21px] font-semibold">{v}</p>
+                <div className="tnum mt-0.5 text-[21px] font-semibold">{v}</div>
               </div>
             ))}
           </div>
@@ -124,6 +124,7 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
           <div className="panel p-4">
             <DataGrid id="lisanslar" columns={cols} rows={rows as (Sale & Record<string, unknown>)[]} rowKey={(s) => s.id}
               highlightKey={hedef} maxHeight={640}
+              onRowClick={(s) => (s.status === 'NEEDS_DURATION' ? setDurFor(s) : setMailFor(s))}
               toolbarLeft={<>
                 <Segmented value={tab} onChange={setTab} options={tabs} size="sm" />
               </>}
@@ -232,7 +233,7 @@ function DurationModal({ sale, onClose, onDone }: { sale: Sale | null; onClose: 
           <button key={m} onClick={() => setAy(m)} className={cn('h-9 rounded-[var(--radius-ctl)] border px-3.5 text-[13px]',
             ay === m ? 'border-brand bg-brand-soft font-semibold text-brand-ink' : 'border-line-strong')}>{m / 12} yıl</button>
         ))}
-        <label className="flex items-center gap-2 text-[13px]">ya da
+        <label className="flex items-center gap-2 whitespace-nowrap text-[13px]">ya da
           <input type="number" min={1} value={ay} onChange={(e) => setAy(Number(e.target.value))} className={cn(inputCls, 'w-20')} /> ay
         </label>
       </div>

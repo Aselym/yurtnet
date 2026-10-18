@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Download, Pin, Plus, Search, X } from 'lucide-react'
 import { api, download, type QueryResult } from '../lib/api'
-import { fmt, fmtDate, fmtShort } from '../lib/format'
+import { fmt, fmtDate } from '../lib/format'
 import { useAsync, useDebounced, useLocal } from '../lib/hooks'
 import { filterValues, useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { FilterBar } from '../components/FilterBar'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
 import { BarChart, Legend, RankBars } from '../components/charts/Charts'
-import { Badge, Button, Drawer, ErrorBox, InfoTip, Loading, Panel, Popover, Segmented, Select, cn, inputCls, toast } from '../components/ui'
+import { Badge, Button, Drawer, ErrorBox, InfoTip, Loading, Panel, Popover, Segmented, Select, cn, inputCls, toast, Figure } from '../components/ui'
 
 interface StockRow {
   item_ref: number; item: string; item_code: string; brand: string; category: string; qty: number
@@ -147,14 +147,14 @@ function StockView({ defaultAsOf }: { defaultAsOf: string }) {
     <div className="flex flex-col gap-5">
       <div className="panel grid grid-cols-2 divide-line max-md:divide-y md:grid-cols-4 md:divide-x">
         {[
-          ['Stok değeri', currency === 'USD' ? fmt(t?.value_usd, 'usd') : fmt(t?.value_tl, 'tl'), 'Eldeki adet × o tarihe kadarki son alış birim fiyatı (yaklaşık).'],
+          ['Stok değeri', <Figure value={currency === 'USD' ? t?.value_usd : t?.value_tl} type={currency === 'USD' ? 'usd' : 'tl'} />, 'Eldeki adet × o tarihe kadarki son alış birim fiyatı (yaklaşık).'],
           ['Ürün çeşidi', fmt(t?.items, 'num'), null],
           ['Toplam adet', fmt(t?.qty, 'num'), null],
-          ['Ölü stok', fmtShort(t?.dead_value_tl, 'tl'), `180 günden uzun süredir hiç hareket görmemiş ${t?.dead_items ?? 0} ürün.`],
+          ['Ölü stok', <Figure value={t?.dead_value_tl} type="tl" />, `180 günden uzun süredir hiç hareket görmemiş ${t?.dead_items ?? 0} ürün.`],
         ].map(([l, v, h]) => (
           <div key={l as string} className="px-5 py-4">
             <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">{l}{h && <InfoTip>{h}</InfoTip>}</p>
-            <p className={cn('tnum mt-0.5 text-[21px] font-semibold', l === 'Ölü stok' && 'text-neg')}>{v}</p>
+            <div className={cn('tnum mt-0.5 text-[21px] font-semibold', l === 'Ölü stok' && 'text-neg')}>{v}</div>
           </div>
         ))}
       </div>

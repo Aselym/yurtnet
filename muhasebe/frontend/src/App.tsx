@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { api, setUnauthorizedHandler } from './lib/api'
 import { useRoute } from './lib/router'
 import { StateProvider } from './lib/state'
@@ -62,7 +62,27 @@ function Routed({ onLogout }: { onLogout: () => void }) {
   })()
   return (
     <Shell page={page} onLogout={onLogout}>
-      <Suspense fallback={<Loading />}>{sayfa}</Suspense>
+      <SayfaHatasi key={page}><Suspense fallback={<Loading />}>{sayfa}</Suspense></SayfaHatasi>
     </Shell>
   )
+}
+
+// Bir sayfa cokerse tum uygulama bos kalmasin: mesaj + yeniden yukle
+class SayfaHatasi extends Component<{ children: ReactNode }, { hata: Error | null }> {
+  state = { hata: null as Error | null }
+  static getDerivedStateFromError(hata: Error) { return { hata } }
+  render() {
+    if (!this.state.hata) return this.props.children
+    const surum = /dynamically imported module|Importing a module script/i.test(this.state.hata.message)
+    return (
+      <div className="panel mx-auto mt-10 max-w-lg p-6">
+        <h2 className="text-[16px] font-semibold">{surum ? 'Uygulama güncellendi' : 'Bu sayfa açılırken bir sorun oluştu'}</h2>
+        <p className="mt-1.5 text-[13.5px] text-ink-2">
+          {surum ? 'Sunucuda yeni sürüm kurulmuş. Sayfayı yenileyince devam edebilirsiniz.' : 'Sayfayı yenilemek genellikle sorunu çözer. Tekrarlarsa sistem yöneticisine bu mesajı iletin: '}
+          {!surum && <code className="text-[12px]">{this.state.hata.message}</code>}
+        </p>
+        <button onClick={() => window.location.reload()} className="mt-4 h-9 rounded-[var(--radius-ctl)] bg-brand px-3.5 text-sm font-medium text-white">Sayfayı yenile</button>
+      </div>
+    )
+  }
 }

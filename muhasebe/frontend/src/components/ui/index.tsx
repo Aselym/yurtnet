@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode 
 import { Check, ChevronDown, Info, Loader2, Search, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useOutside } from '../../lib/hooks'
+import { fmt as _fmt, fmtSpoken as _spoken } from '../../lib/format'
+import type { ColType as _ColType } from '../../lib/api'
 
 export function cn(...a: Parameters<typeof clsx>) {
   return clsx(...a)
@@ -61,7 +63,8 @@ export function InfoTip({ children, side = 'bottom' }: { children: ReactNode; si
       <span
         role="tooltip"
         className={cn(
-          'pointer-events-none absolute left-1/2 z-50 w-72 -translate-x-1/2 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[12.5px] leading-relaxed font-normal text-ink-2 opacity-0 shadow-[0_8px_30px_rgba(20,33,28,.12)] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+          // gizliyken yer kaplamasin (dar ekranda sayfayi yana tasiriyordu)
+          'pointer-events-none absolute left-1/2 z-50 hidden w-72 max-w-[calc(100vw-6rem)] -translate-x-1/2 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[12.5px] leading-relaxed font-normal text-ink-2 shadow-[0_8px_30px_rgba(20,33,28,.12)] group-hover:block group-focus-within:block',
           side === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2',
         )}
       >
@@ -102,13 +105,13 @@ export function Select<T extends string>({ value, onChange, options, label, clas
   value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; label?: string; className?: string
 }) {
   return (
-    <label className={cn('inline-flex items-center gap-2 text-[13px] text-ink-2', className)}>
+    <label className={cn('inline-flex max-w-full min-w-0 items-center gap-2 text-[13px] text-ink-2', className)}>
       {label}
-      <span className="relative">
+      <span className="relative min-w-0">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value as T)}
-          className="h-9 appearance-none rounded-[var(--radius-ctl)] border border-line-strong bg-surface py-0 pr-8 pl-3 text-sm text-ink"
+          className="h-9 max-w-full appearance-none truncate rounded-[var(--radius-ctl)] border border-line-strong bg-surface py-0 pr-8 pl-3 text-sm text-ink"
         >
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -329,3 +332,19 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
 }
 
 export const inputCls = 'h-9 w-full rounded-[var(--radius-ctl)] border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-muted'
+
+// ------------------------------------------------------------------ Figure (buyuk rakam + Turkce okunusu)
+
+/** Buyuk tutar: rakam (kurussuz) ve hemen altinda kucuk Turkce okunusu.
+ *  "761.051.421 ₺" / "761 milyon 51 bin lira" */
+export function Figure({ value, type = 'tl', className, spokenClass }: {
+  value: unknown; type?: _ColType; className?: string; spokenClass?: string
+}) {
+  const sp = type === 'tl' || type === 'usd' ? _spoken(value, type) : null
+  return (
+    <>
+      <span className={cn('tnum block', className)}>{_fmt(value, type)}</span>
+      {sp && <span className={cn('block text-[12px] font-normal text-muted', spokenClass)}>{sp}</span>}
+    </>
+  )
+}

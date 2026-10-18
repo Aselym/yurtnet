@@ -134,6 +134,15 @@ class LogoKaynagi:
                    MARKREF AS markref
             FROM {self.t('ITEMS')}{self.nl}""")
 
+    def hizmetler(self):
+        """Hizmet kartlari (LINETYPE 4 satirlari bunlara bagli). Eski surumde tablo yoksa bos."""
+        try:
+            return list(self.sorgu(f"""
+                SELECT LOGICALREF AS ref, {self.txt('CODE', 50)} AS code, {self.txt('DEFINITION_', 200)} AS name
+                FROM {self.t('SRVCARD')}{self.nl}"""))
+        except Exception:
+            return []
+
     def cariler(self):
         return self.sorgu(f"""
             SELECT LOGICALREF AS ref, {self.txt('CODE', 50)} AS code, {self.txt('DEFINITION_', 200)} AS name,

@@ -13,7 +13,15 @@ from openpyxl.utils import get_column_letter
 
 import analytics
 
-BICIM = {'tl': '#,##0.00 "₺"', 'usd': '#,##0.00 "$"', 'num': '#,##0.##', 'pct': '0.0"%"', 'date': '@', 'text': '@'}
+# Kurus/sent gosterilmez (kullanici istegi: kafa karistiriyor). Sayilar tam;
+# yalnizca USD kuru gibi gercekten ondalikli degerler ondalikli yazilir.
+BICIM = {'tl': '#,##0 "₺"', 'usd': '"$"#,##0', 'num': '#,##0', 'pct': '0.0"%"', 'date': '@', 'text': '@'}
+
+
+def _bicim(tip, v):
+    if tip == 'num' and isinstance(v, float) and not v.is_integer() and abs(v) < 1000:
+        return '#,##0.00'
+    return BICIM.get(tip, 'General')
 BASLIK_DOLGU = PatternFill('solid', fgColor='1F2933')
 BASLIK_YAZI = Font(bold=True, color='FFFFFF')
 TOPLAM_YAZI = Font(bold=True)
@@ -34,7 +42,7 @@ def _sayfa_yaz(ws, kolonlar, satirlar, toplam=None, baslik=None):
             v = satir.get(k['key'])
             c = ws.cell(row=i, column=j, value=v)
             if k.get('type') in BICIM and isinstance(v, (int, float)):
-                c.number_format = BICIM[k['type']]
+                c.number_format = _bicim(k['type'], v)
     if toplam:
         i = r0 + len(satirlar) + 1
         ws.cell(row=i, column=1, value='TOPLAM').font = TOPLAM_YAZI

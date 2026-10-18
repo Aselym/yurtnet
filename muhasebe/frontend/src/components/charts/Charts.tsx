@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ColType } from '../../lib/api'
-import { fmt, fmtPeriodKey, fmtShort } from '../../lib/format'
+import { fmt, fmtAxis, fmtPeriodKey, fmtShort, niceTicks } from '../../lib/format'
 import { cn } from '../ui'
 
 // Dataviz kurallari: tek eksen; ince isaretler, veri ucunda 4px yuvarlak,
@@ -22,13 +22,6 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w]
 }
 
-function niceMax(v: number) {
-  if (v <= 0) return 1
-  const p = Math.pow(10, Math.floor(Math.log10(v)))
-  const n = v / p
-  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10
-  return step * p
-}
 
 export interface Series { key: string; label: string; color?: string }
 
@@ -66,17 +59,17 @@ export function BarChart({ data, xKey, series, type = 'tl', dim, height = 240, s
   const [ref, w] = useWidth<HTMLDivElement>()
   const [tip, setTip] = useState<Tip | null>(null)
   const [hi, setHi] = useState<number | null>(null)
-  const L = 64, R = 8, T = 10, B = 26
+  const L = 92, R = 8, T = 10, B = 26
   const iw = Math.max(0, w - L - R), ih = height - T - B
 
   const totals = data.map((r) => series.reduce((s, se) => s + Math.max(0, Number(r[se.key]) || 0), 0))
-  const maxV = niceMax(stacked ? Math.max(0, ...totals) : Math.max(0, ...data.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))))
+  const ticks = niceTicks(stacked ? Math.max(0, ...totals) : Math.max(0, ...data.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))))
+  const maxV = ticks[ticks.length - 1] || 1
   const n = data.length || 1
   const slot = iw / n
   const groupW = Math.min(56, slot * 0.72)
   const barW = stacked ? groupW : Math.max(2, (groupW - (series.length - 1) * 2) / series.length)
   const y = (v: number) => T + ih - (v / maxV) * ih
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * maxV)
   const labelEvery = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 58))))
 
   if (data.length === 0) return <div className="py-16 text-center text-[13px] text-muted">{emptyText || 'Bu dönemde veri yok.'}</div>
@@ -87,7 +80,7 @@ export function BarChart({ data, xKey, series, type = 'tl', dim, height = 240, s
         {ticks.map((t) => (
           <g key={t}>
             <line x1={L} x2={L + iw} y1={y(t)} y2={y(t)} stroke={t === 0 ? 'var(--chart-axis)' : 'var(--chart-grid)'} strokeWidth={1} />
-            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="tnum">{fmtShort(t, type)}</text>
+            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="tnum">{fmtAxis(t, type)}</text>
           </g>
         ))}
         {data.map((r, i) => {
@@ -164,9 +157,10 @@ export function LineChart({ data, xKey, series, type = 'tl', dim, height = 240 }
 }) {
   const [ref, w] = useWidth<HTMLDivElement>()
   const [hi, setHi] = useState<number | null>(null)
-  const L = 64, R = 12, T = 10, B = 26
+  const L = 92, R = 12, T = 10, B = 26
   const iw = Math.max(0, w - L - R), ih = height - T - B
-  const maxV = niceMax(Math.max(0, ...data.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))))
+  const ticks = niceTicks(Math.max(0, ...data.flatMap((r) => series.map((s) => Number(r[s.key]) || 0))))
+  const maxV = ticks[ticks.length - 1] || 1
   const n = data.length
   const x = (i: number) => L + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw)
   const y = (v: number) => T + ih - (v / maxV) * ih
@@ -181,10 +175,10 @@ export function LineChart({ data, xKey, series, type = 'tl', dim, height = 240 }
           setHi(Math.max(0, Math.min(n - 1, Math.round((px / iw) * (n - 1)))))
         }}
         onMouseLeave={() => setHi(null)}>
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+        {ticks.map((t) => (
           <g key={t}>
-            <line x1={L} x2={L + iw} y1={y(t * maxV)} y2={y(t * maxV)} stroke={t === 0 ? 'var(--chart-axis)' : 'var(--chart-grid)'} />
-            <text x={L - 8} y={y(t * maxV) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="tnum">{fmtShort(t * maxV, type)}</text>
+            <line x1={L} x2={L + iw} y1={y(t)} y2={y(t)} stroke={t === 0 ? 'var(--chart-axis)' : 'var(--chart-grid)'} />
+            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="tnum">{fmtAxis(t, type)}</text>
           </g>
         ))}
         {data.map((r, i) => i % labelEvery === 0 && (

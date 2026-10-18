@@ -90,7 +90,7 @@ export function PeriodStrip() {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex min-w-0 flex-1 items-center gap-3 max-md:flex-none">
       <PeriodMenu />
       <div className="relative hidden h-[52px] min-w-[220px] flex-1 md:block">
         {months.length > 0 && (

@@ -11,7 +11,7 @@ from mailer import send_reminder_email, send_test_email
 from scheduler import check_and_send_reminders, start_background_scheduler
 from notifier import send_windows_toast
 import api_v2
-from database import get_settings, setting_float
+from database import get_settings, setting_float, sure_dolmuslari_isaretle
 
 PORT = int(os.environ.get("MUHASEBE_PORT") or 5000)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -103,6 +103,27 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         with open(file_path, 'rb') as f:
             self.wfile.write(f.read())
 
+    def _korumali(self, fn):
+        """Yakalanmayan hata baglantiyi cevapsiz kapatmasin: logla, 500 don.
+        Ham hata metni istemciye gitmez (SQL/sunucu ayrintisi sizmasin)."""
+        try:
+            fn()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except (ValueError, TypeError, KeyError) as e:
+            print(f"[Gecersiz istek] {self.command} {self.path}: {e!r}")
+            try:
+                self._send_json({'success': False, 'message': 'Geçersiz istek.'}, 400)
+            except Exception:
+                pass
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            try:
+                self._send_json({'success': False, 'message': 'Beklenmeyen bir hata oluştu (ayrıntı sunucu kaydında).'}, 500)
+            except Exception:
+                pass
+
     def do_OPTIONS(self):
         self.send_response(200)
         for k, v in self._cors_headers().items():
@@ -112,6 +133,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        self._korumali(self._do_GET)
+
+    def _do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
@@ -276,6 +300,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         self.send_error(404, "Endpoint not found")
 
     def do_POST(self):
+        self._korumali(self._do_POST)
+
+    def _do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
@@ -477,8 +504,10 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             ''', (ay, sure_tipi, bitis, sale_id))
             conn.commit()
             conn.close()
+            sure_dolmuslari_isaretle()          # gecmiste kalan bitis hemen 'suresi doldu' olsun
+            gun = '.'.join(reversed(str(bitis).split('-')))
             self._send_json({'success': True, 'expiration_date': bitis,
-                             'message': f'Süre kaydedildi. Bitiş: {bitis}'})
+                             'message': f'Süre kaydedildi. Bitiş: {gun}'})
             return
 
         elif path == '/api/account':
@@ -509,6 +538,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         self.send_error(404, "Endpoint not found")
 
     def do_PUT(self):
+        self._korumali(self._do_PUT)
+
+    def _do_PUT(self):
         if not self._is_authenticated():
             self._send_json({'error': 'Yetkisiz erişim.'}, 401)
             return
@@ -527,6 +559,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_DELETE(self):
+        self._korumali(self._do_DELETE)
+
+    def _do_DELETE(self):
         if not self._is_authenticated():
             self._send_json({'error': 'Yetkisiz erişim.'}, 401)
             return

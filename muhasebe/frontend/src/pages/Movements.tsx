@@ -7,7 +7,7 @@ import { moneyMeasures, useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { FilterBar } from '../components/FilterBar'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
-import { Badge, Button, ErrorBox, InfoTip, Loading, Segmented, Select, cn, inputCls, toast } from '../components/ui'
+import { Badge, Button, ErrorBox, InfoTip, Loading, Segmented, Select, cn, inputCls, toast, Figure } from '../components/ui'
 
 const GRUPLAR = [
   { value: 'client', label: 'Müşteri / cari' }, { value: 'client_group', label: 'Firma grubu' },
@@ -62,18 +62,18 @@ export default function Movements({ direction }: { direction: Direction }) {
 
       <div className="panel mb-5 flex flex-wrap divide-line max-md:divide-y md:divide-x">
         {[
-          ['Tutar', currency === 'USD' ? fmt(t?.m_net_usd, 'usd') : fmt(t?.m_net_tl, 'tl'), currency === 'BOTH' ? fmt(t?.m_net_usd, 'usd') : null],
+          ['Tutar', <Figure value={currency === 'USD' ? t?.m_net_usd : t?.m_net_tl} type={currency === 'USD' ? 'usd' : 'tl'} />, currency === 'BOTH' ? fmt(t?.m_net_usd, 'usd') : null],
           ['Adet', fmt(t?.m_qty, 'num'), null],
           ['Fatura', fmt(t?.m_invoices, 'num'), `${fmt(t?.m_lines, 'num')} satır`],
           [satis ? 'Müşteri' : 'Tedarikçi', fmt(t?.m_clients, 'num'), null],
           ...(satis ? [
-            ['Brüt kâr (FIFO)', fmt(t?.m_profit_tl, 'tl'), t?.m_margin != null ? `marj ${fmt(t?.m_margin, 'pct')}` : null],
+            ['Brüt kâr (FIFO)', <Figure value={t?.m_profit_tl} type="tl" />, t?.m_margin != null ? `marj ${fmt(t?.m_margin, 'pct')}` : null],
             ['Ort. depoda bekleme', t?.m_stock_age != null ? `${Math.round(t.m_stock_age as number)} gün` : '—', null],
           ] : []),
         ].map(([l, v, s]) => (
-          <div key={l as string} className="min-w-[170px] flex-1 px-5 py-3.5">
+          <div key={l as string} className={cn('flex-1 px-5 py-3.5', typeof v === 'string' ? 'min-w-[150px]' : 'min-w-[240px]')}>
             <p className="text-[12.5px] text-ink-2">{l}</p>
-            <p className={cn('tnum mt-0.5 text-[19px] font-semibold whitespace-nowrap', ozet.loading && 'opacity-50')}>{v}</p>
+            <div className={cn('tnum mt-0.5 text-[19px] font-semibold', ozet.loading && 'opacity-50')}>{v}</div>
             {s && <p className="tnum text-[12px] text-muted">{s}</p>}
           </div>
         ))}
@@ -82,16 +82,17 @@ export default function Movements({ direction }: { direction: Direction }) {
       <div className="panel p-4">
         {mode === 'lines'
           ? <LinesView dir={dir} search={dq} satis={satis}
-              toolbar={<Toolbar mode={mode} setMode={setMode} group={group} setGroup={setGroup} q={q} setQ={setQ} />} />
+              toolbar={<Toolbar satis={satis} mode={mode} setMode={setMode} group={group} setGroup={setGroup} q={q} setQ={setQ} />} />
           : <GroupedView dir={dir} search={dq} satis={satis} group={group} measures={grupOlcu}
-              toolbar={<Toolbar mode={mode} setMode={setMode} group={group} setGroup={setGroup} q={q} setQ={setQ} />} />}
+              toolbar={<Toolbar satis={satis} mode={mode} setMode={setMode} group={group} setGroup={setGroup} q={q} setQ={setQ} />} />}
       </div>
       {!meta?.data.lines && <p className="mt-4 text-[13px] text-ink-2">Henüz veri yok. Üstteki senkron düğmesiyle Logo'dan veri çekin.</p>}
     </div>
   )
 }
 
-function Toolbar({ mode, setMode, group, setGroup, q, setQ }: {
+function Toolbar({ satis, mode, setMode, group, setGroup, q, setQ }: {
+  satis: boolean
   mode: 'lines' | 'grouped'; setMode: (m: 'lines' | 'grouped') => void; group: string; setGroup: (g: string) => void
   q: string; setQ: (s: string) => void
 }) {
@@ -100,10 +101,10 @@ function Toolbar({ mode, setMode, group, setGroup, q, setQ }: {
       <Segmented value={mode} onChange={setMode} options={[
         { value: 'grouped', label: 'Gruplu' }, { value: 'lines', label: 'Satır satır' },
       ]} />
-      {mode === 'grouped' && <Select label="Grupla:" value={group} onChange={setGroup} options={GRUPLAR} />}
+      {mode === 'grouped' && <Select label="Grupla:" value={group} onChange={setGroup} options={satis ? GRUPLAR : GRUPLAR.filter((g) => g.value !== 'aging_bucket').map((g) => g.value === 'client' ? { ...g, label: 'Tedarikçi' } : g)} />}
       <label className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ürün, müşteri, fiş no ara"
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={satis ? 'Ürün, müşteri, fiş no ara' : 'Ürün, tedarikçi, fiş no ara'}
           className={cn(inputCls, 'h-8 w-60 pl-8 text-[13px]')} />
       </label>
     </>

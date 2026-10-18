@@ -25,19 +25,72 @@ export function fmt(v: unknown, type: ColType, opts: { decimals?: boolean } = {}
   }
 }
 
-/** Dar alanlar (stat, eksen) icin kisaltilmis deger: 1,87 Mn ₺ */
+/** Dar alanlar (eksen, liste) icin kisaltilmis deger — kurus/ondalik YOK:
+ *  1.531.277.730 -> "1 milyar 531 milyon", 697.670.000 -> "698 milyon", 45.300 -> "45 bin" */
 export function fmtShort(v: unknown, type: ColType = 'num'): string {
   if (!isNum(v)) return '—'
-  const abs = Math.abs(v)
-  let s: string
-  if (abs >= 1e9) s = `${num.format(v / 1e9)} Mr`
-  else if (abs >= 1e6) s = `${num.format(Math.round(v / 1e4) / 100)} Mn`
-  else if (abs >= 1e4) s = `${num.format(Math.round(v / 100) / 10)} B`
-  else s = tl0.format(v)
+  if (type === 'pct') return `%${pct.format(v)}`
+  const s = kisaOkunus(v)
   if (type === 'tl') return `${s} ₺`
   if (type === 'usd') return `$${s}`
-  if (type === 'pct') return `%${pct.format(v)}`
   return s
+}
+
+function kisaOkunus(v: number): string {
+  const isaret = v < 0 ? '-' : ''
+  const a = Math.abs(v)
+  if (a >= 1e9) {
+    const mr = Math.floor(a / 1e9)
+    const mn = Math.round((a - mr * 1e9) / 1e6)
+    return `${isaret}${tl0.format(mr)} milyar${mn ? ` ${mn} milyon` : ''}`
+  }
+  if (a >= 1e8) return `${isaret}${Math.round(a / 1e6)} milyon`
+  if (a >= 1e6) {
+    const mn = Math.floor(a / 1e6)
+    const bin = Math.round((a - mn * 1e6) / 1e3)
+    return `${isaret}${mn} milyon${bin ? ` ${bin} bin` : ''}`
+  }
+  if (a >= 1e4) return `${isaret}${Math.round(a / 1e3)} bin`
+  return `${isaret}${tl0.format(Math.round(a))}`
+}
+
+/** Grafik ekseni: ondaliksiz, kisa ("250 bin", "1.500 milyon") */
+export function fmtAxis(v: number, type: ColType = 'num'): string {
+  const a = Math.abs(v)
+  let s: string
+  if (type === 'pct') return `%${Math.round(v)}`
+  if (a >= 1e6) s = `${tl0.format(Math.round(v / 1e6))} milyon`
+  else if (a >= 1e4) s = `${tl0.format(Math.round(v / 1e3))} bin`
+  else s = tl0.format(Math.round(v))
+  return type === 'usd' ? `$${s}` : type === 'tl' ? `${s} ₺` : s
+}
+
+/** Eksen icin yuvarlak adimlar: 1, 2, 5 x 10^k */
+export function niceTicks(max: number, count = 4): number[] {
+  if (max <= 0) return [0, 1]
+  const kaba = max / count
+  const us = Math.pow(10, Math.floor(Math.log10(kaba)))
+  const adim = [1, 2, 2.5, 5, 10].map((k) => k * us).find((x) => x >= kaba) ?? 10 * us
+  const out: number[] = []
+  for (let v = 0; v <= max + adim * 0.999; v += adim) out.push(v)
+  return out
+}
+
+/** Buyuk rakamin altina yazilan Turkce okunus: 761.051.421 -> "761 milyon 51 bin lira" */
+export function fmtSpoken(v: unknown, type: ColType = 'tl'): string | null {
+  if (!isNum(v) || Math.abs(v) < 10000) return null
+  const a = Math.abs(v)
+  const parca: string[] = []
+  let kalan = Math.round(a)
+  const mr = Math.floor(kalan / 1e9); kalan -= mr * 1e9
+  const mn = Math.floor(kalan / 1e6); kalan -= mn * 1e6
+  const bin = Math.floor(kalan / 1e3); kalan -= bin * 1e3
+  if (mr) parca.push(`${tl0.format(mr)} milyar`)
+  if (mn) parca.push(`${mn} milyon`)
+  if (bin) parca.push(`${bin} bin`)
+  if (!mr && !mn && kalan) parca.push(String(kalan))   // milyonun altinda yuzler de okunur
+  const birim = type === 'usd' ? 'dolar' : type === 'tl' ? 'lira' : ''
+  return `${v < 0 ? 'eksi ' : ''}${parca.join(' ')}${birim ? ` ${birim}` : ''}`
 }
 
 const AYLAR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
