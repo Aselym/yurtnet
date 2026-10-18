@@ -104,7 +104,16 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
   const pad = p.dense ? 'px-3 py-1.5' : 'px-3.5 py-2.5'
   // Sabit kolon genislikleri + en sonda esnek bosluk: uzun bir musteri adi
   // tabloyu yana itmez, genis ekranda kalan alan sondaki bosluga gider.
-  const widths = visible.map((c) => c.width ?? (SAG.has(c.type ?? 'text') ? 132 : c.type === 'date' ? 110 : 240))
+  // Sayisal kolonlar en uzun degere (toplam dahil) gore genisler: milyarlik tutarlar kesilmez.
+  const numW = (c: GridCol<R>) => {
+    let n = fmt(p.totals?.[c.key], c.type ?? 'num').length
+    for (const r of rows.slice(0, 500)) {
+      const v = (r as Record<string, unknown>)[c.key]
+      if (v != null) n = Math.max(n, fmt(v, c.type ?? 'num').length)
+    }
+    return Math.min(240, Math.max(132, n * 8 + 34))
+  }
+  const widths = visible.map((c) => c.width ?? (SAG.has(c.type ?? 'text') ? numW(c) : c.type === 'date' ? 110 : 240))
   const totalW = widths.reduce((a, b) => a + b, 0) + (hasExpand ? 32 : 0)
   const gridCols = (hasExpand ? '32px ' : '') + widths.map((w) => `${w}px`).join(' ') + ' minmax(0,1fr)'
 
@@ -199,9 +208,7 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
               <span />
             </div>
 
-            {rows.length === 0 && (
-              <div className="px-4 py-12 text-center text-[13.5px] text-ink-2">{p.emptyText || 'Bu seçimde kayıt yok.'}</div>
-            )}
+
 
             {useVirt ? (
               <div style={{ height: virt.getTotalSize(), position: 'relative' }}>
@@ -228,6 +235,9 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
             )}
           </div>
         </div>
+        {rows.length === 0 && (
+          <div className="px-4 py-12 text-center text-[13.5px] text-ink-2">{p.emptyText || 'Bu seçimde kayıt yok.'}</div>
+        )}
       </div>
     </div>
   )

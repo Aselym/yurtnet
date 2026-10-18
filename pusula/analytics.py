@@ -218,17 +218,20 @@ def _pivotla(satirlar, gruplar, olculer, kolonlar, toplam, istek):
     zaman = istek.get('pivot_by') in ('day', 'week', 'month', 'quarter', 'year', 'weekday')
     degerler = sorted(pivot_toplam, key=lambda v: (v is None, v)) if zaman else \
         sorted(pivot_toplam, key=lambda v: -(pivot_toplam[v] or 0))
-    max_kolon = int(istek.get('pivot_limit') or 24)
+    max_kolon = max(2, min(int(istek.get('pivot_limit') or 24), 400))
     digerleri = set()
+    diger_ad = 'Daha eski' if zaman else 'Diğer'
     if len(degerler) > max_kolon:
+        # Zamanda en eskiler toplanip basa konur (kronoloji bozulmaz), digerlerinde en kucukler sona
         digerleri = set(degerler[max_kolon - 1:]) if not zaman else set(degerler[:-max_kolon + 1])
-        degerler = [v for v in degerler if v not in digerleri] + ['Diğer']
+        kalan = [v for v in degerler if v not in digerleri]
+        degerler = [diger_ad] + kalan if zaman else kalan + [diger_ad]
 
     birlesik = {}
     for r in satirlar:
         anahtar = tuple(r[f'd{n}'] for n in range(len(gruplar)))
         hedef = birlesik.setdefault(anahtar, {**{f'd{n}': anahtar[n] for n in range(len(gruplar))}, '_total': 0})
-        p = 'Diğer' if r['p'] in digerleri else r['p']
+        p = diger_ad if r['p'] in digerleri else r['p']
         hedef[f'p::{p}'] = (hedef.get(f'p::{p}') or 0) + (r[mk] or 0)
         hedef['_total'] += r[mk] or 0
     rows = sorted(birlesik.values(), key=lambda r: -(r['_total'] or 0))
@@ -491,14 +494,21 @@ def onceki_donem(bas, bit):
     return (b - timedelta(days=gun)).isoformat(), (b - timedelta(days=1)).isoformat()
 
 
+def _gecen_yil(iso_tarih):
+    d = date.fromisoformat(iso_tarih)
+    try:
+        return d.replace(year=d.year - 1).isoformat()
+    except ValueError:                       # 29 Subat -> 28 Subat
+        return d.replace(year=d.year - 1, day=28).isoformat()
+
+
 def genel_bakis(istek):
     bas = _tarih(istek.get('date_from'), (date.today() - timedelta(days=365)).isoformat())
     bit = _tarih(istek.get('date_to'), date.today().isoformat())
     filtreler = istek.get('filters') or {}
     karsi = istek.get('compare', 'previous')    # 'previous' | 'year' | 'none'
     if karsi == 'year':
-        kb = date.fromisoformat(bas).replace(year=date.fromisoformat(bas).year - 1).isoformat()
-        ke = date.fromisoformat(bit).replace(year=date.fromisoformat(bit).year - 1).isoformat()
+        kb, ke = _gecen_yil(bas), _gecen_yil(bit)
     else:
         kb, ke = onceki_donem(bas, bit)
 

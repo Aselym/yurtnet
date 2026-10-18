@@ -69,91 +69,77 @@ def senkronize_et(ayarlar=None, ilerleme=None):
     t0 = time.time()
     baslangic_zamani = datetime.now().isoformat(timespec='seconds')
 
-    with LogoKaynagi(ayarlar) as k:
-        log('Kartlar okunuyor')
-        markalar = k.markalar()
-        urunler = list(k.urunler())
-        cariler = list(k.cariler())
-        temsilciler = list(k.temsilciler())
-        kurlar = k.doviz_kurlari()
-        log('Hareket satırları okunuyor')
-        satirlar = list(k.satirlar(bas))
-        kaynak = k.mod
-
-    # Raporlama kuru bos gelen satirlar icin: en yakin onceki gunun kuru
-    kur_gunleri = sorted(kurlar)
-
-    def gunluk_kur(gun):
-        if not kur_gunleri:
-            return None
-        import bisect
-        i = bisect.bisect_right(kur_gunleri, gun) - 1
-        return kurlar[kur_gunleri[i]] if i >= 0 else kurlar[kur_gunleri[0]]
-
     conn = get_db_connection()
+    satir_sayisi = 0
+    # Logo okunurken satirlar parca parca yerel veritabanina yazilir: gercek
+    # Logo'da 200 bin+ satir tek seferde bellege alinmaz. Hepsi tek
+    # transaction'da — yarida kalirsa eski veri aynen durur.
     try:
-        cur = conn.cursor()
-        cur.execute('BEGIN')
-        # ---- kartlar (kucuk tablolar: tamamen yenilenir)
-        cur.execute('DELETE FROM wh_clients')
-        cur.executemany('INSERT INTO wh_clients VALUES (?,?,?,?,?,?,?)', [
-            (c['ref'], _metin(c['code']), _metin(c['name']) or 'Bilinmeyen Cari', c.get('cardtype'),
-             _metin(c.get('email')), _metin(c.get('phone')), _metin(c.get('city')).upper())
-            for c in cariler])
-        cur.execute('DELETE FROM wh_salesmen')
-        cur.executemany('INSERT INTO wh_salesmen VALUES (?,?,?)', [
-            (t['ref'], _metin(t['code']), _metin(t['name'])) for t in temsilciler])
+        with LogoKaynagi(ayarlar) as k:
+            kaynak = k.mod
+            log('Kartlar okunuyor')
+            markalar = k.markalar()
+            urunler = list(k.urunler())
+            hizmetler = k.hizmetler()
+            cariler = list(k.cariler())
+            temsilciler = list(k.temsilciler())
+            kurlar = k.doviz_kurlari()
+            kur_gunleri = sorted(kurlar)
 
-        ham_urunler = [{
-            'item_ref': u['ref'], 'code': _metin(u['code']), 'name': _metin(u['name']) or f"Ürün #{u['ref']}",
-            'logo_brand': markalar.get(u.get('markref') or 0, ''), 'logo_group': _metin(u.get('grp')),
-        } for u in urunler]
+            def gunluk_kur(gun):
+                # Raporlama kuru bos gelen satirlar icin: en yakin onceki gunun kuru
+                if not kur_gunleri:
+                    return None
+                import bisect
+                i = bisect.bisect_right(kur_gunleri, gun) - 1
+                return kurlar[kur_gunleri[i]] if i >= 0 else kurlar[kur_gunleri[0]]
 
-        # ---- satirlar
-        if bas:
-            cur.execute('DELETE FROM wh_lines WHERE date >= ?', (bas,))
-        else:
+            cur = conn.cursor()
+            cur.execute('BEGIN')
+            cur.execute('DELETE FROM wh_clients')
+            cur.executemany('INSERT INTO wh_clients VALUES (?,?,?,?,?,?,?)', [
+                (c['ref'], _metin(c['code']), _metin(c['name']) or 'Bilinmeyen Cari', c.get('cardtype'),
+                 _metin(c.get('email')), _metin(c.get('phone')), _metin(c.get('city')).upper())
+                for c in cariler])
+            cur.execute('DELETE FROM wh_salesmen')
+            cur.executemany('INSERT INTO wh_salesmen VALUES (?,?,?)', [
+                (t['ref'], _metin(t['code']), _metin(t['name'])) for t in temsilciler])
+
+            ham_urunler = [{
+                'item_ref': u['ref'], 'code': _metin(u['code']), 'name': _metin(u['name']) or f"Ürün #{u['ref']}",
+                'logo_brand': markalar.get(u.get('markref') or 0, ''), 'logo_group': _metin(u.get('grp')),
+            } for u in urunler] + [{
+                'item_ref': HIZMET_REF_OFSETI * h['ref'], 'code': _metin(h['code']),
+                'name': _metin(h['name']) or f"Hizmet #{h['ref']}", 'logo_brand': '', 'logo_group': 'HIZMET',
+            } for h in hizmetler]
+
+            # Baslangic tarihi degistiyse (ileri alindiysa) eski satirlar da gitmeli:
+            # ambar her senkronda tamamen yenilenir.
             cur.execute('DELETE FROM wh_lines')
-        kayitlar = []
-        for s in satirlar:
-            tarih = tarih_str(s['date'])
-            linetype = int(s['linetype'] or 0)
-            inv_ref = int(s['inv_ref'] or 0)
-            iptal = 1 if (s.get('line_cancelled') or s.get('inv_cancelled')) else 0
-            yon = yon_bul(int(s['trcode'] or 0), inv_ref > 0) if linetype in (0, 4) else 'DIGER'
-            item_ref = int(s['item_ref'] or 0)
-            if linetype == 4 and item_ref:
-                item_ref = HIZMET_REF_OFSETI * item_ref
-            elif linetype != 0:
-                item_ref = 0                     # indirim, sabit kiymet vb. — urun degil
-            net = _f(s['net']) if s['net'] is not None else _f(s['gross'])
-            kur = _f(s['rate'])
-            if kur <= 0:
-                kur = gunluk_kur(tarih) or 0
-            client_ref = int(s['client_ref'] or s.get('inv_client') or 0)
-            salesman = int(s['salesman_ref'] or s.get('inv_salesman') or 0)
-            kayitlar.append((
-                int(s['line_ref']), s['period'], inv_ref, _metin(s.get('fiche_no')), tarih, int(s['trcode'] or 0),
-                int(s['iocode'] or 0), linetype, yon, client_ref, item_ref, salesman,
-                _f(s['qty']), _f(s['price']), _f(s['gross']), net, kur or None,
-                (net / kur) if kur else None, iptal))
-        cur.executemany('''
-            INSERT OR REPLACE INTO wh_lines (line_ref, period, inv_ref, fiche_no, date, trcode, iocode, linetype,
-                direction, client_ref, item_ref, salesman_ref, qty, price_tl, gross_tl, net_tl, rate, net_usd,
-                cancelled)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', kayitlar)
+            log('Hareket satırları okunuyor')
+            parca = []
+            for s in k.satirlar(bas):
+                parca.append(_satir_kaydi(s, gunluk_kur))
+                if len(parca) >= 5000:
+                    _satirlari_yaz(cur, parca)
+                    satir_sayisi += len(parca)
+                    parca = []
+                    log(f'{satir_sayisi:,} satır aktarıldı')
+            _satirlari_yaz(cur, parca)
+            satir_sayisi += len(parca)
 
-        # ---- urunler + siniflandirma
-        _urunleri_yaz(cur, ham_urunler)
-        cur.execute('COMMIT')
+            log('Ürünler sınıflandırılıyor')
+            _urunleri_yaz(cur, ham_urunler)
+            cur.execute('COMMIT')
     except Exception:
         conn.rollback()
         conn.close()
         raise
 
+    log('Maliyetler hesaplanıyor (FIFO)')
     fifo_hesapla(conn)
     ozet = {
-        'source': kaynak, 'lines': len(kayitlar), 'items': len(urunler), 'clients': len(cariler),
+        'source': kaynak, 'lines': satir_sayisi, 'items': len(urunler) + len(hizmetler), 'clients': len(cariler),
         'seconds': round(time.time() - t0, 1), 'start_date': bas or 'tümü',
     }
     conn.execute('''INSERT INTO sync_log (started_at, finished_at, source, ok, lines, items, clients, message)
@@ -163,6 +149,37 @@ def senkronize_et(ayarlar=None, ilerleme=None):
     conn.commit()
     conn.close()
     return ozet
+
+
+def _satir_kaydi(s, gunluk_kur):
+    tarih = tarih_str(s['date'])
+    linetype = int(s['linetype'] or 0)
+    inv_ref = int(s['inv_ref'] or 0)
+    iptal = 1 if (s.get('line_cancelled') or s.get('inv_cancelled')) else 0
+    yon = yon_bul(int(s['trcode'] or 0), inv_ref > 0) if linetype in (0, 4) else 'DIGER'
+    item_ref = int(s['item_ref'] or 0)
+    if linetype == 4 and item_ref:
+        item_ref = HIZMET_REF_OFSETI * item_ref
+    elif linetype != 0:
+        item_ref = 0                     # indirim, sabit kiymet vb. — urun degil
+    net = _f(s['net']) if s['net'] is not None else _f(s['gross'])
+    kur = _f(s['rate'])
+    if kur <= 0:
+        kur = gunluk_kur(tarih) or 0
+    client_ref = int(s['client_ref'] or s.get('inv_client') or 0)
+    salesman = int(s['salesman_ref'] or s.get('inv_salesman') or 0)
+    return (int(s['line_ref']), s['period'], inv_ref, _metin(s.get('fiche_no')), tarih, int(s['trcode'] or 0),
+            int(s['iocode'] or 0), linetype, yon, client_ref, item_ref, salesman,
+            _f(s['qty']), _f(s['price']), _f(s['gross']), net, kur or None, (net / kur) if kur else None, iptal)
+
+
+def _satirlari_yaz(cur, kayitlar):
+    if kayitlar:
+        cur.executemany('''
+            INSERT OR REPLACE INTO wh_lines (line_ref, period, inv_ref, fiche_no, date, trcode, iocode, linetype,
+                direction, client_ref, item_ref, salesman_ref, qty, price_tl, gross_tl, net_tl, rate, net_usd,
+                cancelled)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', kayitlar)
 
 
 def _urunleri_yaz(cur, ham_urunler):

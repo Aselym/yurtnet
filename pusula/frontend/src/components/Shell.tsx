@@ -108,7 +108,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
 
       <div className="flex min-w-0 flex-1 flex-col">
         {!DONEMSIZ.has(page) && (
-          <div className="no-print sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-canvas/90 px-6 py-2.5 backdrop-blur max-md:flex-wrap">
+          <div className="no-print sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-canvas/90 px-6 py-2.5 max-sm:px-3 backdrop-blur max-md:flex-wrap">
             <PeriodStrip />
             <Segmented<Currency> value={currency} onChange={setCurrency} options={[
               { value: 'TL', label: '₺ TL', title: 'Tutarlar Türk lirası' },
@@ -118,7 +118,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
             <SyncButton />
           </div>
         )}
-        <main className="scroll-thin min-w-0 flex-1 overflow-y-auto px-6 pt-6 pb-16">{children}</main>
+        <main className="scroll-thin min-w-0 flex-1 overflow-y-auto px-6 pt-6 max-sm:px-3 pb-16">{children}</main>
       </div>
     </div>
   )

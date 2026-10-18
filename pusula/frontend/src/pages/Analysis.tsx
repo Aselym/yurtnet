@@ -17,6 +17,7 @@ interface Config {
   view: 'table' | 'chart'
   heat: boolean
   limit: number
+  pivotLimit?: number
 }
 
 const ZAMAN = new Set(['day', 'week', 'month', 'quarter', 'year', 'weekday'])
@@ -44,7 +45,7 @@ export default function AnalysisPage({ params }: { params: URLSearchParams }) {
   const measures = meta?.measures ?? []
   const dimLabel = (k: string) => dims.find((d) => d.key === k)?.label ?? k
 
-  const req = { ...base, direction: cfg.direction, group_by: cfg.rows, pivot_by: cfg.pivot, measures: cfg.pivot ? cfg.measures.slice(0, 1) : cfg.measures, limit: cfg.limit }
+  const req = { ...base, direction: cfg.direction, group_by: cfg.rows, pivot_by: cfg.pivot, measures: cfg.pivot ? cfg.measures.slice(0, 1) : cfg.measures, limit: cfg.limit, pivot_limit: cfg.pivotLimit ?? 24 }
   const res = useAsync(() => api.post<QueryResult>('/api/analiz/sorgu', req), [JSON.stringify(req)])
   const [saveOpen, setSaveOpen] = useState(false)
 
@@ -141,6 +142,9 @@ export default function AnalysisPage({ params }: { params: URLSearchParams }) {
             <Select label="Satır sınırı" value={String(cfg.limit)} onChange={(v) => set({ limit: Number(v) })} options={[
               { value: '25', label: 'İlk 25' }, { value: '100', label: 'İlk 100' }, { value: '500', label: 'İlk 500' }, { value: '0', label: 'Hepsi' },
             ]} />
+            {cfg.pivot && <Select label="Kolon sınırı" value={String(cfg.pivotLimit ?? 24)} onChange={(v) => set({ pivotLimit: Number(v) })} options={[
+              { value: '12', label: '12 kolon' }, { value: '24', label: '24 kolon' }, { value: '48', label: '48 kolon' }, { value: '120', label: '120 kolon' }, { value: '400', label: 'Hepsi' },
+            ]} />}
           </div>
         </aside>
 

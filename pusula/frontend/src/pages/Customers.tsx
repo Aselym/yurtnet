@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Download, Link2, Search } from 'lucide-react'
 import { api, download, type QueryResult, type Sale, type Subscription } from '../lib/api'
-import { fmt, fmtDate, fmtShort } from '../lib/format'
+import { fmt, fmtDate } from '../lib/format'
 import { useAsync, useDebounced, useLocal } from '../lib/hooks'
 import { useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { FilterBar } from '../components/FilterBar'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
 import { BarChart, RankBars } from '../components/charts/Charts'
-import { Badge, Button, Drawer, ErrorBox, Loading, Segmented, cn, inputCls, toast } from '../components/ui'
+import { Badge, Button, Drawer, ErrorBox, Loading, Segmented, cn, inputCls, toast, Figure } from '../components/ui'
 
 export default function CustomersPage() {
   const { base, currency } = useWork()
@@ -99,8 +99,8 @@ export function CustomerDrawer({ name, dim = 'client', onClose }: { name: string
       {tum.loading && <Loading />}
       {toplam && (
         <dl className="mb-6 grid grid-cols-3 gap-4 border-b border-line pb-5">
-          <div><dt className="text-[12.5px] text-ink-2">Toplam satış (tüm zamanlar)</dt><dd className="tnum text-[20px] font-semibold">{fmtShort(toplam.m_net_tl, 'tl')}</dd></div>
-          <div><dt className="text-[12.5px] text-ink-2">Brüt kâr</dt><dd className="tnum text-[20px] font-semibold">{fmtShort(toplam.m_profit_tl, 'tl')}</dd></div>
+          <div><dt className="text-[12.5px] text-ink-2">Toplam satış (tüm zamanlar)</dt><dd className="text-[20px] font-semibold"><Figure value={toplam.m_net_tl} type="tl" /></dd></div>
+          <div><dt className="text-[12.5px] text-ink-2">Brüt kâr</dt><dd className="text-[20px] font-semibold"><Figure value={toplam.m_profit_tl} type="tl" /></dd></div>
           <div><dt className="text-[12.5px] text-ink-2">Fatura</dt><dd className="tnum text-[20px] font-semibold">{fmt(toplam.m_invoices, 'num')}</dd></div>
         </dl>
       )}

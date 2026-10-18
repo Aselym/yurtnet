@@ -114,6 +114,15 @@ class AnalizTesti(Taban):
         self.assertEqual(dell['p::2025-02'], 2)
         self.assertEqual(dell['_total'], 6)
 
+    def test_zaman_pivotu_sinirda_eskiler_basa(self):
+        import analytics
+        r = analytics.sorgu({'direction': 'SATIS', 'group_by': ['brand'], 'pivot_by': 'day',
+                             'measures': ['qty'], 'pivot_limit': 2})
+        # 3 satis gunu, 2 kolon sinir: en eski gunler 'Daha eski' olarak basta, en yeni gun sonda
+        self.assertEqual(r['pivot']['values'], ['Daha eski', '2025-02-12'])
+        dell = next(x for x in r['rows'] if x['d0'] == 'Dell')
+        self.assertEqual(dell['p::Daha eski'], 6)
+
     def test_beyaz_liste_disi_reddedilir(self):
         import analytics
         with self.assertRaises(analytics.GecersizIstek):
@@ -127,6 +136,12 @@ class AnalizTesti(Taban):
         import analytics
         r = analytics.sorgu({'direction': 'SATIS', 'filters': {'brand': ["' OR 1=1 --"]}, 'measures': ['net_tl']})
         self.assertIsNone(r['totals']['m_net_tl'])
+
+    def test_artik_yil_karsilastirma(self):
+        import analytics
+        self.assertEqual(analytics._gecen_yil('2024-02-29'), '2023-02-28')
+        g = analytics.genel_bakis({'date_from': '2024-02-29', 'date_to': '2024-02-29', 'compare': 'year'})
+        self.assertEqual(g['compare_from'], '2023-02-28')
 
     def test_stok_tarihte(self):
         import analytics

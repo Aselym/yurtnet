@@ -1,13 +1,13 @@
 import { Download, Printer } from 'lucide-react'
 import { api, download } from '../lib/api'
-import { fmt, fmtShort, rangeLabel } from '../lib/format'
+import { fmt, fmtSpoken, rangeLabel } from '../lib/format'
 import { useAsync, useLocal } from '../lib/hooks'
 import { iso, today, useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { FilterBar } from '../components/FilterBar'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
 import { RankBars } from '../components/charts/Charts'
-import { Button, ErrorBox, InfoTip, Loading, Panel, Select, cn, toast } from '../components/ui'
+import { Button, ErrorBox, InfoTip, Loading, Panel, Select, cn, toast, Figure } from '../components/ui'
 
 interface Report {
   date_from: string; date_to: string; group_by: string; group_label: string
@@ -113,22 +113,23 @@ function StockFlow({ t }: { t: Record<string, number | null> }) {
   ]
   return (
     <section className="panel overflow-hidden">
-      <div className="grid grid-cols-1 divide-line md:grid-cols-4 max-md:divide-y md:divide-x">
+      <div className="grid grid-cols-1 gap-px bg-line sm:grid-cols-2 xl:grid-cols-4">
         {adimlar.map((a) => (
-          <div key={a.l} className={cn('relative px-5 py-4', a.strong && 'bg-surface-2')}>
+          <div key={a.l} className={cn('relative px-5 py-4', a.strong ? 'bg-surface-2' : 'bg-surface')}>
             {a.op && <span className="display absolute top-3 right-4 text-[22px] text-muted" aria-hidden>{a.op}</span>}
             <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">{a.l}{a.hint && <InfoTip>{a.hint}</InfoTip>}</p>
-            <p className="tnum mt-1 text-[21px] font-semibold">{fmt(a.v, 'tl')}</p>
+            <div className="mt-1 text-[21px] font-semibold"><Figure value={a.v} type="tl" /></div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-4 border-t border-line px-5 py-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 border-t border-line px-5 py-4 md:grid-cols-3 2xl:grid-cols-6">
         {[
-          ['Satış', fmt(t.sell_tl, 'tl'), fmt(t.sell_usd, 'usd')],
+          ['Satış', fmt(t.sell_tl, 'tl'), fmtSpoken(t.sell_tl, 'tl')],
           ['Brüt kâr', fmt(t.profit_tl, 'tl'), t.margin != null ? `marj ${fmt(t.margin, 'pct')}` : ''],
+          ['Satış (USD)', fmt(t.sell_usd, 'usd'), fmtSpoken(t.sell_usd, 'usd')],
           ['Satış faturası', fmt(t.sell_invoices, 'num'), `${fmt(t.clients, 'num')} müşteri`],
           ['Alış faturası', fmt(t.buy_invoices, 'num'), fmt(t.buy_usd, 'usd')],
-          ['Dönem sonu stok (USD)', fmtShort(t.close_value_usd, 'usd'), `${fmt(t.close_qty, 'num')} adet`],
+          ['Dönem sonu stok (USD)', fmt(t.close_value_usd, 'usd'), `${fmt(t.close_qty, 'num')} adet`],
         ].map(([l, v, s]) => (
           <div key={l}>
             <p className="text-[12.5px] text-ink-2">{l}</p>

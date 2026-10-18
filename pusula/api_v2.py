@@ -123,6 +123,11 @@ def handle(h, method, path, query, body):
     except analytics.GecersizIstek as e:
         h._send_json({'success': False, 'message': str(e)}, 400)
         return True
+    except (ValueError, TypeError) as e:
+        # int('abc') gibi bicimsiz girdi: kullanici hatasi, sunucu hatasi degil
+        print(f"[Gecersiz istek] {method} {path}: {e}")
+        h._send_json({'success': False, 'message': 'Geçersiz istek: değerlerden biri beklenen biçimde değil.'}, 400)
+        return True
 
 
 def _handle(h, method, path, query, body):

@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, PackageX, Repeat } from 'lucide-react'
 import { api, type QueryResult } from '../lib/api'
-import { delta, fmt, fmtShort, isNum, rangeLabel } from '../lib/format'
+import { delta, fmt, fmtShort, fmtSpoken, isNum, rangeLabel } from '../lib/format'
 import { useAsync } from '../lib/hooks'
 import { navigate } from '../lib/router'
 import { iso, useWork, type Compare } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { FilterBar } from '../components/FilterBar'
 import { BarChart, Legend, LineChart, RankBars } from '../components/charts/Charts'
-import { ErrorBox, InfoTip, Loading, Panel, Select, cn } from '../components/ui'
+import { ErrorBox, Figure, InfoTip, Loading, Panel, Select, cn } from '../components/ui'
 
 interface Totals { [k: string]: number | null }
 interface Overview {
@@ -141,10 +141,10 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
   const toplam = urun + tekrar
   const profitKey = t === 'usd' ? 'm_profit_usd' : 'm_profit_tl'
   const marginKey = t === 'usd' ? 'm_margin_usd' : 'm_margin'
-  const items: { label: string; value: string; d: number | null; hint?: string; neutral?: boolean }[] = [
-    { label: 'Alış', value: fmt(a[`m_${m}`], t), d: delta(a[`m_${m}`], pa?.[`m_${m}`]), neutral: true,
+  const items: { label: string; value: string; raw?: unknown; d: number | null; hint?: string; neutral?: boolean }[] = [
+    { label: 'Alış', value: fmt(a[`m_${m}`], t), raw: a[`m_${m}`], d: delta(a[`m_${m}`], pa?.[`m_${m}`]), neutral: true,
       hint: 'Dönemdeki alış faturaları (iadeler düşülmüş). Artış ya da azalış tek başına iyi/kötü sayılmaz, o yüzden nötr renkte gösterilir.' },
-    { label: 'Brüt kâr', value: fmt(s[profitKey], t), d: delta(s[profitKey], p?.[profitKey]),
+    { label: 'Brüt kâr', value: fmt(s[profitKey], t), raw: s[profitKey], d: delta(s[profitKey], p?.[profitKey]),
       hint: 'Satış tutarından, satılan ürünlerin FIFO yöntemiyle tahmin edilen alış maliyeti düşülerek bulunur. Alış kaydı veri başlangıcından önce olan satışlar hesaba katılmaz.' },
     { label: 'Kâr marjı', value: fmt(s[marginKey], 'pct'), d: isNum(s[marginKey]) && isNum(p?.[marginKey]) ? (s[marginKey] as number) - (p![marginKey] as number) : null,
       hint: 'Brüt kârın, maliyeti bilinen satışlara oranı. Karşılaştırmadaki değişim yüzde puan olarak gösterilir.' },
@@ -158,36 +158,39 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
       <div className="border-b border-line p-6 lg:border-r lg:border-b-0">
         <p className="text-[13px] font-medium text-ink-2">Satış (iadeler düşülmüş)</p>
         <p className="display tnum mt-1 text-[44px] leading-none font-semibold text-ink max-sm:text-[34px]">{fmt(s[`m_${m}`], t)}</p>
+        <p className="mt-1.5 text-[13px] text-ink-2">{fmtSpoken(s[`m_${m}`], t)}</p>
         <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[13px]">
           <DeltaTag d={d} />
           {currency === 'BOTH' && <span className="tnum text-ink-2">{fmt(s.m_net_usd, 'usd')}</span>}
-          {g.previous && <span className="text-muted">önceki: {fmtShort(p?.[`m_${m}`], t)}</span>}
+          {g.previous && <span className="text-muted">önceki dönem: {fmtShort(p?.[`m_${m}`], t)}</span>}
         </div>
         <div className="mt-6">
           <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full bg-surface-3">
             <div className="h-full bg-[var(--s1)]" style={{ width: `${toplam ? (urun / toplam) * 100 : 0}%` }} />
             <div className="h-full bg-[var(--s2)]" style={{ width: `${toplam ? (tekrar / toplam) * 100 : 0}%` }} />
           </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-4 text-[13px]">
+          <div className="mt-2.5 grid grid-cols-1 gap-4 sm:grid-cols-2 text-[13px]">
             <div>
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s1)]" />Ürün</span>
-              <p className="tnum mt-0.5 text-[17px] font-semibold">{fmt(urun, t)}</p>
+              <Figure value={urun} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((urun / toplam) * 100) : 0} pay</p>
             </div>
             <div>
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s2)]" />Tekrarlayan
                 <InfoTip>Süreli lisanslar ve abonelikler: düzenli yenilenen, tekrar eden gelir.</InfoTip></span>
-              <p className="tnum mt-0.5 text-[17px] font-semibold">{fmt(tekrar, t)}</p>
+              <Figure value={tekrar} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((tekrar / toplam) * 100) : 0} pay</p>
             </div>
           </div>
         </div>
       </div>
-      <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <dl className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
         {items.map((it) => (
-          <div key={it.label} className="border-b border-line p-5 even:border-l sm:[&:not(:nth-child(3n+1))]:border-l lg:[&:nth-child(odd)]:border-l-0 lg:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
+          <div key={it.label} className="border-b border-line p-5 min-[420px]:even:border-l sm:[&:not(:nth-child(3n+1))]:border-l lg:[&:nth-child(odd)]:border-l-0 lg:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
             <dt className="flex items-center gap-1.5 text-[13px] text-ink-2">{it.label}{it.hint && <InfoTip>{it.hint}</InfoTip>}</dt>
-            <dd className="tnum mt-1 text-[20px] font-semibold text-ink">{it.value}</dd>
+            <dd className="mt-1 text-[20px] font-semibold text-ink">
+              {it.raw !== undefined ? <Figure value={it.raw} type={t} /> : <span className="tnum">{it.value}</span>}
+            </dd>
             <dd className="mt-1 text-[12.5px]"><DeltaTag d={it.d} neutral={it.neutral} unit={it.label === 'Kâr marjı' ? 'puan' : '%'} /></dd>
           </div>
         ))}
