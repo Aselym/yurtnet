@@ -102,6 +102,17 @@ def lisans_maili(sale_data):
     else:
         eylem = 'Yenileme teklifi hazırlamak için uygun zaman.'
 
+    ayarlar = get_settings()
+    uygulama = html.escape(ayarlar.get('app_name') or 'Lisans Takip')
+    taban = (ayarlar.get('app_public_url') or '').strip().rstrip('/')
+    # Mailden tek tikla uygulamada o lisansa gidilsin (sunumdaki istek)
+    dugme = ''
+    if taban and sale_data.get('id'):
+        link = html.escape(f"{taban}/#/lisanslar?id={sale_data['id']}")
+        dugme = (f'<p style="margin:20px 0 0"><a href="{link}" style="display:inline-block;background:{renk};'
+                 f'color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;'
+                 f'border-radius:8px">Uygulamada aç</a></p>')
+
     body = f'''<div style="font-family:'Segoe UI',system-ui,sans-serif;max-width:560px;
      margin:0 auto;color:{METIN};line-height:1.55">
   <div style="border:1px solid {CIZGI};border-radius:12px;overflow:hidden">
@@ -118,10 +129,11 @@ def lisans_maili(sale_data):
       <table style="width:100%;border-collapse:collapse;border-top:1px solid {CIZGI};
              border-bottom:1px solid {CIZGI}">{detay}</table>
       <p style="margin:18px 0 0;font-size:14px;color:{SOLUK}">{eylem}</p>
+      {dugme}
     </div>
   </div>
   <p style="margin:14px 0 0;font-size:11px;color:#8b8b95;text-align:center">
-    Piramit Lisans Takip — otomatik hatırlatma
+    {uygulama} — otomatik hatırlatma
   </p>
 </div>'''
 
@@ -152,7 +164,7 @@ def smtp_gonder(settings, recipients, subject, body_html):
         smtp_user = settings.get('smtp_user', '')
         smtp_password = settings.get('smtp_password', '')
         sender_email = settings.get('sender_email') or smtp_user
-        sender_name = settings.get('sender_name') or 'Piramit Lisans Takip'
+        sender_name = settings.get('sender_name') or settings.get('app_name') or 'Lisans Takip'
 
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -187,7 +199,8 @@ def send_test_email(recipients=None):
         return False, "Alıcı yok. Önce iç bildirim adreslerini girin."
 
     zaman = datetime.now().strftime('%d.%m.%Y %H:%M')
-    subject = "Test: Piramit Lisans Takip e-posta ayarları çalışıyor"
+    uygulama = settings.get('app_name') or 'Lisans Takip'
+    subject = f"Test: {uygulama} e-posta ayarları çalışıyor"
     body_html = f'''<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;
      border:1px solid #e6e6e9;border-radius:12px;padding:24px;color:#1a1a1c">
   <h2 style="margin:0 0 6px;color:#f2691f;font-size:19px">Test e-postası</h2>
@@ -200,7 +213,7 @@ def send_test_email(recipients=None):
     Sunucu: <strong style="color:#1a1a1c">{settings.get('smtp_host', '-')}</strong>
   </div>
   <p style="margin:16px 0 0;font-size:12px;color:#8b8b95">
-    Piramit Lisans Takip — otomatik test mesajı
+    {html.escape(uygulama)} — otomatik test mesajı
   </p>
 </div>'''
 

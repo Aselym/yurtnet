@@ -1,5 +1,6 @@
 import os
 import json
+import socket
 import uuid
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -8,11 +9,11 @@ from datetime import datetime
 from database import init_db, get_db_connection, calculate_dates, hash_password, verify_password
 from mailer import send_reminder_email, send_test_email
 from scheduler import check_and_send_reminders, start_background_scheduler
-from logo_sync import (test_logo_connection, sync_logo_invoices,
-                       sync_logo_subscriptions, sync_logo_products)
 from notifier import send_windows_toast
+import api_v2
+from database import get_settings, setting_float
 
-PORT = 5000
+PORT = int(os.environ.get("MUHASEBE_PORT") or 5000)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 ACTIVE_SESSIONS = set()
@@ -75,6 +76,20 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
+    def _send_bytes(self, veri, mime_type, dosya_adi=None):
+        self.send_response(200)
+        self.send_header('Content-Type', mime_type)
+        self.send_header('Content-Length', str(len(veri)))
+        if dosya_adi:
+            ascii_ad = dosya_adi.translate(str.maketrans('çğıöşüÇĞİÖŞÜ', 'cgiosuCGIOSU'))
+            ascii_ad = ascii_ad.encode('ascii', 'ignore').decode() or 'rapor.xlsx'
+            self.send_header('Content-Disposition',
+                             f"attachment; filename=\"{ascii_ad}\"; filename*=UTF-8''{urllib.parse.quote(dosya_adi)}")
+        for k, v in self._cors_headers().items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(veri)
+
     def _send_file(self, file_path, mime_type):
         if not os.path.exists(file_path):
             self.send_error(404, "File Not Found")
@@ -123,7 +138,7 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
                    'image/png' if path.endswith('.png') else \
                    'image/svg+xml' if path.endswith('.svg') else \
                    'image/jpeg' if path.endswith(('.jpg', '.jpeg')) else \
-                   'font/woff2' if path.endswith('.woff2') else \
+                   'font/woff2' if path.endswith('.woff2') else                    'font/woff' if path.endswith('.woff') else                    'image/x-icon' if path.endswith('.ico') else                    'image/webp' if path.endswith('.webp') else \
                    'application/json; charset=utf-8' if path.endswith('.json') else \
                    'application/json; charset=utf-8' if path.endswith('.map') else 'text/html'
             self._send_file(file_path, mime)
@@ -149,6 +164,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'error': 'Yetkisiz erişim. Lütfen giriş yapın.'}, 401)
             return
 
+        if api_v2.handle(self, 'GET', path, parsed_path.query, None):
+            return
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -156,16 +174,17 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             cursor.execute('SELECT COUNT(*) FROM sales')
             total_sales = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION')")
+            cursor.execute("SELECT COUNT(*) FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION','RENEWED')")
             active_licenses = cursor.fetchone()[0]
 
-            cursor.execute("SELECT * FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION')")
+            cursor.execute("SELECT * FROM sales WHERE status NOT IN ('EXPIRED','NEEDS_DURATION','RENEWED')")
             rows = [dict(r) for r in cursor.fetchall()]
+            yakin_gun = setting_float(get_settings(), 'expiring_soon_days', 90)
             expiring_soon = 0
             for r in rows:
                 exp = datetime.strptime(r['expiration_date'], '%Y-%m-%d').date()
                 days = (exp - datetime.now().date()).days
-                if 0 < days <= 30:
+                if 0 < days <= yakin_gun:
                     expiring_soon += 1
 
             cursor.execute('SELECT COUNT(*) FROM sent_emails')
@@ -202,13 +221,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json(rows)
             return
 
-        elif path == '/api/products':
-            cursor.execute('SELECT * FROM products ORDER BY sale_date DESC, id DESC')
-            rows = [dict(r) for r in cursor.fetchall()]
-            conn.close()
-            self._send_json(rows)
-            return
-
         elif path == '/api/renewals':
             # Suresi dolmus kayit + onun yerine gecmis olabilecek yeni kayit.
             cursor.execute('''
@@ -230,13 +242,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             rows = [dict(r) for r in cursor.fetchall()]
             conn.close()
             self._send_json(rows)
-            return
-
-        elif path == '/api/settings':
-            cursor.execute('SELECT key, value FROM settings')
-            rows = cursor.fetchall()
-            conn.close()
-            self._send_json({r['key']: r['value'] for r in rows})
             return
 
         elif path == '/api/subscriptions':
@@ -309,6 +314,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'error': 'Yetkisiz erişim.'}, 401)
             return
 
+        if api_v2.handle(self, 'POST', path, parsed_path.query, body_data):
+            return
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -357,14 +365,6 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'success': success, 'message': msg})
             return
 
-        elif path == '/api/settings':
-            for key, val in body_data.items():
-                cursor.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, str(val)))
-            conn.commit()
-            conn.close()
-            self._send_json({'success': True, 'message': 'Sistem ayarları güncellendi.'})
-            return
-
         elif path == '/api/test-email':
             conn.close()
             hedef = (body_data.get('recipients') or '').strip()
@@ -373,43 +373,11 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
             self._send_json({'success': success, 'message': msg})
             return
 
-        elif path == '/api/logo/test-connection':
-            conn.close()
-            success, msg = test_logo_connection()
-            self._send_json({'success': success, 'message': msg})
-            return
-
         elif path == '/api/logo/sync':
+            # Eski arayuz uyumlulugu: senkron artik arka planda calisir
             conn.close()
-            try:
-                eklenen, sure_bekleyen, atlanan = sync_logo_invoices()
-                abone, riskli = sync_logo_subscriptions()
-                urun, urun_atlanan = sync_logo_products()
-            except Exception as e:
-                # Ham exception metni (SQL sunucu adi, sorgu detayi vb. icerebilir)
-                # istemciye donmuyor — sadece sunucu konsoluna yaziliyor.
-                print(f"[Logo sync hatasi] {e}")
-                self._send_json({'success': False, 'message': 'Aktarım sırasında bir hata oluştu. Sunucu loglarını kontrol edin.'}, 500)
-                return
-
-            mesaj = f'{eklenen} yeni lisans aktarıldı'
-            if sure_bekleyen:
-                mesaj += f' ({sure_bekleyen} tanesi için süre girilmeli)'
-            mesaj += f'. {abone} abonelik güncellendi'
-            mesaj += f'. {urun} ürün kaydı eklendi'
-            if riskli:
-                mesaj += f', {riskli} tanesi riskli'
-            mesaj += '.'
-
-            self._send_json({
-                'success': True,
-                'imported_count': eklenen,
-                'needs_duration': sure_bekleyen,
-                'skipped': atlanan,
-                'subscriptions': abone,
-                'at_risk': riskli,
-                'message': mesaj,
-            })
+            basladi = api_v2.senkron_baslat()
+            self._send_json({'success': basladi, 'message': 'Senkron başladı.' if basladi else 'Zaten çalışıyor.'})
             return
 
         elif path == '/api/run-scheduler':
@@ -566,6 +534,9 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
+        if api_v2.handle(self, 'DELETE', path, parsed_path.query, None):
+            return
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -588,16 +559,30 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         conn.close()
         self.send_error(404)
 
+class CiftYiginliSunucu(ThreadingHTTPServer):
+    """IPv6 + IPv4 ayni sokette. Windows'ta 'localhost' once ::1'e gider;
+    yalnizca 0.0.0.0 dinlenirse her istek ~2 sn IPv6 zaman asimi bekliyordu."""
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def run_server():
     init_db()
     start_background_scheduler()
-    server = ThreadingHTTPServer(('0.0.0.0', PORT), LicenseReminderHTTPHandler)
+    try:
+        server = CiftYiginliSunucu(('::', PORT), LicenseReminderHTTPHandler)
+    except (OSError, AttributeError):
+        server = ThreadingHTTPServer(('0.0.0.0', PORT), LicenseReminderHTTPHandler)
     server.daemon_threads = True
-    print(f"============================================================")
-    print(f"  PIRAMIT LISANS TAKIP & E-POSTA HATIRLATMA UYGULAMASI     ")
-    print(f"  Adres: http://localhost:{PORT}                              ")
-    print(f"============================================================")
-    send_windows_toast("Piramit Muhasebe", "Uygulama çalışıyor")
+    ad = get_settings().get('app_name') or 'Lisans Takip'
+    print("============================================================")
+    print(f"  {ad}")
+    print(f"  Adres: http://localhost:{PORT}")
+    print("============================================================")
+    send_windows_toast(get_settings().get('app_name') or 'Lisans Takip', "Uygulama çalışıyor")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
