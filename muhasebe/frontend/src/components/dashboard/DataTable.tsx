@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 
 export interface DataTableColumn<T> {
   key: string
-  header: string
+  header: ReactNode
   render: (row: T) => ReactNode
 }
 

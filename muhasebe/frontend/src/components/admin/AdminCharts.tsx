@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { InfoTip } from '@/components/ui/info-tip'
 import type { Offer, Sale, Subscription } from '@/lib/api'
 import { getOfferFunnel, getRevenueHistory, getSubscriptionHealth } from '@/lib/adminAnalytics'
 import { getRevenueForecast } from '@/lib/licenseAnalytics'
@@ -104,7 +105,23 @@ export function RevenueTrendChart({ sales }: RevenueTrendChartProps) {
   return (
     <Card className="p-5">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-black/70 dark:text-white/70">Gelir Trendi</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-black/70 dark:text-white/70">
+          Gelir Trendi
+          <InfoTip>
+            Çizginin sağındaki (kesikli) ve solundaki (düz) kısım <strong>farklı şeyleri</strong> ölçüyor —
+            bu yüzden "Bugün" çizgisinde büyük bir düşüş görünmesi normal, işlerin kötüye gittiği anlamına
+            gelmez.
+            <br />
+            <br />
+            <strong>Gerçekleşen</strong> (solda): o ay <em>satılan</em> her şeyin toplamı — yeni müşteri,
+            yenileme, büyük/küçük her satış dahil.
+            <br />
+            <strong>Tahmini</strong> (sağda, kesikli): sadece <em>o ay lisansı bitecek</em>, hâlâ aktif
+            müşterilerin eski satış tutarı — yani "bu ay kaç TL'lik yenileme fırsatı var" demek. Yeni
+            satışları veya henüz Logo'ya işlenmemiş fırsatları içermez, doğal olarak çok daha küçük bir
+            rakam çıkar.
+          </InfoTip>
+        </h3>
         <div className="flex items-center gap-3 text-xs text-black/50 dark:text-white/50">
           <span className="flex items-center gap-1.5">
             <span className="h-0.5 w-4 rounded-full" style={{ background: BRAND }} />
@@ -241,6 +258,48 @@ interface SubscriptionHealthDonutProps {
   subscriptions: Subscription[]
 }
 
+const HEALTH_INFO = (
+  <>
+    Aylık faturalanan abonelikler (Microsoft/Azure gibi) için "süresi doldu" diye bir şey yok — bunun yerine
+    her müşterinin <strong>normal faturalama aralığı</strong> (ör. ~30 günde bir) referans alınır.
+    <br />
+    <br />
+    <strong>Aktif</strong>: son faturadan bu yana geçen süre normalin içinde.
+    <br />
+    <strong>Risk Altında</strong>: son faturadan bu yana geçen süre normal aralığın <strong>2 katını</strong>{' '}
+    geçmiş — henüz kopmamış ama gecikme var, aranması önerilir.
+    <br />
+    <strong>Kayıp</strong>: çok daha uzun süredir hiç fatura kesilmemiş — muhtemelen abonelikten çıkmış.
+  </>
+)
+
+function subscriptionReasonLine(s: Subscription): string {
+  if (s.days_since_last == null || s.avg_interval_days == null) return `${s.client_name} — ${s.product_name}`
+  return `${s.client_name} — ${s.product_name}: son faturadan bu yana ${s.days_since_last} gün geçti (normalde ~${Math.round(
+    s.avg_interval_days
+  )} günde bir kesiliyor)`
+}
+
+const REASON_LIST_LIMIT = 6
+
+function reasonListContent(label: string, items: Subscription[]) {
+  const shown = items.slice(0, REASON_LIST_LIMIT)
+  const remaining = items.length - shown.length
+  return (
+    <>
+      <p className="mb-1 font-semibold text-black/90 dark:text-white">
+        {label} ({items.length})
+      </p>
+      <ul className="max-w-xs list-disc space-y-0.5 pl-4 text-black/60 dark:text-white/60">
+        {shown.map((s) => (
+          <li key={s.id}>{subscriptionReasonLine(s)}</li>
+        ))}
+      </ul>
+      {remaining > 0 && <p className="mt-1 text-black/40 dark:text-white/40">+{remaining} tane daha</p>}
+    </>
+  )
+}
+
 export function SubscriptionHealthDonut({ subscriptions }: SubscriptionHealthDonutProps) {
   const health = getSubscriptionHealth(subscriptions)
   const { containerRef, tooltip, show, hide } = useChartTooltip()
@@ -248,11 +307,17 @@ export function SubscriptionHealthDonut({ subscriptions }: SubscriptionHealthDon
   if (health.total === 0) {
     return (
       <Card className="p-5">
-        <h3 className="mb-1 text-sm font-semibold text-black/70 dark:text-white/70">Abonelik Sağlığı</h3>
+        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-black/70 dark:text-white/70">
+          Abonelik Sağlığı
+          <InfoTip>{HEALTH_INFO}</InfoTip>
+        </h3>
         <p className="text-sm text-black/50 dark:text-white/50">Henüz abonelik verisi yok.</p>
       </Card>
     )
   }
+
+  const atRiskSubs = subscriptions.filter((s) => s.status === 'AT_RISK')
+  const lostSubs = subscriptions.filter((s) => s.status === 'LOST')
 
   const legend = [
     { label: 'Aktif', value: health.active, color: STATUS_GOOD },
@@ -278,7 +343,10 @@ export function SubscriptionHealthDonut({ subscriptions }: SubscriptionHealthDon
 
   return (
     <Card className="p-5">
-      <h3 className="mb-4 text-sm font-semibold text-black/70 dark:text-white/70">Abonelik Sağlığı</h3>
+      <h3 className="mb-4 flex items-center gap-1.5 text-sm font-semibold text-black/70 dark:text-white/70">
+        Abonelik Sağlığı
+        <InfoTip>{HEALTH_INFO}</InfoTip>
+      </h3>
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around">
         <div ref={containerRef} className="relative shrink-0">
           <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Abonelik sağlık dağılımı">
@@ -309,12 +377,18 @@ export function SubscriptionHealthDonut({ subscriptions }: SubscriptionHealthDon
                 onMouseEnter={(e) =>
                   show(
                     e,
-                    <>
-                      <p className="font-semibold text-black/90 dark:text-white">{s.label}</p>
-                      <p className="text-black/60 dark:text-white/60">
-                        {s.value} abonelik (%{Math.round(s.fraction * 100)})
-                      </p>
-                    </>
+                    s.label === 'Risk Altında' ? (
+                      reasonListContent(s.label, atRiskSubs)
+                    ) : s.label === 'Kayıp' ? (
+                      reasonListContent(s.label, lostSubs)
+                    ) : (
+                      <>
+                        <p className="font-semibold text-black/90 dark:text-white">{s.label}</p>
+                        <p className="text-black/60 dark:text-white/60">
+                          {s.value} abonelik (%{Math.round(s.fraction * 100)})
+                        </p>
+                      </>
+                    )
                   )
                 }
                 onMouseLeave={hide}

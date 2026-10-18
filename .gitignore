@@ -31,3 +31,8 @@ envanter.txt
 !muhasebe/static/images/*.png
 !muhasebe/frontend/public/images/*.png
 !muhasebe/frontend/index.html
+
+# Devir teslim paketleri: config.sunucu.yaml (Zabbix token) ve canlı .db içerir
+devir-teslim/
+*.zip
+muhasebe/frontend/build-output.txt

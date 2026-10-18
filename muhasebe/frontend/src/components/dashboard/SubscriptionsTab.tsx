@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { DataTable, type DataTableColumn } from './DataTable'
 import { StatusPill } from './StatusPill'
 import { CustomerProfileModal } from './CustomerProfileModal'
+import { InfoTip } from '@/components/ui/info-tip'
 import { getSubscriptions, type Subscription } from '@/lib/api'
+
+function statusReason(s: Subscription): string | undefined {
+  if (s.status === 'ACTIVE' || s.days_since_last == null || s.avg_interval_days == null) return undefined
+  return `Son faturadan bu yana ${s.days_since_last} gün geçti (normalde ~${Math.round(s.avg_interval_days)} günde bir kesiliyor)`
+}
 
 type Status = 'loading' | 'error' | 'ready'
 
@@ -55,7 +61,25 @@ export function SubscriptionsTab() {
       header: 'Son Faturadan Bu Yana',
       render: (s) => (s.days_since_last != null ? `${s.days_since_last} gün` : '-'),
     },
-    { key: 'status', header: 'Durum', render: (s) => <StatusPill status={s.status} /> },
+    {
+      key: 'status',
+      header: (
+        <span className="inline-flex items-center gap-1.5">
+          Durum
+          <InfoTip>
+            <strong>Aktif</strong>: faturalama normal aralığında devam ediyor.
+            <br />
+            <strong>Riskli</strong>: son faturadan bu yana geçen süre, bu müşterinin normal faturalama
+            aralığının 2 katını geçti — henüz kopmamış ama gecikme var, aranması önerilir.
+            <br />
+            <strong>Kayıp</strong>: çok daha uzun süredir hiç fatura kesilmemiş, muhtemelen abonelikten
+            çıkmış. Fare ile "Riskli"/"Kayıp" etiketinin üzerine gelince o müşteriye özel gecikme
+            görünür.
+          </InfoTip>
+        </span>
+      ),
+      render: (s) => <StatusPill status={s.status} title={statusReason(s)} />,
+    },
   ]
 
   return (

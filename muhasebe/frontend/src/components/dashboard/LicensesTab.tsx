@@ -38,6 +38,15 @@ export function LicensesTab() {
 
   const staleCount = useMemo(() => sales.filter(isStaleExpired).length, [sales])
 
+  const byId = useMemo(() => new Map(sales.map((s) => [s.id, s])), [sales])
+
+  function renewedByTitle(s: Sale): string | undefined {
+    if (s.status !== 'RENEWED' || s.renewed_by == null) return undefined
+    const yeni = byId.get(s.renewed_by)
+    if (!yeni) return undefined
+    return `Yeni lisans: ${yeni.product_name} — ${yeni.expiration_date}`
+  }
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return sales.filter((s) => {
@@ -63,7 +72,7 @@ export function LicensesTab() {
         ),
     },
     { key: 'days_left', header: 'Kalan Gün', render: (s) => (s.days_left >= 0 ? `${s.days_left} gün` : '-') },
-    { key: 'status', header: 'Durum', render: (s) => <StatusPill status={s.status} /> },
+    { key: 'status', header: 'Durum', render: (s) => <StatusPill status={s.status} title={renewedByTitle(s)} /> },
     {
       key: 'actions',
       header: '',

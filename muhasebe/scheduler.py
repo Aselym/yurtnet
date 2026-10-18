@@ -29,9 +29,13 @@ def check_and_send_reminders():
     # icin hatirlatma uretilmez; once elle sure girilmeli.
     # duration_months = 0 kontrolu ikinci bir emniyet: durum alani baska bir
     # yerde yanlislikla degistirilse bile suresi girilmemis kayit islenmez.
+    # RENEWED: yenilendigi onaylanmis eski kayitlar. Bitis tarihi gecmiste
+    # kaldigi icin bu sorguya dahil edilirse asagidaki "days_left <= 0"
+    # kontrolu onlari sessizce tekrar EXPIRED'a cevirir (bkz. database.py
+    # sure_dolmuslari_isaretle() ayni sebeple RENEWED'i disliyor).
     cursor.execute("""
         SELECT * FROM sales
-        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION')
+        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION', 'RENEWED')
           AND COALESCE(duration_months, 0) > 0
     """)
     sales = [dict(row) for row in cursor.fetchall()]
@@ -70,7 +74,7 @@ def check_and_send_reminders():
                     send_windows_toast("Lisans Süresi Yaklaşıyor", f"{sale['client_name']} - {sale['product_name']} ({days_left} gün kaldı)")
 
         elif reminder_type == 'STAGED':
-            if 7 < days_left <= 30 and status == 'PENDING':
+            if 5 < days_left <= 10 and status == 'PENDING':
                 success, msg = send_reminder_email(sale, 'FIRST_REMINDER')
                 if success:
                     cursor.execute('UPDATE sales SET status = "FIRST_REMINDER_SENT" WHERE id = ?', (sale_id,))
@@ -78,7 +82,15 @@ def check_and_send_reminders():
                     sent_count += 1
                     send_windows_toast("Lisans Süresi Yaklaşıyor", f"{sale['client_name']} - {sale['product_name']} ({days_left} gün kaldı)")
 
-            elif days_left <= 7 and status in ('PENDING', 'FIRST_REMINDER_SENT'):
+            elif 1 < days_left <= 5 and status in ('PENDING', 'FIRST_REMINDER_SENT'):
+                success, msg = send_reminder_email(sale, 'SECOND_REMINDER')
+                if success:
+                    cursor.execute('UPDATE sales SET status = "SECOND_REMINDER_SENT" WHERE id = ?', (sale_id,))
+                    conn.commit()
+                    sent_count += 1
+                    send_windows_toast("Lisans Süresi Yaklaşıyor", f"{sale['client_name']} - {sale['product_name']} ({days_left} gün kaldı)")
+
+            elif days_left <= 1 and status in ('PENDING', 'FIRST_REMINDER_SENT', 'SECOND_REMINDER_SENT'):
                 success, msg = send_reminder_email(sale, 'FINAL_REMINDER')
                 if success:
                     cursor.execute('UPDATE sales SET status = "FINAL_REMINDER_SENT" WHERE id = ?', (sale_id,))

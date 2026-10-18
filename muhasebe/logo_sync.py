@@ -460,16 +460,21 @@ def yenileme_kategorisi(urun_adi):
 def yenileme_adaylari_bul():
     """Suresi dolmus kayitlar icin olasi yenilemeleri isaretler.
 
-    Otomatik kapatmaz — sadece 'SUSPECT' olarak isaretler ve hangi yeni kaydin
-    aday oldugunu yazar. Yanlis eslesme ihtimali var (ornegin FortiAuthenticator
-    ile FortiGate destegi ayni kategoriye dusebiliyor), o yuzden son karari
-    satis ekibi verir.
+    Iki farkli eslesme gucu var:
+    - Birebir ayni urun adi (ayni musteri, ayni tam urun stringi, daha yeni
+      tarih): tahmin degil, tekrar satis — otomatik 'CONFIRMED' yapilir,
+      satis ekibine sorulmaz.
+    - Sadece ayni kategori (marka/model ailesi) eslesiyorsa: yanlis eslesme
+      ihtimali var (ornegin FortiAuthenticator ile FortiGate destegi ayni
+      kategoriye dusebiliyor), o yuzden 'SUSPECT' olarak isaretlenir ve son
+      karar satis ekibine birakilir.
     """
     conn = get_db_connection()
     cur = conn.cursor()
     kayitlar = [dict(r) for r in cur.execute('SELECT * FROM sales').fetchall()]
     for k in kayitlar:
         k['_kat'] = yenileme_kategorisi(k['product_name'])
+        k['_urun_norm'] = (k['product_name'] or '').strip().upper()
 
     isaretlenen = 0
     for eski in kayitlar:
@@ -490,11 +495,23 @@ def yenileme_adaylari_bul():
         if not adaylar:
             continue
 
-        en_yeni = max(adaylar, key=lambda x: x['sale_date'])
-        cur.execute(
-            "UPDATE sales SET renewed_by = ?, renewal_state = 'SUSPECT' WHERE id = ?",
-            (en_yeni['id'], eski['id']),
-        )
+        birebir_adaylar = [y for y in adaylar if y['_urun_norm'] == eski['_urun_norm']]
+
+        if birebir_adaylar:
+            en_yeni = max(birebir_adaylar, key=lambda x: x['sale_date'])
+            # Manuel onay (app.py /api/sales/<id>/renewal) ile ayni davranis:
+            # status da 'RENEWED' olmali, yoksa kayit listede hala "Süresi
+            # Doldu" (kirmizi) gorunmeye devam eder.
+            cur.execute(
+                "UPDATE sales SET renewed_by = ?, renewal_state = 'CONFIRMED', status = 'RENEWED' WHERE id = ?",
+                (en_yeni['id'], eski['id']),
+            )
+        else:
+            en_yeni = max(adaylar, key=lambda x: x['sale_date'])
+            cur.execute(
+                "UPDATE sales SET renewed_by = ?, renewal_state = 'SUSPECT' WHERE id = ?",
+                (en_yeni['id'], eski['id']),
+            )
         isaretlenen += 1
 
     conn.commit()

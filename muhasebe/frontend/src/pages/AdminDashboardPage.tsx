@@ -76,7 +76,7 @@ export function AdminDashboardPage({ onLogout }: AdminDashboardPageProps) {
 
       <main className="mx-auto max-w-6xl space-y-6 px-8 py-8">
         {status === 'loading' && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
             ))}
@@ -107,6 +107,19 @@ interface AdminDashboardContentProps {
   stats: StatsResponse
 }
 
+// KPI kartlarında "1.872.847,95 TRY" gibi uzun tutarlar dar kartlarda satır
+// kırıp taşıyordu — kısaltılmış hali kartta, tam hassasiyet native tooltipte.
+function formatCompactTRY(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} Mn TRY`
+  }
+  if (abs >= 10_000) {
+    return `${(value / 1_000).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} bin TRY`
+  }
+  return `${value.toLocaleString('tr-TR')} TRY`
+}
+
 function AdminDashboardContent({ sales, subscriptions, offers, stats }: AdminDashboardContentProps) {
   const revenueForecast = getRevenueForecast(sales, 3)
   const totalForecast = revenueForecast.reduce((sum, b) => sum + b.revenue, 0)
@@ -123,19 +136,37 @@ function AdminDashboardContent({ sales, subscriptions, offers, stats }: AdminDas
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Aktif Lisans" value={stats.active_licenses} icon={BadgeCheck} />
         <StatCard label="Yakında Dolacak" value={stats.expiring_soon} icon={Clock} tone="warn" />
         <StatCard
-          label="Önümüzdeki 3 Ay Beklenen Gelir"
-          value={`${totalForecast.toLocaleString('tr-TR')} TRY`}
+          label="Beklenen Gelir (3 Ay)"
+          value={formatCompactTRY(totalForecast)}
+          title={`${totalForecast.toLocaleString('tr-TR')} TRY`}
           icon={TrendingUp}
+          info={
+            <>
+              Önümüzdeki 3 ay içinde süresi dolacak, hâlâ aktif (süresi dolmamış) lisansların satış
+              fiyatları toplamı. Bir <strong>tahmindir</strong> — müşterinin gerçekten yenileyeceğinin
+              garantisi değil, "bu ay bu kadarlık yenileme fırsatı var" demektir. Fiyatı sistemde kayıtlı
+              olmayan lisanslar bu toplama dahil değildir.
+            </>
+          }
         />
         <StatCard
           label="Risk Altındaki Gelir"
-          value={`${revenueAtRisk.toLocaleString('tr-TR')} TRY`}
+          value={formatCompactTRY(revenueAtRisk)}
+          title={`${revenueAtRisk.toLocaleString('tr-TR')} TRY`}
           icon={AlertTriangle}
           tone="danger"
+          info={
+            <>
+              Süresi <strong>çoktan dolmuş</strong> ama satış ekibinin "yenilendi" olarak işaretlemediği
+              lisansların toplam satış tutarı. Yani müşteri muhtemelen ürünü hâlâ kullanıyor ama artık
+              geçerli bir lisans/destek sözleşmesi yok — ya yenilemeyi unuttu ya da başka bir tedarikçiye
+              geçti. Bu tutar, aksiyon alınmazsa kaybedilmiş sayılabilecek gelirdir.
+            </>
+          }
         />
         <StatCard
           label="Teklif Kazanma Oranı"

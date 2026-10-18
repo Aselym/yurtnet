@@ -176,9 +176,9 @@ export function getBrandStats(sales: Sale[]): BrandStats[] {
       stats = { brand, active: 0, expired: 0, renewed: 0, renewalRate: null }
       byBrand.set(brand, stats)
     }
-    if (s.status === 'EXPIRED') {
+    if (s.status === 'EXPIRED' || s.status === 'RENEWED') {
       stats.expired += 1
-      if (s.renewal_state === 'CONFIRMED') stats.renewed += 1
+      if (s.status === 'RENEWED' || s.renewal_state === 'CONFIRMED') stats.renewed += 1
     } else if (s.status !== 'NEEDS_DURATION') {
       stats.active += 1
     }

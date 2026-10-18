@@ -3,6 +3,7 @@ import { AlertTriangle, BadgeCheck, Clock, Mail, Package, XCircle } from 'lucide
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StatCard } from './StatCard'
+import { InfoTip } from '@/components/ui/info-tip'
 import { MonthlyExpiryChart, StatusBarChart } from './AnalyticsCharts'
 import { ReminderModal } from './ReminderModal'
 import { RenewalsPanel } from './RenewalsPanel'
@@ -78,8 +79,13 @@ export function OverviewTab() {
       </div>
 
       <Card className="p-5">
-        <h3 className="mb-1 text-sm font-semibold text-black/70 dark:text-white/70">
+        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-black/70 dark:text-white/70">
           Beklenen Yenileme Geliri (Önümüzdeki 3 Ay)
+          <InfoTip>
+            Önümüzdeki 3 ay içinde süresi dolacak, hâlâ aktif lisansların satış fiyatları toplamı. Bir{' '}
+            <strong>tahmindir</strong> — müşterinin gerçekten yenileyeceğinin garantisi değil, "bu ay bu
+            kadarlık yenileme fırsatı var" demektir.
+          </InfoTip>
         </h3>
         <p className="mb-4 text-2xl font-semibold text-black/90 dark:text-white">
           {totalForecast.toLocaleString('tr-TR')} TRY

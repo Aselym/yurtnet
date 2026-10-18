@@ -39,7 +39,7 @@ def init_db():
             duration_months INTEGER NOT NULL,
             expiration_date TEXT NOT NULL,
             reminder_type TEXT NOT NULL, -- '1_WEEK', '1_MONTH', 'STAGED'
-            status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'FIRST_REMINDER_SENT', 'FINAL_REMINDER_SENT', 'EXPIRED'
+            status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'FIRST_REMINDER_SENT', 'SECOND_REMINDER_SENT', 'FINAL_REMINDER_SENT', 'EXPIRED'
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -53,7 +53,7 @@ def init_db():
             recipient_name TEXT,
             subject TEXT NOT NULL,
             body_html TEXT NOT NULL,
-            reminder_stage TEXT NOT NULL, -- 'FIRST_REMINDER' (30 Days), 'FINAL_REMINDER' (7 Days), 'TEST'
+            reminder_stage TEXT NOT NULL, -- 'FIRST_REMINDER' (10 gun), 'SECOND_REMINDER' (5 gun), 'FINAL_REMINDER' (1 gun), 'TEST'
             delivery_mode TEXT NOT NULL, -- 'MOCK' or 'SMTP'
             sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE
@@ -217,13 +217,17 @@ def sure_dolmuslari_isaretle():
     Bu bir veri gercegi, mail gonderiminin yan etkisi degil — o yuzden
     zamanlayicidan ayri duruyor ve Logo senkronizasyonundan sonra da
     cagriliyor. NEEDS_DURATION olanlara dokunulmaz: onlarin bitis tarihi
-    tahmini, uzerine "suresi doldu" demek yaniltici olur.
+    tahmini, uzerine "suresi doldu" demek yaniltici olur. RENEWED olanlara
+    da dokunulmaz: bu kayitlarin bitis tarihi zaten gecmiste (yenilenmeden
+    once son kullanma tarihiydi), dokunulmazsa her 5 dakikada bir calisan
+    zamanlayici bunlari sessizce tekrar EXPIRED'a cevirip onay/otomatik-
+    yenileme isaretini kaybettiriyordu.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE sales SET status = 'EXPIRED'
-        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION')
+        WHERE status NOT IN ('EXPIRED', 'NEEDS_DURATION', 'RENEWED')
           AND date(expiration_date) <= date('now')
     """)
     adet = cursor.rowcount

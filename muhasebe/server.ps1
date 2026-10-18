@@ -1,3 +1,5 @@
+$Port = 5000
+
 $PythonPaths = @(
     "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
     (Get-Command python, py, python3 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)

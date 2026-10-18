@@ -1,4 +1,12 @@
+import platform
 import subprocess
+
+# Windows'a ozgu (Toast Notification API, powershell.exe). Linux sunucuda
+# zaten kimse interaktif oturum acmiyor — masaustu bildirimi gosterecek bir
+# masaustu yok. Esas hatirlatma mail ile gittigi icin bu bir kayip degil
+# (bkz. DEPLOY_LINUX.md), o yuzden burada sessizce atlaniyor; powershell'i
+# olmayan bir sistemde calistirmaya calisip her seferinde hata loglamiyoruz.
+_WINDOWS = platform.system() == 'Windows'
 
 
 def _escape(text: str) -> str:
@@ -6,6 +14,9 @@ def _escape(text: str) -> str:
 
 
 def send_windows_toast(title: str, message: str):
+    if not _WINDOWS:
+        return
+
     safe_title = _escape(title)
     safe_message = _escape(message)
 

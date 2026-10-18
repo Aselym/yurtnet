@@ -30,14 +30,19 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface StatusPillProps {
   status: string
+  /** Bu satıya özgü "neden bu durumda" açıklaması (native tooltip) — ör. riskli bir abonelik için gecikme günü. */
+  title?: string
 }
 
-export function StatusPill({ status }: StatusPillProps) {
+export function StatusPill({ status, title }: StatusPillProps) {
   const style = STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-white/60'
   const label = STATUS_LABELS[status] ?? status
 
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', style)}>
+    <span
+      title={title}
+      className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', style)}
+    >
       {label}
     </span>
   )

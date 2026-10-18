@@ -110,6 +110,14 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         elif path.startswith('/static/'):
             rel_path = path[8:]
             file_path = os.path.join(STATIC_DIR, rel_path)
+            # Linux'ta dosya sistemi buyuk/kucuk harfe duyarli ve bu sunucu
+            # artik LAN disina da acilabilir — "/static/../../etc/passwd"
+            # gibi bir istegin STATIC_DIR disina cikmadigini garantile.
+            static_root = os.path.realpath(STATIC_DIR)
+            resolved = os.path.realpath(file_path)
+            if resolved != static_root and not resolved.startswith(static_root + os.sep):
+                self.send_error(404, "File Not Found")
+                return
             mime = 'text/css; charset=utf-8' if path.endswith('.css') else \
                    'application/javascript; charset=utf-8' if path.endswith('.js') else \
                    'image/png' if path.endswith('.png') else \

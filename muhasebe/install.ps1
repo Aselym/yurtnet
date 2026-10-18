@@ -14,7 +14,13 @@
 param(
     [string]$HedefKlasor = "C:\PiramitMuhasebe",
     [int]$Port = 5000,
-    [switch]$LogoSurucusuKur
+    [switch]$LogoSurucusuKur,
+    # Bir sunucuda kimse surekli interaktif oturumda kalmaz — bu modda gorev
+    # "oturum acilista" degil "makine acilista" (kimse giris yapmasa bile)
+    # tetiklenir. Bedeli: masaustu bildirimi (send_windows_toast) hic gorunmez,
+    # cunku SYSTEM hesabinin masaustu oturumu yok. Esas hatirlatma zaten mail
+    # ile gittigi icin bu kayip degil.
+    [switch]$SunucuModu
 )
 
 $ErrorActionPreference = "Stop"
@@ -94,13 +100,23 @@ if (Get-ScheduledTask -TaskName $GorevAdi -ErrorAction SilentlyContinue) {
 }
 
 $Eylem  = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$VbsYolu`""
-$Tetik  = New-ScheduledTaskTrigger -AtLogOn
-$Ayarlar = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-# Interactive logon ile calismali: SYSTEM hesabinda calisirsa masaustu
-# bildirimi (send_windows_toast) hic gorunmez.
-$Sahip = "$env:USERDOMAIN\$env:USERNAME"
-$Prensip = New-ScheduledTaskPrincipal -UserId $Sahip -LogonType Interactive -RunLevel Limited
-Register-ScheduledTask -TaskName $GorevAdi -Action $Eylem -Trigger $Tetik -Settings $Ayarlar -Principal $Prensip -Description "Piramit Muhasebe lisans takip uygulamasini oturum acilista arka planda baslatir." | Out-Null
+$Ayarlar = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+if ($SunucuModu) {
+    # Makine acilista, kimse oturum acmasa bile calisir — 7/24 sunucu icin dogru mod.
+    $Tetik = New-ScheduledTaskTrigger -AtStartup
+    $Prensip = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $Aciklama = "Piramit Muhasebe lisans takip uygulamasini sunucu acilista (oturumsuz) arka planda baslatir."
+} else {
+    # Interactive logon ile calismali: SYSTEM hesabinda calisirsa masaustu
+    # bildirimi (send_windows_toast) hic gorunmez.
+    $Tetik = New-ScheduledTaskTrigger -AtLogOn
+    $Sahip = "$env:USERDOMAIN\$env:USERNAME"
+    $Prensip = New-ScheduledTaskPrincipal -UserId $Sahip -LogonType Interactive -RunLevel Limited
+    $Aciklama = "Piramit Muhasebe lisans takip uygulamasini oturum acilista arka planda baslatir."
+}
+
+Register-ScheduledTask -TaskName $GorevAdi -Action $Eylem -Trigger $Tetik -Settings $Ayarlar -Principal $Prensip -Description $Aciklama | Out-Null
 
 Write-Host "Gorev eklendi." -ForegroundColor Green
 
