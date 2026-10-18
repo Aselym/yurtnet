@@ -1,0 +1,7 @@
+# Logo (MS SQL) baglantisi icin. Linux'ta ayrica sistem paketleri gerekir:
+# unixodbc, unixodbc-dev + Microsoft ODBC Driver 18 for SQL Server
+# (bkz. DEPLOY_LINUX.md "ODBC surucusu" bolumu). Windows'ta ek islem gerekmez.
+pyodbc==5.3.0
+
+# Excel'e aktarma (saf Python)
+openpyxl>=3.1

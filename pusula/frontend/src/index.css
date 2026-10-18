@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "@fontsource-variable/onest";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  "Defter" — muhasebe defteri esinli calisma masasi.
+  Zemin: soguk adacayi tonu + ince kareli kagit. Paneller beyaz.
+  Turuncu (marka) yalnizca aksiyon ve secim icindir; veri renkleri
+  dataviz paletinden gelir ve dogrulanmistir.
+*/
+:root {
+  --canvas: #e9eee9;
+  --grid: rgba(29, 43, 37, 0.055);
+  --surface: #fbfcfb;
+  --surface-2: #f2f5f3;
+  --surface-3: #e6ece8;
+  --ink: #1d2b25;
+  --ink-2: #4f5d57;
+  --muted: #7d8a84;
+  --line: #dde4df;
+  --line-strong: #c6d0ca;
+  --brand: #1f7a6a;
+  --brand-ink: #135448;
+  --brand-soft: #e2f1ec;
+  --pos: #1f7a4d;
+  --neg: #c4372f;
+  --focus: #2a78d6;
+
+  /* dataviz — dogrulanmis kategorik palet (acik zemin #fbfcfb) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --chart-grid: #e3e8e4;
+  --chart-axis: #c3cbc6;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+
+  --radius-panel: 14px;
+  --radius-ctl: 8px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #0f1412;
+  --grid: rgba(232, 238, 233, 0.035);
+  --surface: #171d1a;
+  --surface-2: #1d2420;
+  --surface-3: #262e29;
+  --ink: #e8eee9;
+  --ink-2: #b9c4be;
+  --muted: #84918b;
+  --line: #2a332e;
+  --line-strong: #3a453f;
+  --brand-ink: #ff9a5c;
+  --brand-soft: #3a2217;
+  --pos: #3fbf7f;
+  --neg: #ef6b62;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --chart-grid: #26302b;
+  --chart-axis: #3a453f;
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: "Onest Variable", ui-sans-serif, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Onest Variable", ui-sans-serif, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    background-color: var(--canvas);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--brand-soft); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .tnum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+  }
+  .display { font-family: var(--font-display); font-variation-settings: "opsz" 96; letter-spacing: -0.02em; }
+  .scroll-thin::-webkit-scrollbar { width: 10px; height: 10px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 3px solid var(--surface); }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+}
+
+@keyframes ledger-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.ledger-in { animation: ledger-in 420ms cubic-bezier(.2,.7,.2,1) both; }
+
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer-in { animation: drawer-in 220ms cubic-bezier(.2,.7,.2,1) both; }
+
+@media print {
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .panel { border-color: #ccc; break-inside: avoid; }
+}
