@@ -77,7 +77,7 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
     { key: 'product_name', label: 'Ürün', type: 'text', width: 340 },
     { key: 'sales_rep', label: 'Temsilci', type: 'text', width: 140 },
     { key: 'sale_date', label: 'Satış', type: 'date', width: 105 },
-    { key: 'expiration_date', label: 'Bitiş', type: 'date', width: 105 },
+    { key: 'expiration_date', label: 'Bitiş', type: 'date', width: 105, render: (s) => (s.status === 'NEEDS_DURATION' ? <span className="text-muted" title="Süre girilince hesaplanır">—</span> : fmtDate(s.expiration_date)) },
     { key: 'status', label: 'Durum', type: 'text', width: 140, render: (s) => (
       <span title={s.status === 'RENEWED' && s.renewed_by ? `Yeni lisans: ${byId.get(s.renewed_by)?.product_name ?? ''} (${fmtDate(byId.get(s.renewed_by)?.expiration_date)})` : undefined}>
         <LicenseBadge s={s} />
