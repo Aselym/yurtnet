@@ -221,6 +221,7 @@ def init_db():
         ('sub_risk_factor', '2.0'),
         ('app_public_url', ''),
         ('company_name', 'Piramit Bilgisayar'),
+        ('pinned_brands', 'Dell'),         # Urunler ve stok'ta sabit sekme (Dell partneri)
         ('company_logo', ''),              # data URL; Ayarlar > Sirket'ten yuklenir
         ('company_logo_dark', ''),
         ('base_currency', 'TRY'),

@@ -74,6 +74,21 @@ def _icerir(m, kelimeler):
     return any(k in m for k in kelimeler)
 
 
+# Logo hizmet kartlarindan (SRVCARD) donemsel kesilen hizmetler: internet hatti,
+# barindirma, bakim/destek sozlesmesi... Yonetici sunumunda [18:14] "satilan
+# internet hizmeti de tekrarlayan gelir" dendi. Kullanici kuralla degistirebilir.
+TEKRARLAYAN_HIZMET_KELIMELERI = ['INTERNET', 'HOSTING', 'BARINDIRMA', 'SUNUCU KIRALAMA', 'METRO ETHERNET', 'FIBER',
+                                 'BAKIM SOZLESMESI', 'BAKIM ANLASMASI', 'DESTEK SOZLESMESI', 'DESTEK PAKETI',
+                                 'AYLIK', 'YILLIK HIZMET', 'ABONELIK', 'MANAGED', 'YONETILEN']
+
+
+def tekrarlayan_hizmet_mi(urun):
+    if (urun.get('logo_group') or '').upper() != 'HIZMET':
+        return False
+    m = (urun.get('name') or '').upper().replace('İ', 'I').replace('Ş', 'S').replace('Ö', 'O').replace('Ü', 'U').replace('Ç', 'C').replace('Ğ', 'G')
+    return any(k in m for k in TEKRARLAYAN_HIZMET_KELIMELERI)
+
+
 def tur_bul(urun_adi):
     """'lisans' | 'abonelik' | 'kalici' | 'urun'"""
     m = (urun_adi or '').upper()
@@ -247,7 +262,7 @@ def siniflandir(urun, kurallar, ilk_kelime_sayisi):
     # ---- gelir tipi
     gelir = kural_uygula(kurallar, 'revenue_type', ad, kod)
     if not gelir:
-        gelir = 'Tekrarlayan' if tur in ('lisans', 'abonelik') else 'Ürün'
+        gelir = 'Tekrarlayan' if tur in ('lisans', 'abonelik') or tekrarlayan_hizmet_mi(urun) else 'Ürün'
 
     return {**urun, 'brand': marka, 'brand_src': marka_src, 'category': kat, 'category_src': kat_src,
             'kind': tur, 'revenue_type': gelir, 'duration_months': sure}

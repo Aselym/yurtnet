@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "@fontsource-variable/onest";
-@import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/instrument-sans";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -12,16 +11,17 @@
   turkuaz uzerine siyah yazi (okunurluk). Veri renkleri dataviz paletinden.
 */
 :root {
-  --canvas: #e8eeed;
+  --canvas: #f3f5f5;
   --grid: rgba(11, 15, 14, 0.05);
-  --surface: #fbfcfc;
-  --surface-2: #f1f5f4;
-  --surface-3: #e4ebea;
+  --surface: #ffffff;
+  --surface-2: #f4f7f6;
+  --surface-3: #e7eceb;
+  --panel-shadow: 0 1px 2px rgba(11, 15, 14, .04), 0 1px 1px rgba(11, 15, 14, .02);
   --ink: #0f1716;
   --ink-2: #4a5856;
   --muted: #7a8886;
-  --line: #dbe3e2;
-  --line-strong: #c3cecc;
+  --line: #e2e8e7;
+  --line-strong: #c9d3d1;
   --brand: #1fc8b6;
   --on-brand: #0b0f0e;
   --brand-ink: #0b7d72;
@@ -45,9 +45,10 @@
 :root[data-theme="dark"] {
   --canvas: #0b0f0e;
   --grid: rgba(230, 245, 242, 0.035);
-  --surface: #131918;
-  --surface-2: #19211f;
-  --surface-3: #222c2a;
+  --surface: #121817;
+  --surface-2: #182120;
+  --surface-3: #212b29;
+  --panel-shadow: none;
   --ink: #eef5f4;
   --ink-2: #b6c4c1;
   --muted: #82918e;
@@ -68,7 +69,7 @@
 
 @theme {
   --font-sans: "Onest Variable", ui-sans-serif, sans-serif;
-  --font-display: "Bricolage Grotesque Variable", "Onest Variable", ui-sans-serif, sans-serif;
+  --font-display: "Instrument Sans Variable", "Onest Variable", ui-sans-serif, sans-serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -90,10 +91,6 @@
   html, body, #root { height: 100%; }
   body {
     background-color: var(--canvas);
-    background-image:
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 24px 24px;
     color: var(--ink);
     font-family: var(--font-sans);
     font-feature-settings: "ss01";
@@ -114,8 +111,9 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-panel);
+    box-shadow: var(--panel-shadow);
   }
-  .display { font-family: var(--font-display); font-variation-settings: "opsz" 96; letter-spacing: -0.02em; }
+  .display { font-family: var(--font-display); letter-spacing: -0.022em; }
   .scroll-thin::-webkit-scrollbar { width: 10px; height: 10px; }
   .scroll-thin::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 10px; border: 3px solid var(--surface); }
   .scroll-thin::-webkit-scrollbar-track { background: transparent; }

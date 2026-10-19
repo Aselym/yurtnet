@@ -57,7 +57,7 @@ export function Panel({ title, hint, actions, children, className, bodyClass }: 
 export function InfoTip({ children, side = 'bottom' }: { children: ReactNode; side?: 'bottom' | 'top' }) {
   return (
     <span className="group relative inline-flex">
-      <button type="button" aria-label="Açıklama" className="text-muted hover:text-ink">
+      <button type="button" aria-label="Açıklama" className="text-muted hover:text-ink" onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
         <Info className="size-3.5" strokeWidth={2} />
       </button>
       <span

@@ -15,7 +15,7 @@ export default function SubscriptionsPage() {
   const { meta } = useWork()
   const res = useAsync(() => api.get<Subscription[]>('/api/subscriptions'), [])
   const gruplar = useAsync(() => api.get<{ client_name: string; group_name: string }[]>('/api/firma-gruplari'), [])
-  const [tab, setTab] = useLocal<Tab>('abonelik.tab', 'tumu')
+  const [tab, setTab] = useLocal<Tab>('abonelik.sekme', 'ACTIVE')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<{ name: string; group: boolean } | null>(null)
   const grupAdlari = useMemo(() => new Set((gruplar.data ?? []).map((g) => g.group_name)), [gruplar.data])
@@ -69,7 +69,7 @@ export default function SubscriptionsPage() {
             ))}
           </div>
           <div className="panel p-4">
-            <DataGrid id="abonelik" columns={cols} rows={rows as (Subscription & Record<string, unknown>)[]} rowKey={(x) => x.id}
+            <DataGrid id="abonelik" pdfPeriod={false} columns={cols} rows={rows as (Subscription & Record<string, unknown>)[]} rowKey={(x) => x.id}
               onRowClick={(x) => setOpen({ name: x.client_name, group: grupAdlari.has(x.client_name) })}
               toolbarLeft={<>
                 <Segmented size="sm" value={tab} onChange={setTab} options={[

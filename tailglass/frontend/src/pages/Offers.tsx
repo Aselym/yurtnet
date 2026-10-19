@@ -77,7 +77,7 @@ export default function OffersPage() {
             <div className="px-5 py-4"><p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">Kazanma oranı<InfoTip>Kabul edilen / karar verilmiş (kabul + ret) teklifler.</InfoTip></p><p className="tnum text-[21px] font-semibold">{oran === null ? '—' : fmt(oran, 'pct')}</p></div>
           </div>
           <div className="panel p-4">
-            <DataGrid id="teklifler" columns={cols} rows={rows as (Offer & Record<string, unknown>)[]} rowKey={(o) => o.id}
+            <DataGrid id="teklifler" pdfPeriod={false} columns={cols} rows={rows as (Offer & Record<string, unknown>)[]} rowKey={(o) => o.id}
               emptyText="Henüz teklif yok. Sağ üstteki düğmeyle ya da Lisanslar sayfasından yenileme teklifi ekleyebilirsiniz."
               toolbarLeft={<Segmented size="sm" value={tab} onChange={setTab} options={[
                 { value: 'tumu', label: 'Tümü' }, { value: 'PENDING', label: 'Bekleyen' }, { value: 'ACCEPTED', label: 'Kabul' }, { value: 'REJECTED', label: 'Ret' },

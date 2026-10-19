@@ -173,6 +173,15 @@ class SiniflandirmaTesti(unittest.TestCase):
         kural = [{'field': 'brand', 'pattern': 'ARCHER', 'value': 'Archer'}]
         self.assertEqual(s.siniflandir(u, kural, {})['brand_src'], 'kural')
 
+    def test_internet_hizmeti_tekrarlayan(self):
+        # yonetici sunumu [18:14]: satilan internet hizmeti tekrarlayan gelir
+        hizmet = {'name': 'İNTERNET HİZMETİ 100 MBIT AYLIK', 'code': 'H1', 'logo_brand': '', 'logo_group': 'HIZMET'}
+        self.assertEqual(s.siniflandir(hizmet, [], {})['revenue_type'], 'Tekrarlayan')
+        kurulum = {'name': 'KURULUM HIZMETI', 'code': 'H2', 'logo_brand': '', 'logo_group': 'HIZMET'}
+        self.assertEqual(s.siniflandir(kurulum, [], {})['revenue_type'], 'Ürün')
+        kural = [{'field': 'revenue_type', 'pattern': 'KURULUM', 'value': 'Tekrarlayan'}]
+        self.assertEqual(s.siniflandir(kurulum, kural, {})['revenue_type'], 'Tekrarlayan')
+
     def test_genel_kelime_marka_sayilmaz(self):
         u = {'name': 'HDMI KABLO 3MT', 'code': '', 'logo_brand': '', 'logo_group': ''}
         r = s.siniflandir(u, [], {'HDMI': 50})

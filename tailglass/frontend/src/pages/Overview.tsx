@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, PackageX, Repeat } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Check, CheckCheck, ChevronRight, Clock, Hourglass, PackageX, Repeat } from 'lucide-react'
 import { api, type QueryResult } from '../lib/api'
 import { delta, fmt, fmtShort, fmtSpoken, isNum, rangeLabel } from '../lib/format'
 import { useAsync } from '../lib/hooks'
@@ -38,12 +38,22 @@ export default function OverviewPage() {
   }), [JSON.stringify(base), compare, m, gran])
 
   const alerts = useAsync(async () => {
-    const [stats, subs, stok] = await Promise.all([
-      api.get<{ expiring_soon: number }>('/api/stats'),
+    const [sales, renewals, subs, stok] = await Promise.all([
+      api.get<{ status: string; days_left: number; price: number | null }[]>('/api/sales'),
+      api.get<unknown[]>('/api/renewals'),
       api.get<{ status: string }[]>('/api/subscriptions'),
       api.post<{ totals: { dead_items: number; dead_value_tl: number } }>('/api/stok', { limit: 1 }),
     ])
-    return { expiring: stats.expiring_soon, risky: subs.filter((s) => s.status === 'AT_RISK').length, dead: stok.totals }
+    const aktif = sales.filter((x) => !['EXPIRED', 'NEEDS_DURATION', 'RENEWED'].includes(x.status) && x.days_left >= 0)
+    const ay = aktif.filter((x) => x.days_left <= 30)
+    return {
+      expiring30: ay.length, expiring30Value: ay.reduce((t, x) => t + (x.price || 0), 0),
+      expiring90: aktif.filter((x) => x.days_left <= 90).length,
+      candidates: renewals.length,
+      needsDuration: sales.filter((x) => x.status === 'NEEDS_DURATION').length,
+      risky: subs.filter((x) => x.status === 'AT_RISK').length,
+      dead: stok.totals,
+    }
   }, [])
 
   const g = ov.data
@@ -91,7 +101,7 @@ export default function OverviewPage() {
 
       {g && (
         <div className={cn('flex flex-col gap-5 transition-opacity', ov.loading && 'opacity-60')}>
-          <Statement g={g} m={m} t={t} currency={currency} />
+          <Statement g={g} m={m} t={t} currency={currency} onRevenue={(r) => { setFilter('revenue_type', [r]); navigate('satislar') }} />
 
           {alerts.data && <Alerts a={alerts.data} />}
 
@@ -133,7 +143,7 @@ export default function OverviewPage() {
   )
 }
 
-function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'usd'; currency: string }) {
+function Statement({ g, m, t, currency, onRevenue }: { g: Overview; m: string; t: 'tl' | 'usd'; currency: string; onRevenue: (r: string) => void }) {
   const s = g.current.sales, p = g.previous?.sales
   const a = g.current.purchases, pa = g.previous?.purchases
   const urun = Number(g.current.by_revenue_type['Ürün']?.[`m_${m}`]) || 0
@@ -141,16 +151,16 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
   const toplam = urun + tekrar
   const profitKey = t === 'usd' ? 'm_profit_usd' : 'm_profit_tl'
   const marginKey = t === 'usd' ? 'm_margin_usd' : 'm_margin'
-  const items: { label: string; value: string; raw?: unknown; d: number | null; hint?: string; neutral?: boolean }[] = [
-    { label: 'Alış', value: fmt(a[`m_${m}`], t), raw: a[`m_${m}`], d: delta(a[`m_${m}`], pa?.[`m_${m}`]), neutral: true,
+  const items: { label: string; value: string; raw?: unknown; d: number | null; hint?: string; neutral?: boolean; go: string }[] = [
+    { label: 'Alış', value: fmt(a[`m_${m}`], t), raw: a[`m_${m}`], d: delta(a[`m_${m}`], pa?.[`m_${m}`]), neutral: true, go: 'alislar',
       hint: 'Dönemdeki alış faturaları (iadeler düşülmüş). Artış ya da azalış tek başına iyi/kötü sayılmaz, o yüzden nötr renkte gösterilir.' },
-    { label: 'Brüt kâr', value: fmt(s[profitKey], t), raw: s[profitKey], d: delta(s[profitKey], p?.[profitKey]),
+    { label: 'Brüt kâr', value: fmt(s[profitKey], t), raw: s[profitKey], d: delta(s[profitKey], p?.[profitKey]), go: 'analiz',
       hint: 'Satış tutarından, satılan ürünlerin FIFO yöntemiyle tahmin edilen alış maliyeti düşülerek bulunur. Alış kaydı veri başlangıcından önce olan satışlar hesaba katılmaz.' },
-    { label: 'Kâr marjı', value: fmt(s[marginKey], 'pct'), d: isNum(s[marginKey]) && isNum(p?.[marginKey]) ? (s[marginKey] as number) - (p![marginKey] as number) : null,
+    { label: 'Kâr marjı', value: fmt(s[marginKey], 'pct'), d: isNum(s[marginKey]) && isNum(p?.[marginKey]) ? (s[marginKey] as number) - (p![marginKey] as number) : null, go: 'analiz',
       hint: 'Brüt kârın, maliyeti bilinen satışlara oranı. Karşılaştırmadaki değişim yüzde puan olarak gösterilir.' },
-    { label: 'Fatura', value: fmt(s.m_invoices, 'num'), d: delta(s.m_invoices, p?.m_invoices) },
-    { label: 'Müşteri', value: fmt(s.m_clients, 'num'), d: delta(s.m_clients, p?.m_clients) },
-    { label: 'Satılan ürün çeşidi', value: fmt(s.m_items, 'num'), d: delta(s.m_items, p?.m_items) },
+    { label: 'Fatura', value: fmt(s.m_invoices, 'num'), d: delta(s.m_invoices, p?.m_invoices), go: 'satislar' },
+    { label: 'Müşteri', value: fmt(s.m_clients, 'num'), d: delta(s.m_clients, p?.m_clients), go: 'musteriler' },
+    { label: 'Satılan ürün çeşidi', value: fmt(s.m_items, 'num'), d: delta(s.m_items, p?.m_items), go: 'stok' },
   ]
   const d = delta(s[`m_${m}`], p?.[`m_${m}`])
   return (
@@ -170,12 +180,14 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
             <div className="h-full bg-[var(--s2)]" style={{ width: `${toplam ? (tekrar / toplam) * 100 : 0}%` }} />
           </div>
           <div className="mt-2.5 grid grid-cols-1 gap-4 sm:grid-cols-2 text-[13px]">
-            <div>
+            <div role="button" tabIndex={0} onClick={() => onRevenue('Ürün')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Ürün')}
+              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s1)]" />Ürün</span>
               <Figure value={urun} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((urun / toplam) * 100) : 0} pay</p>
             </div>
-            <div>
+            <div role="button" tabIndex={0} onClick={() => onRevenue('Tekrarlayan')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Tekrarlayan')}
+              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s2)]" />Tekrarlayan
                 <InfoTip>Süreli lisanslar ve abonelikler: düzenli yenilenen, tekrar eden gelir.</InfoTip></span>
               <Figure value={tekrar} type={t} className="mt-0.5 text-[17px] font-semibold" />
@@ -186,13 +198,14 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
       </div>
       <dl className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
         {items.map((it) => (
-          <div key={it.label} className="border-b border-line p-5 min-[420px]:even:border-l sm:[&:not(:nth-child(3n+1))]:border-l sm:[&:nth-child(3n+1)]:border-l-0 xl:[&:nth-child(odd)]:border-l-0 xl:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
+          <a key={it.label} href={`#/${it.go}`} className="group relative block border-b border-line p-5 transition-colors hover:bg-surface-2 min-[420px]:even:border-l sm:[&:not(:nth-child(3n+1))]:border-l sm:[&:nth-child(3n+1)]:border-l-0 xl:[&:nth-child(odd)]:border-l-0 xl:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
             <dt className="flex items-center gap-1.5 text-[13px] text-ink-2">{it.label}{it.hint && <InfoTip>{it.hint}</InfoTip>}</dt>
             <dd className="mt-1 text-[20px] font-semibold text-ink">
               {it.raw !== undefined ? <Figure value={it.raw} type={t} /> : <span className="tnum">{it.value}</span>}
             </dd>
             <dd className="mt-1 text-[12.5px]"><DeltaTag d={it.d} neutral={it.neutral} unit={it.label === 'Kâr marjı' ? 'puan' : '%'} /></dd>
-          </div>
+            <ChevronRight aria-hidden className="absolute top-5 right-4 size-4 text-muted opacity-0 transition group-hover:opacity-100" />
+          </a>
         ))}
       </dl>
     </section>
@@ -212,23 +225,43 @@ function DeltaTag({ d, unit = '%', neutral }: { d: number | null; unit?: '%' | '
   )
 }
 
-function Alerts({ a }: { a: { expiring: number; risky: number; dead: { dead_items: number; dead_value_tl: number } } }) {
+type AlertData = {
+  expiring30: number; expiring30Value: number; expiring90: number; candidates: number; needsDuration: number
+  risky: number; dead: { dead_items: number; dead_value_tl: number }
+}
+
+/** "Dikkat isteyenler": donemden bagimsiz yapilacak isler. Her kutu ilgili listeyi filtreli acar. */
+function Alerts({ a }: { a: AlertData }) {
   const items = [
-    { icon: Clock, tone: 'var(--warning)', text: `${a.expiring} lisansın süresi yakında doluyor`, go: 'lisanslar', show: a.expiring > 0 },
-    { icon: Repeat, tone: 'var(--serious)', text: `${a.risky} abonelikte fatura gecikti`, go: 'abonelikler', show: a.risky > 0 },
-    { icon: PackageX, tone: 'var(--critical)', text: `${fmtShort(a.dead.dead_value_tl, 'tl')} değerinde stok 180 günden uzun süredir hareketsiz (${a.dead.dead_items} ürün)`, go: 'stok', show: a.dead.dead_items > 0 },
-  ].filter((x) => x.show)
-  if (!items.length) return null
+    { icon: Clock, tone: 'var(--warning)', n: a.expiring30, label: '30 gün içinde biten lisans',
+      sub: a.expiring30 ? `${fmtShort(a.expiring30Value, 'tl')} yenileme, 90 günde ${a.expiring90}` : `90 gün içinde ${a.expiring90}`,
+      go: 'lisanslar?tab=yaklasan&gun=30' },
+    { icon: CheckCheck, tone: 'var(--s1)', n: a.candidates, label: 'Onay bekleyen yenileme', sub: 'Yenilendi mi, değil mi?', go: 'lisanslar?tab=aday' },
+    { icon: Hourglass, tone: 'var(--serious)', n: a.needsDuration, label: 'Süresi girilmeli', sub: 'Girilene kadar hatırlatma gitmez', go: 'lisanslar?tab=sure' },
+    { icon: Repeat, tone: 'var(--critical)', n: a.risky, label: 'Faturası geciken abonelik', sub: 'Olağan aralığın dışında', go: 'abonelikler' },
+    { icon: PackageX, tone: 'var(--ink-2)', n: a.dead.dead_items, label: 'Hareketsiz stok kalemi',
+      sub: `${fmtShort(a.dead.dead_value_tl, 'tl')}, 180 günden uzun`, go: 'stok' },
+  ]
   return (
-    <div className="flex flex-wrap gap-2.5">
-      {items.map((it) => (
-        <a key={it.go} href={`#/${it.go}`} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-[13px] text-ink hover:border-line-strong hover:bg-surface-2">
-          <it.icon className="size-4" style={{ color: it.tone }} />
-          {it.text}
-          <AlertTriangle className="sr-only" />
-        </a>
-      ))}
-    </div>
+    <section aria-labelledby="dikkat" className="ledger-in">
+      <h2 id="dikkat" className="display mb-2.5 text-[15px] font-semibold text-ink">Dikkat isteyenler</h2>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {items.map((it) => (
+          <a key={it.label} href={`#/${it.go}`}
+            className={cn('panel group flex items-start gap-3 p-4 transition-colors hover:border-line-strong', it.n === 0 && 'opacity-60')}>
+            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-2">
+              {it.n === 0 ? <Check className="size-[18px] text-pos" /> : <it.icon className="size-[18px]" style={{ color: it.tone }} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="display tnum block text-[22px] leading-none font-semibold text-ink">{fmt(it.n, 'num')}</span>
+              <span className="mt-1 block text-[13px] font-medium text-ink">{it.label}</span>
+              <span className="mt-0.5 block truncate text-[12px] text-muted">{it.sub}</span>
+            </span>
+            <ChevronRight aria-hidden className="mt-1 size-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+          </a>
+        ))}
+      </div>
+    </section>
   )
 }
 

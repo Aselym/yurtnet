@@ -29,6 +29,7 @@ DEGISIMLER = [
     # varsayilan ayarlar: sirket bos (Ayarlar'dan girilir), demo veriyle baslar
     ("('company_name', 'Piramit Bilgisayar')", "('company_name', '')"),
     ("('logo_source', 'mssql')", "('logo_source', 'demo')"),
+    ("('pinned_brands', 'Dell'),", "('pinned_brands', ''),"),
     ('Piramit Muhasebe', 'Tailglass Analytics'), ('PiramitMuhasebe', 'TailglassAnalytics'),
     ('piramit-muhasebe', 'tailglass'), ('Piramit Lisans Takip', 'Tailglass Analytics'),
     ('Piramit Bilgisayar', 'Örnek Şirket'), ('Piramit', 'Örnek Şirket'), ('piramit', 'ornek'),

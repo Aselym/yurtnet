@@ -1,8 +1,12 @@
 import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowDown, ArrowUp, ChevronRight, Columns3 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronRight, Columns3, FileDown } from 'lucide-react'
 import type { ColType } from '../../lib/api'
-import { fmt, fmtPeriodKey, isNum } from '../../lib/format'
+import { fmt, fmtPeriodKey, isNum, rangeLabel } from '../../lib/format'
+import { printTable } from '../../lib/print'
+import { useWork } from '../../lib/state'
+import { PAGE_TITLE } from '../Shell'
+import { useRoute } from '../../lib/router'
 import { useLocal } from '../../lib/hooks'
 import { Popover, cn } from '../ui'
 
@@ -16,6 +20,7 @@ export interface GridCol<R = Record<string, unknown>> {
   sortable?: boolean
   render?: (row: R) => ReactNode
   heat?: boolean             // sayisal kolonda sirali isi rengi (pivot)
+  printValue?: (row: R) => string   // render'li kolonun PDF'teki metni
 }
 
 interface Props<R> {
@@ -36,6 +41,8 @@ interface Props<R> {
   toolbarLeft?: ReactNode
   toolbarRight?: ReactNode
   highlightKey?: string | number | null
+  pdfTitle?: string          // PDF basligi (yoksa sayfa adi)
+  pdfPeriod?: boolean        // PDF'e secili donemi yaz (donemden bagimsiz sayfalarda false)
 }
 
 const SAG = new Set<ColType>(['tl', 'usd', 'num', 'pct'])
@@ -45,6 +52,8 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
   const [localSort, setLocalSort] = useState<{ key: string; desc: boolean } | null>(null)
   const [open, setOpen] = useState<Set<string | number>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { base, meta } = useWork()
+  const { page } = useRoute()
 
   const visible = p.columns.filter((c) => !(hiddenPref[c.key] ?? c.hidden))
   const sort = p.sort ?? localSort
@@ -88,6 +97,29 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
     p.onSort ? p.onSort(next) : setLocalSort(next)
   }
 
+  const metin = (c: GridCol<R>, r: R): string => {
+    if (c.printValue) return c.printValue(r)
+    const v = r[c.key]
+    if (c.type === 'dim') return String(fmtPeriodKey(v, c.dim) ?? '')
+    return v == null ? '' : String(fmt(v, c.type ?? 'text'))
+  }
+  const pdf = () => {
+    const kolonlar = visible.filter((c) => !c.key.startsWith('_'))
+    const satirlar: string[] = []
+    if (p.pdfPeriod !== false) satirlar.push(`Dönem: ${rangeLabel(base.date_from, base.date_to)}`)
+    const ad = (k: string) => meta?.dimensions.find((d) => d.key === k)?.label ?? k
+    for (const [k, v] of Object.entries(base.filters)) {
+      const deg = Array.isArray(v) ? v : v.values
+      if (deg.length) satirlar.push(`${ad(k)}${!Array.isArray(v) && v.not ? ' (hariç)' : ''}: ${deg.join(', ')}`)
+    }
+    printTable({
+      title: p.pdfTitle ?? PAGE_TITLE[page] ?? 'Tablo', company: meta?.settings?.company_name ?? undefined, lines: satirlar,
+      cols: kolonlar.map((c) => ({ label: c.label, right: SAG.has(c.type ?? 'text') })),
+      rows: rows.map((r) => kolonlar.map((c) => metin(c, r))),
+      totals: p.totals ? kolonlar.map((c, j) => (j === 0 ? (p.totalsLabel ?? 'Toplam') : p.totals![c.key] !== undefined ? String(fmt(p.totals![c.key], c.type ?? 'text')) : '')) : null,
+    })
+  }
+
   const cell = (c: GridCol<R>, r: R) => {
     if (c.render) return c.render(r)
     const v = r[c.key]
@@ -111,7 +143,8 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
       const v = (r as Record<string, unknown>)[c.key]
       if (v != null) n = Math.max(n, fmt(v, c.type ?? 'num').length)
     }
-    return Math.min(240, Math.max(132, n * 8 + 34))
+    const baslik = String(c.label ?? '').length * 7.4 + 40      // basliga gore de genisle (12.5px yazi)
+    return Math.min(260, Math.max(132, n * 8 + 34, baslik))
   }
   const widths = visible.map((c) => c.width ?? (SAG.has(c.type ?? 'text') ? numW(c) : c.type === 'date' ? 110 : 240))
   const totalW = widths.reduce((a, b) => a + b, 0) + (hasExpand ? 32 : 0)
@@ -161,6 +194,10 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
         <div className="flex flex-wrap items-center gap-2">{p.toolbarLeft}</div>
         <div className="flex flex-wrap items-center gap-2">
           {p.toolbarRight}
+          <button onClick={pdf} title="Bu tabloyu yazdır ya da PDF olarak kaydet" disabled={!rows.length}
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-ctl)] border border-line-strong bg-surface px-2.5 text-[13px] text-ink-2 hover:text-ink disabled:opacity-50">
+            <FileDown className="size-4" /> PDF
+          </button>
           <Popover align="right" width={260} trigger={(_, toggle) => (
             <button onClick={toggle} title="Kolonları seç"
               className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-ctl)] border border-line-strong bg-surface px-2.5 text-[13px] text-ink-2 hover:text-ink">

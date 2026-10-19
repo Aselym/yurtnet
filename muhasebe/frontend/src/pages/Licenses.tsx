@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock, FileText, Mail, Search, X } from 'lucide-react'
 import { api, type ActionResult, type Sale } from '../lib/api'
-import { fmt, fmtDate } from '../lib/format'
+import { fmt, fmtDate, fmtShort } from '../lib/format'
 import { useAsync, useLocal } from '../lib/hooks'
 import { useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
 import { DataGrid, type GridCol } from '../components/data/DataGrid'
 import { LicenseBadge } from './Customers'
-import { Button, ErrorBox, InfoTip, Loading, Modal, Panel, Segmented, Select, cn, inputCls, toast, Figure } from '../components/ui'
+import { Button, ErrorBox, Loading, Modal, Panel, Segmented, Select, cn, inputCls, toast } from '../components/ui'
 
-type Tab = 'yaklasan' | 'aktif' | 'sure' | 'kayip' | 'yenilendi' | 'tumu'
+type Tab = 'yaklasan' | 'aday' | 'aktif' | 'sure' | 'kayip' | 'yenilendi' | 'tumu'
+const SEKMELER: Tab[] = ['yaklasan', 'aday', 'aktif', 'sure', 'kayip', 'yenilendi', 'tumu']
 
 interface Renewal {
   eski_id: number; musteri: string; eski_urun: string; eski_satis: string; eski_bitis: string
@@ -30,22 +31,37 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
   const [offerFor, setOfferFor] = useState<Sale | null>(null)
   const hedef = Number(params.get('id')) || null
 
+  const pTab = params.get('tab') as Tab | null
+  const pGun = params.get('gun')
   useEffect(() => {
     if (hedef) setTab('tumu')
+    else if (pTab && SEKMELER.includes(pTab)) setTab(pTab)
+    if (pGun) setGun(pGun)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hedef])
+  }, [hedef, pTab, pGun])
 
   const list = sales.data ?? []
   const gunN = Number(gun)
   const sayac = useMemo(() => ({
     yaklasan: list.filter((s) => isActive(s) && s.days_left >= 0 && s.days_left <= gunN).length,
+    aday: renewals.data?.length ?? 0,
     aktif: list.filter(isActive).length,
     sure: list.filter((s) => s.status === 'NEEDS_DURATION').length,
     kayip: list.filter((s) => s.status === 'EXPIRED' && s.renewal_state !== 'SUSPECT').length,
     yenilendi: list.filter((s) => s.status === 'RENEWED').length,
     tumu: list.length,
-  }), [list, gunN])
-  const beklenen = list.filter((s) => isActive(s) && s.days_left >= 0 && s.days_left <= gunN).reduce((a, s) => a + (s.price || 0), 0)
+  }), [list, gunN, renewals.data])
+  const icinde = (g: number) => list.filter((s) => isActive(s) && s.days_left >= 0 && s.days_left <= g)
+  const toplamTl = (r: Sale[]) => r.reduce((a, s) => a + (s.price || 0), 0)
+  const kovalar = [30, 60, 90].map((g) => {
+    const r = icinde(g)
+    return { ad: `${g} gün içinde`, n: r.length, alt: fmtShort(toplamTl(r), 'tl'), renk: g === 30 ? 'var(--critical)' : g === 60 ? 'var(--warning)' : 'var(--s1)',
+      secili: tab === 'yaklasan' && gunN === g, sec: () => { setTab('yaklasan'); setGun(String(g)) } }
+  }).concat([
+    { ad: 'Onay bekleyen', n: sayac.aday, alt: 'Yenilendi mi kararı', renk: 'var(--s7)', secili: tab === 'aday', sec: () => setTab('aday') },
+    { ad: 'Süre girilmeli', n: sayac.sure, alt: 'Hatırlatma üretmez', renk: 'var(--serious)', secili: tab === 'sure', sec: () => setTab('sure') },
+    { ad: 'Yenilenmemiş', n: sayac.kayip, alt: 'Süresi dolmuş, kayıt yok', renk: 'var(--muted)', secili: tab === 'kayip', sec: () => setTab('kayip') },
+  ])
   const temsilciler = [...new Set(list.map((s) => s.sales_rep).filter(Boolean))].sort() as string[]
 
   const rows = useMemo(() => {
@@ -73,16 +89,16 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
         <IconBtn title="Yenileme teklifi oluştur" onClick={() => setOfferFor(s)}><FileText className="size-4" /></IconBtn>
       </span>
     ) },
-    { key: 'client_name', label: 'Müşteri', type: 'text', width: 280 },
-    { key: 'product_name', label: 'Ürün', type: 'text', width: 340 },
-    { key: 'sales_rep', label: 'Temsilci', type: 'text', width: 140 },
-    { key: 'sale_date', label: 'Satış', type: 'date', width: 105 },
-    { key: 'expiration_date', label: 'Bitiş', type: 'date', width: 105, render: (s) => (s.status === 'NEEDS_DURATION' ? <span className="text-muted" title="Süre girilince hesaplanır">—</span> : fmtDate(s.expiration_date)) },
-    { key: 'status', label: 'Durum', type: 'text', width: 140, render: (s) => (
+    { key: 'status', label: 'Durum', type: 'text', width: 140, printValue: durumMetni, render: (s) => (
       <span title={s.status === 'RENEWED' && s.renewed_by ? `Yeni lisans: ${byId.get(s.renewed_by)?.product_name ?? ''} (${fmtDate(byId.get(s.renewed_by)?.expiration_date)})` : undefined}>
         <LicenseBadge s={s} />
       </span>
     ) },
+    { key: 'expiration_date', label: 'Bitiş', type: 'date', width: 105, printValue: (s) => (s.status === 'NEEDS_DURATION' ? '—' : fmtDate(s.expiration_date)), render: (s) => (s.status === 'NEEDS_DURATION' ? <span className="text-muted" title="Süre girilince hesaplanır">—</span> : fmtDate(s.expiration_date)) },
+    { key: 'client_name', label: 'Müşteri', type: 'text', width: 260 },
+    { key: 'product_name', label: 'Ürün', type: 'text', width: 320 },
+    { key: 'sales_rep', label: 'Temsilci', type: 'text', width: 140 },
+    { key: 'sale_date', label: 'Satış', type: 'date', width: 105 },
     { key: 'price', label: 'Tutar', type: 'tl', width: 120 },
     { key: 'reminders_sent_count', label: 'Hatırlatma', type: 'num', width: 100, hidden: true },
     { key: 'client_phone', label: 'Telefon', type: 'text', hidden: true },
@@ -91,7 +107,8 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
   ]
 
   const tabs: { value: Tab; label: string }[] = [
-    { value: 'yaklasan', label: `Yaklaşan (${sayac.yaklasan})` }, { value: 'aktif', label: `Aktif (${sayac.aktif})` },
+    { value: 'yaklasan', label: `${gun} gün içinde (${sayac.yaklasan})` }, { value: 'aday', label: `Onay bekleyen (${sayac.aday})` },
+    { value: 'aktif', label: `Aktif (${sayac.aktif})` },
     { value: 'sure', label: `Süre girilmeli (${sayac.sure})` }, { value: 'kayip', label: `Yenilenmemiş (${sayac.kayip})` },
     { value: 'yenilendi', label: `Yenilendi (${sayac.yenilendi})` }, { value: 'tumu', label: `Tümü (${sayac.tumu})` },
   ]
@@ -99,30 +116,32 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
   return (
     <div>
       <PageHeader title="Lisanslar"
-        subtitle="Süreli lisanslar (WatchGuard, FortiGate, ESET…). Bu sayfa seçili dönemden bağımsızdır; listeyi bitiş tarihine göre gösterir."
+        subtitle="Süreli lisanslar (WatchGuard, FortiGate, ESET…) bitiş tarihine göre. Bir kutuya tıklayınca liste o gruba süzülür."
       />
       {sales.error && <ErrorBox message={sales.error} onRetry={sales.reload} />}
       {!sales.data && sales.loading && <Loading />}
       {sales.data && (
         <div className="flex flex-col gap-5">
-          <div className="panel grid grid-cols-2 divide-line max-md:divide-y md:grid-cols-4 md:divide-x">
-            {[
-              [`${gun} gün içinde dolacak`, fmt(sayac.yaklasan, 'num'), null],
-              ['Beklenen yenileme geliri', <Figure value={beklenen} type="tl" />, `Önümüzdeki ${gun} günde süresi dolacak aktif lisansların ilk satış tutarlarının toplamı. Tahmindir; yenileme fiyatı farklı olabilir.`],
-              ['Süre girilmeli', fmt(sayac.sure, 'num'), 'Ürün adından süresi anlaşılamayan lisanslar. Süre girilene kadar hatırlatma üretmezler.'],
-              ['Yenilenmemiş', fmt(sayac.kayip, 'num'), 'Süresi dolmuş ve yenilendiğine dair kayıt bulunamamış lisanslar.'],
-            ].map(([l, v, h]) => (
-              <div key={l as string} className="px-5 py-4">
-                <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">{l}{h && <InfoTip>{h}</InfoTip>}</p>
-                <div className="tnum mt-0.5 text-[21px] font-semibold">{v}</div>
-              </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {kovalar.map((k) => (
+              <button key={k.ad} onClick={k.sec} aria-pressed={k.secili}
+                className={cn('panel group p-4 text-left transition-colors hover:border-line-strong', k.secili && 'border-ink ring-1 ring-ink')}>
+                <span className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+                  <span className="size-2 rounded-full" style={{ background: k.renk }} />{k.ad}
+                </span>
+                <span className="display tnum mt-1.5 block text-[24px] leading-none font-semibold text-ink">{fmt(k.n, 'num')}</span>
+                <span className="mt-1 block truncate text-[12px] text-muted">{k.alt}</span>
+              </button>
             ))}
           </div>
 
-          {(renewals.data?.length ?? 0) > 0 && <RenewalPanel items={renewals.data!} onDone={() => { renewals.reload(); sales.reload() }} />}
+          {tab === 'aday' && (renewals.data?.length
+            ? <RenewalPanel items={renewals.data} onDone={() => { renewals.reload(); sales.reload() }} />
+            : <div className="panel p-8 text-center text-[14px] text-ink-2">Onay bekleyen yenileme adayı yok.</div>)}
 
+          {tab !== 'aday' && (
           <div className="panel p-4">
-            <DataGrid id="lisanslar" columns={cols} rows={rows as (Sale & Record<string, unknown>)[]} rowKey={(s) => s.id}
+            <DataGrid id="lisanslar" pdfPeriod={false} columns={cols} rows={rows as (Sale & Record<string, unknown>)[]} rowKey={(s) => s.id}
               highlightKey={hedef} maxHeight={640}
               onRowClick={(s) => (s.status === 'NEEDS_DURATION' ? setDurFor(s) : setMailFor(s))}
               toolbarLeft={<>
@@ -140,6 +159,12 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
                 </label>
               </>} />
           </div>
+          )}
+          {tab === 'aday' && (
+            <div className="flex justify-start">
+              <Segmented value={tab} onChange={setTab} options={tabs} size="sm" />
+            </div>
+          )}
         </div>
       )}
       <ReminderModal sale={mailFor} onClose={() => setMailFor(null)} />
@@ -147,6 +172,13 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
       <OfferModal sale={offerFor} onClose={() => setOfferFor(null)} />
     </div>
   )
+}
+
+function durumMetni(s: Sale) {
+  if (s.status === 'RENEWED') return 'Yenilendi'
+  if (s.status === 'EXPIRED') return 'Süresi doldu'
+  if (s.status === 'NEEDS_DURATION') return 'Süre girilmeli'
+  return `${s.days_left} gün kaldı`
 }
 
 function isActive(s: Sale) {

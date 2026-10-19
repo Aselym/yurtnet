@@ -45,7 +45,7 @@ export const PAGE_TITLE: Record<string, string> = Object.fromEntries(
 )
 
 // Donemden bagimsiz sayfalar ust seridi gostermez
-const DONEMSIZ = new Set(['ayarlar', 'teklifler'])
+const DONEMSIZ = new Set(['ayarlar', 'teklifler', 'lisanslar', 'abonelikler'])
 
 export function Shell({ page, children, onLogout }: { page: string; children: ReactNode; onLogout: () => void }) {
   const { meta, currency, setCurrency } = useWork()
