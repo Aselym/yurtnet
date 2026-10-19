@@ -55,12 +55,12 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
   const toplamTl = (r: Sale[]) => r.reduce((a, s) => a + (s.price || 0), 0)
   const kovalar = [30, 60, 90].map((g) => {
     const r = icinde(g)
-    return { ad: `${g} gün içinde`, n: r.length, alt: fmtShort(toplamTl(r), 'tl'), renk: g === 30 ? 'var(--critical)' : g === 60 ? 'var(--warning)' : 'var(--s1)',
+    return { ad: `${g} gün içinde`, n: r.length, alt: fmtShort(toplamTl(r), 'tl'), renk: g === 30 ? 'var(--critical)' : g === 60 ? 'var(--warning)' : 'var(--line-strong)',
       secili: tab === 'yaklasan' && gunN === g, sec: () => { setTab('yaklasan'); setGun(String(g)) } }
   }).concat([
-    { ad: 'Onay bekleyen', n: sayac.aday, alt: 'Yenilendi mi kararı', renk: 'var(--s7)', secili: tab === 'aday', sec: () => setTab('aday') },
+    { ad: 'Onay bekleyen', n: sayac.aday, alt: 'Yenilendi mi kararı', renk: 'var(--s2)', secili: tab === 'aday', sec: () => setTab('aday') },
     { ad: 'Süre girilmeli', n: sayac.sure, alt: 'Hatırlatma üretmez', renk: 'var(--serious)', secili: tab === 'sure', sec: () => setTab('sure') },
-    { ad: 'Yenilenmemiş', n: sayac.kayip, alt: 'Süresi dolmuş, kayıt yok', renk: 'var(--muted)', secili: tab === 'kayip', sec: () => setTab('kayip') },
+    { ad: 'Yenilenmemiş', n: sayac.kayip, alt: 'Süresi dolmuş, kayıt yok', renk: 'var(--line-strong)', secili: tab === 'kayip', sec: () => setTab('kayip') },
   ])
   const temsilciler = [...new Set(list.map((s) => s.sales_rep).filter(Boolean))].sort() as string[]
 
@@ -125,10 +125,9 @@ export default function LicensesPage({ params }: { params: URLSearchParams }) {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {kovalar.map((k) => (
               <button key={k.ad} onClick={k.sec} aria-pressed={k.secili}
-                className={cn('panel group p-4 text-left transition-colors hover:border-line-strong', k.secili && 'border-ink ring-1 ring-ink')}>
-                <span className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
-                  <span className="size-2 rounded-full" style={{ background: k.renk }} />{k.ad}
-                </span>
+                className={cn('panel group relative overflow-hidden p-4 text-left transition-colors hover:border-line-strong', k.secili && 'border-ink ring-1 ring-ink')}>
+                <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ background: k.renk }} />
+                <span className="block text-[12.5px] text-ink-2">{k.ad}</span>
                 <span className="display tnum mt-1.5 block text-[24px] leading-none font-semibold text-ink">{fmt(k.n, 'num')}</span>
                 <span className="mt-1 block truncate text-[12px] text-muted">{k.alt}</span>
               </button>

@@ -221,10 +221,10 @@ export function ItemDrawer({ row, onClose }: { row: { item: string; item_code?: 
         <section className="mb-6">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-[14px] font-semibold">Aylık hareket (adet, son 36 ay)</h3>
-            <Legend series={[{ key: 'a', label: 'Alış' }, { key: 's', label: 'Satış' }]} />
+            <Legend series={[{ key: 'a', label: 'Alış', color: 'var(--s2)' }, { key: 's', label: 'Satış', color: 'var(--rev-product)' }]} />
           </div>
           <BarChart data={data} xKey="d0" dim="month" type="num" stacked={false} height={200}
-            series={[{ key: 'p::Alış', label: 'Alış', color: 'var(--s2)' }, { key: 'p::Satış', label: 'Satış', color: 'var(--s1)' }]} />
+            series={[{ key: 'p::Alış', label: 'Alış', color: 'var(--s2)' }, { key: 'p::Satış', label: 'Satış', color: 'var(--rev-product)' }]} />
         </section>
       )}
       <h3 className="mb-2 text-[14px] font-semibold">Tüm hareketler {lines.data && <span className="font-normal text-muted">({lines.data.total.toLocaleString('tr-TR')})</span>}</h3>

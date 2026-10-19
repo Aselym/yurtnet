@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownRight, ArrowUpRight, Check, CheckCheck, ChevronRight, Clock, Hourglass, PackageX, Repeat } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CheckCheck, ChevronRight, Clock, Hourglass, PackageX, Repeat } from 'lucide-react'
 import { api, type QueryResult } from '../lib/api'
 import { delta, fmt, fmtShort, fmtSpoken, isNum, rangeLabel } from '../lib/format'
 import { useAsync } from '../lib/hooks'
@@ -109,20 +109,20 @@ export default function OverviewPage() {
             <Panel title="Ürün satışları" hint="Fiziksel ürün satışları (iadeler düşülmüş). Bir çubuğa tıklarsanız o dönemin satış satırları açılır."
               actions={<Select value={gran} onChange={setGran} options={GRAN} />}>
               <BarChart data={seriler ?? []} xKey="d0" dim={g.granularity} type={t}
-                series={[{ key: 'urun', label: 'Ürün', color: 'var(--s1)' }]}
+                series={[{ key: 'urun', label: 'Ürün', color: 'var(--rev-product)' }]}
                 onBarClick={(r) => drill(String(r.d0), 'Ürün')} />
             </Panel>
             <Panel title="Tekrarlayan gelir" hint="Süreli lisanslar ve aylık abonelikler (Microsoft vb.). Kullanıcı Ayarlar > Sınıflandırma'dan hangi ürünlerin tekrarlayan sayılacağını değiştirebilir.">
               <BarChart data={seriler ?? []} xKey="d0" dim={g.granularity} type={t}
-                series={[{ key: 'tekrar', label: 'Tekrarlayan', color: 'var(--s2)' }]}
+                series={[{ key: 'tekrar', label: 'Tekrarlayan', color: 'var(--rev-recurring)' }]}
                 onBarClick={(r) => drill(String(r.d0), 'Tekrarlayan')} />
             </Panel>
           </div>
 
           <Panel title="Alış ve satış" hint="Aynı dönemde yapılan alışlar ile satışlar. İkisi aynı birimde olduğu için tek eksende gösterilir.">
-            <div className="mb-3"><Legend series={[{ key: 'satis', label: 'Satış' }, { key: 'alis', label: 'Alış' }]} /></div>
+            <div className="mb-3"><Legend series={[{ key: 'satis', label: 'Satış', color: 'var(--rev-product)' }, { key: 'alis', label: 'Alış', color: 'var(--s2)' }]} /></div>
             <LineChart data={seriler ?? []} xKey="d0" dim={g.granularity} type={t}
-              series={[{ key: 'satis', label: 'Satış', color: 'var(--s1)' }, { key: 'alis', label: 'Alış', color: 'var(--s2)' }]} />
+              series={[{ key: 'satis', label: 'Satış', color: 'var(--rev-product)' }, { key: 'alis', label: 'Alış', color: 'var(--s2)' }]} />
           </Panel>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
@@ -176,19 +176,19 @@ function Statement({ g, m, t, currency, onRevenue }: { g: Overview; m: string; t
         </div>
         <div className="mt-6">
           <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full bg-surface-3">
-            <div className="h-full bg-[var(--s1)]" style={{ width: `${toplam ? (urun / toplam) * 100 : 0}%` }} />
-            <div className="h-full bg-[var(--s2)]" style={{ width: `${toplam ? (tekrar / toplam) * 100 : 0}%` }} />
+            <div className="h-full bg-[var(--rev-product)]" style={{ width: `${toplam ? (urun / toplam) * 100 : 0}%` }} />
+            <div className="h-full bg-[var(--rev-recurring)]" style={{ width: `${toplam ? (tekrar / toplam) * 100 : 0}%` }} />
           </div>
           <div className="mt-2.5 grid grid-cols-1 gap-4 sm:grid-cols-2 text-[13px]">
             <div role="button" tabIndex={0} onClick={() => onRevenue('Ürün')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Ürün')}
               title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
-              <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s1)]" />Ürün</span>
+              <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[2px] bg-[var(--rev-product)]" />Ürün</span>
               <Figure value={urun} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((urun / toplam) * 100) : 0} pay</p>
             </div>
             <div role="button" tabIndex={0} onClick={() => onRevenue('Tekrarlayan')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Tekrarlayan')}
               title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
-              <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[3px] bg-[var(--s2)]" />Tekrarlayan
+              <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[2px] bg-[var(--rev-recurring)]" />Tekrarlayan
                 <InfoTip>Süreli lisanslar ve abonelikler: düzenli yenilenen, tekrar eden gelir.</InfoTip></span>
               <Figure value={tekrar} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((tekrar / toplam) * 100) : 0} pay</p>
@@ -236,10 +236,10 @@ function Alerts({ a }: { a: AlertData }) {
     { icon: Clock, tone: 'var(--warning)', n: a.expiring30, label: '30 gün içinde biten lisans',
       sub: a.expiring30 ? `${fmtShort(a.expiring30Value, 'tl')} yenileme, 90 günde ${a.expiring90}` : `90 gün içinde ${a.expiring90}`,
       go: 'lisanslar?tab=yaklasan&gun=30' },
-    { icon: CheckCheck, tone: 'var(--s1)', n: a.candidates, label: 'Onay bekleyen yenileme', sub: 'Yenilendi mi, değil mi?', go: 'lisanslar?tab=aday' },
+    { icon: CheckCheck, tone: 'var(--s2)', n: a.candidates, label: 'Onay bekleyen yenileme', sub: 'Yenilendi mi, değil mi?', go: 'lisanslar?tab=aday' },
     { icon: Hourglass, tone: 'var(--serious)', n: a.needsDuration, label: 'Süresi girilmeli', sub: 'Girilene kadar hatırlatma gitmez', go: 'lisanslar?tab=sure' },
     { icon: Repeat, tone: 'var(--critical)', n: a.risky, label: 'Faturası geciken abonelik', sub: 'Olağan aralığın dışında', go: 'abonelikler' },
-    { icon: PackageX, tone: 'var(--ink-2)', n: a.dead.dead_items, label: 'Hareketsiz stok kalemi',
+    { icon: PackageX, tone: 'var(--muted)', n: a.dead.dead_items, label: 'Hareketsiz stok kalemi',
       sub: `${fmtShort(a.dead.dead_value_tl, 'tl')}, 180 günden uzun`, go: 'stok' },
   ]
   return (
@@ -248,16 +248,14 @@ function Alerts({ a }: { a: AlertData }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {items.map((it) => (
           <a key={it.label} href={`#/${it.go}`}
-            className={cn('panel group flex items-start gap-3 p-4 transition-colors hover:border-line-strong', it.n === 0 && 'opacity-60')}>
-            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-2">
-              {it.n === 0 ? <Check className="size-[18px] text-pos" /> : <it.icon className="size-[18px]" style={{ color: it.tone }} />}
+            className={cn('panel group relative flex flex-col overflow-hidden px-4 pt-3.5 pb-3.5 transition-colors hover:border-line-strong', it.n === 0 && 'opacity-55')}>
+            <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ background: it.n ? it.tone : 'var(--line)' }} />
+            <span className="flex items-center justify-between text-[12.5px] text-ink-2">
+              <span className="inline-flex items-center gap-1.5"><it.icon className="size-[15px] text-muted" strokeWidth={1.8} />{it.label}</span>
+              <ChevronRight aria-hidden className="size-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="display tnum block text-[22px] leading-none font-semibold text-ink">{fmt(it.n, 'num')}</span>
-              <span className="mt-1 block text-[13px] font-medium text-ink">{it.label}</span>
-              <span className="mt-0.5 block truncate text-[12px] text-muted">{it.sub}</span>
-            </span>
-            <ChevronRight aria-hidden className="mt-1 size-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+            <span className="display tnum mt-2 text-[24px] leading-none font-semibold text-ink">{it.n === 0 ? '—' : fmt(it.n, 'num')}</span>
+            <span className="mt-1.5 truncate text-[12px] text-muted">{it.n === 0 ? 'Bekleyen iş yok' : it.sub}</span>
           </a>
         ))}
       </div>

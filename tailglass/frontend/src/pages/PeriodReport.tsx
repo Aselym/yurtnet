@@ -92,8 +92,8 @@ export default function PeriodReportPage() {
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
             {([
-              ['En çok satış yapılan müşteriler', d.top_customers, 'var(--s1)'], ['En çok alış yapılan tedarikçiler', d.top_suppliers, 'var(--s2)'],
-              ['En çok satılan ürünler', d.top_items_sold, 'var(--s1)'], ['En çok alınan ürünler', d.top_items_bought, 'var(--s2)'],
+              ['En çok satış yapılan müşteriler', d.top_customers, 'var(--rev-product)'], ['En çok alış yapılan tedarikçiler', d.top_suppliers, 'var(--s2)'],
+              ['En çok satılan ürünler', d.top_items_sold, 'var(--rev-product)'], ['En çok alınan ürünler', d.top_items_bought, 'var(--s2)'],
             ] as const).map(([t, rows, c]) => (
               <Panel key={t} title={t}><RankBars rows={rows} labelKey="d0" valueKey="m_net_tl" type="tl" color={c} /></Panel>
             ))}

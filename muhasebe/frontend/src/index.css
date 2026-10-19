@@ -30,15 +30,20 @@
   --neg: #c4372f;
   --focus: #2a78d6;
 
-  /* dataviz — dogrulanmis kategorik palet (acik zemin #fbfcfb) */
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
-  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  /* dataviz — markadan turetilmis, dogrulanmis kategorik palet (beyaz zemin,
+     validate_palette: bant, kroma, renk korlugu, kontrast gecer). Sira sabit. */
+  --s1: #0f8f82; --s2: #3d5a99; --s3: #bd7a1f; --s4: #a8457a;
+  --s5: #2a8fc2; --s6: #c4513d; --s7: #6f5bc4; --s8: #6c8f1f;
+  /* gelir ikilisi: notr (urun) + vurgu (tekrarlayan) */
+  --rev-product: #1c2624; --rev-recurring: #12a596;
+  /* milimetrik zemin */
+  --grid-minor: rgba(11, 15, 14, 0.028); --grid-major: rgba(11, 15, 14, 0.055);
   --chart-grid: #e3e8e4;
   --chart-axis: #c3cbc6;
   --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
 
-  --radius-panel: 14px;
-  --radius-ctl: 8px;
+  --radius-panel: 10px;
+  --radius-ctl: 7px;
   color-scheme: light;
 }
 
@@ -60,8 +65,10 @@
   --brand-soft: #0f2c28;
   --pos: #3fbf7f;
   --neg: #ef6b62;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
-  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --s1: #1fa898; --s2: #6a82c4; --s3: #bb802c; --s4: #c25b92;
+  --s5: #3a9cce; --s6: #d0684c; --s7: #8775d6; --s8: #7fa338;
+  --rev-product: #dbe5e3; --rev-recurring: #2dd4bf;
+  --grid-minor: rgba(230, 245, 242, 0.022); --grid-major: rgba(230, 245, 242, 0.045);
   --chart-grid: #26302b;
   --chart-axis: #3a453f;
   color-scheme: dark;
@@ -91,6 +98,14 @@
   html, body, #root { height: 100%; }
   body {
     background-color: var(--canvas);
+    /* muhendis milimetrik kagidi: 8px ara, 40px ana cizgi */
+    background-image:
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+      linear-gradient(var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    background-attachment: fixed;
     color: var(--ink);
     font-family: var(--font-sans);
     font-feature-settings: "ss01";
