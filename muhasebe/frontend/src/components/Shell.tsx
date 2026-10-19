@@ -74,7 +74,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
                 const on = page === it.key
                 return (
                   <a key={it.key} href={`#/${it.key}`} aria-current={on ? 'page' : undefined} title={it.label}
-                    className={cn('relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] transition-colors max-lg:justify-center',
+                    className={cn('relative flex items-center gap-2.5 rounded-[var(--radius-panel)] px-2.5 py-2 text-[13.5px] transition-colors max-lg:justify-center',
                       on ? 'bg-brand-soft font-semibold text-brand-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}>
                     {on && <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r bg-brand" />}
                     <it.icon className="size-[18px] shrink-0" strokeWidth={on ? 2.2 : 1.8} />
@@ -86,18 +86,18 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
           ))}
         </nav>
         <div className="border-t border-line px-2.5 py-3">
-          <a href="#/ayarlar" title="Ayarlar" className={cn('flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] max-lg:justify-center',
+          <a href="#/ayarlar" title="Ayarlar" className={cn('flex items-center gap-2.5 rounded-[var(--radius-panel)] px-2.5 py-2 text-[13.5px] max-lg:justify-center',
             page === 'ayarlar' ? 'bg-brand-soft font-semibold text-brand-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}>
             <Settings className="size-[18px]" /> <span className="max-lg:hidden">Ayarlar</span>
           </a>
           <div className="mt-1 flex items-center gap-1 max-lg:flex-col">
             <button onClick={() => setDark(!dark)} title={dark ? 'Açık tema' : 'Koyu tema'}
-              className="flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] text-ink-2 hover:bg-surface-2 hover:text-ink max-lg:justify-center">
+              className="flex flex-1 items-center gap-2.5 rounded-[var(--radius-panel)] px-2.5 py-2 text-[13.5px] text-ink-2 hover:bg-surface-2 hover:text-ink max-lg:justify-center">
               {dark ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
               <span className="max-lg:hidden">{dark ? 'Açık tema' : 'Koyu tema'}</span>
             </button>
             <button onClick={onLogout} title="Çıkış yap" aria-label="Çıkış yap"
-              className="flex items-center rounded-lg px-2.5 py-2 text-ink-2 hover:bg-surface-2 hover:text-neg">
+              className="flex items-center rounded-[var(--radius-panel)] px-2.5 py-2 text-ink-2 hover:bg-surface-2 hover:text-neg">
               <LogOut className="size-[18px]" />
             </button>
           </div>

@@ -68,7 +68,7 @@ export default function AnalysisPage({ params }: { params: URLSearchParams }) {
         <div className="mb-3 flex flex-wrap gap-1.5">
           {HAZIR.map((h) => (
             <button key={h.label} onClick={() => setCfg({ ...VARSAYILAN, ...h.c })}
-              className="h-7 rounded-full border border-line bg-surface px-3 text-[12.5px] text-ink-2 hover:border-line-strong hover:text-ink">{h.label}</button>
+              className="h-7 rounded-[var(--radius-ctl)] border border-line bg-surface px-3 text-[12.5px] text-ink-2 hover:border-line-strong hover:text-ink">{h.label}</button>
           ))}
         </div>
         <FilterBar />
@@ -87,13 +87,13 @@ export default function AnalysisPage({ params }: { params: URLSearchParams }) {
             <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold">Satırlar <InfoTip>En fazla 4 kırılım. Sıra önemlidir: ilk kırılım en dıştaki gruptur.</InfoTip></p>
             <ol className="flex flex-col gap-1.5">
               {cfg.rows.map((r, i) => (
-                <li key={r} className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 py-1 pr-1 pl-2.5 text-[13px]">
+                <li key={r} className="flex items-center gap-1 rounded-[var(--radius-panel)] border border-line bg-surface-2 py-1 pr-1 pl-2.5 text-[13px]">
                   <span className="flex-1 truncate">{dimLabel(r)}</span>
                   <button disabled={i === 0} onClick={() => { const a = [...cfg.rows];[a[i - 1], a[i]] = [a[i], a[i - 1]]; set({ rows: a }) }}
-                    aria-label="Yukarı" className="rounded p-1 text-muted hover:text-ink disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
+                    aria-label="Yukarı" className="rounded-[var(--radius-ctl)] p-1 text-muted hover:text-ink disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
                   <button disabled={i === cfg.rows.length - 1} onClick={() => { const a = [...cfg.rows];[a[i + 1], a[i]] = [a[i], a[i + 1]]; set({ rows: a }) }}
-                    aria-label="Aşağı" className="rounded p-1 text-muted hover:text-ink disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
-                  <button onClick={() => set({ rows: cfg.rows.filter((x) => x !== r) })} aria-label="Kaldır" className="rounded p-1 text-muted hover:text-neg"><X className="size-3.5" /></button>
+                    aria-label="Aşağı" className="rounded-[var(--radius-ctl)] p-1 text-muted hover:text-ink disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
+                  <button onClick={() => set({ rows: cfg.rows.filter((x) => x !== r) })} aria-label="Kaldır" className="rounded-[var(--radius-ctl)] p-1 text-muted hover:text-neg"><X className="size-3.5" /></button>
                 </li>
               ))}
             </ol>
@@ -121,7 +121,7 @@ export default function AnalysisPage({ params }: { params: URLSearchParams }) {
                 const idx = cfg.measures.indexOf(m.key)
                 return (
                   <li key={m.key}>
-                    <label className={cn('flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[13px] hover:bg-surface-2', on && 'font-medium')}>
+                    <label className={cn('flex cursor-pointer items-center gap-2 rounded-[var(--radius-ctl)] px-1.5 py-1 text-[13px] hover:bg-surface-2', on && 'font-medium')}>
                       <input type="checkbox" checked={on} className="accent-[var(--brand)]"
                         onChange={() => set({ measures: on ? cfg.measures.filter((x) => x !== m.key) : [...cfg.measures, m.key] })} />
                       <span className="flex-1">{m.label}</span>

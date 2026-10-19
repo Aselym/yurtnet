@@ -70,7 +70,7 @@ export default function PeriodReportPage() {
             const on = from === f && to === t
             return (
               <button key={f} onClick={() => setPeriod(f, t)}
-                className={cn('h-7 rounded-full px-3 text-[12.5px]', on ? 'bg-ink font-medium text-surface' : 'border border-line bg-surface text-ink-2 hover:text-ink')}>
+                className={cn('h-7 rounded-[var(--radius-ctl)] px-3 text-[12.5px]', on ? 'bg-ink font-medium text-surface' : 'border border-line bg-surface text-ink-2 hover:text-ink')}>
                 {AYLAR[a.getMonth()]} {a.getFullYear() !== now.getFullYear() ? a.getFullYear() : ''}
               </button>
             )

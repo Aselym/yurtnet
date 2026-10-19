@@ -77,7 +77,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
               const I = Ikon as typeof ShieldCheck
               return (
                 <li key={metin as string} className="flex items-center gap-3">
-                  <span className="grid size-8 place-items-center rounded-lg border border-white/12 bg-white/[.04]"><I className="size-4 text-[#1fc8b6]" /></span>
+                  <span className="grid size-8 place-items-center rounded-[var(--radius-panel)] border border-white/12 bg-white/[.04]"><I className="size-4 text-[#1fc8b6]" /></span>
                   {metin as string}
                 </li>
               )
@@ -104,7 +104,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
 
             <form onSubmit={submit} noValidate className="mt-8 flex flex-col gap-5">
               {error && (
-                <div role="alert" className="flex items-start gap-2.5 rounded-[10px] border border-neg/30 bg-neg/[.06] px-3.5 py-3 text-[13.5px] text-neg">
+                <div role="alert" className="flex items-start gap-2.5 rounded-[var(--radius-panel)] border border-neg/30 bg-neg/[.06] px-3.5 py-3 text-[13.5px] text-neg">
                   <AlertCircle className="mt-px size-4 shrink-0" /> <span>{error}</span>
                 </div>
               )}
@@ -116,7 +116,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
 
               <Alan etiket="Şifre" ikon={LockKeyhole} sag={
                 <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                  className="grid size-9 place-items-center rounded-md text-muted hover:text-ink">
+                  className="grid size-9 place-items-center rounded-[var(--radius-ctl)] text-muted hover:text-ink">
                   {show ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
                 </button>
               }>
@@ -136,14 +136,14 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
                 </button>
               </div>
               {forgot && (
-                <p className="-mt-2 rounded-[10px] bg-surface-2 px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
+                <p className="-mt-2 rounded-[var(--radius-panel)] bg-surface-2 px-3.5 py-3 text-[13px] leading-relaxed text-ink-2">
                   Şifreler sistem yöneticisi tarafından <b className="font-semibold text-ink">Ayarlar &gt; Hesap</b> bölümünden yenilenir.
                   Erişiminiz yoksa şirketinizin BT sorumlusuna başvurun.
                 </p>
               )}
 
               <button type="submit" disabled={busy}
-                className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[#0b0f0e] text-[14.5px] font-semibold text-white transition hover:bg-[#1a2321] disabled:opacity-70 dark:bg-brand dark:text-on-brand dark:hover:brightness-105">
+                className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-[var(--radius-panel)] bg-[#0b0f0e] text-[14.5px] font-semibold text-white transition hover:bg-[#1a2321] disabled:opacity-70 dark:bg-brand dark:text-on-brand dark:hover:brightness-105">
                 {busy && <Loader2 className="size-4 animate-spin" />}
                 {busy ? 'Giriş yapılıyor' : 'Giriş yap'}
               </button>
@@ -159,7 +159,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
   )
 }
 
-const girdi = 'h-11 w-full rounded-[10px] border border-line-strong bg-surface pr-3 pl-10 text-[14.5px] text-ink outline-none transition placeholder:text-muted/70 focus:border-ink focus:ring-4 focus:ring-[color-mix(in_oklab,var(--brand)_28%,transparent)]'
+const girdi = 'h-11 w-full rounded-[var(--radius-panel)] border border-line-strong bg-surface pr-3 pl-10 text-[14.5px] text-ink outline-none transition placeholder:text-muted/70 focus:border-ink focus:ring-4 focus:ring-[color-mix(in_oklab,var(--brand)_28%,transparent)]'
 
 function Alan({ etiket, ikon: Ikon, sag, children }: { etiket: string; ikon: typeof UserRound; sag?: React.ReactNode; children: React.ReactNode }) {
   return (

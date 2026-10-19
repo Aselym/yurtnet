@@ -47,13 +47,13 @@ export default function StockPage() {
             <span key={b} className="group relative">
               <button role="tab" aria-selected={brandTab === b}
                 onClick={() => setFilter('brand', b === 'Tümü' ? null : [b])}
-                className={cn('h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors',
+                className={cn('h-8 rounded-[var(--radius-ctl)] px-3.5 text-[13px] font-medium transition-colors',
                   brandTab === b ? 'bg-ink text-surface' : 'bg-surface text-ink-2 ring-1 ring-line hover:text-ink')}>
                 {b}
               </button>
               {b !== 'Tümü' && (
                 <button onClick={() => savePinned(pinned.filter((x) => x !== b))} aria-label={`${b} sekmesini kaldır`}
-                  className="absolute -top-1.5 -right-1.5 hidden size-4 items-center justify-center rounded-full bg-ink-2 text-surface group-hover:flex">
+                  className="absolute -top-1.5 -right-1.5 hidden size-4 items-center justify-center rounded-[var(--radius-ctl)] bg-ink-2 text-surface group-hover:flex">
                   <X className="size-3" />
                 </button>
               )}
@@ -76,7 +76,7 @@ function PinBrand({ pinned, onAdd }: { pinned: string[]; onAdd: (b: string) => v
   return (
     <Popover width={240} trigger={(_, toggle) => (
       <button onClick={toggle} title="Markayı sabit sekme yap"
-        className="inline-flex h-8 items-center gap-1 rounded-full border border-dashed border-line-strong px-3 text-[13px] text-ink-2 hover:text-ink">
+        className="inline-flex h-8 items-center gap-1 rounded-[var(--radius-ctl)] border border-dashed border-line-strong px-3 text-[13px] text-ink-2 hover:text-ink">
         <Pin className="size-3.5" /> Sekme ekle
       </button>
     )}>

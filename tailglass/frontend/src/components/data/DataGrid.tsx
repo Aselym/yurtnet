@@ -224,7 +224,7 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-line bg-surface">
+      <div className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface">
         <div ref={scrollRef} className="scroll-thin overflow-auto" style={{ maxHeight: p.maxHeight ?? 620 }} role="table">
           <div style={{ minWidth: totalW }}>
             <div role="row" className="sticky top-0 z-10 grid border-b border-line-strong bg-surface-2 text-[12.5px] font-medium text-ink-2"

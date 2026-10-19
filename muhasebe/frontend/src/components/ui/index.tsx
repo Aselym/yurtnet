@@ -64,7 +64,7 @@ export function InfoTip({ children, side = 'bottom' }: { children: ReactNode; si
         role="tooltip"
         className={cn(
           // gizliyken yer kaplamasin (dar ekranda sayfayi yana tasiriyordu)
-          'pointer-events-none absolute left-1/2 z-50 hidden w-72 max-w-[calc(100vw-6rem)] -translate-x-1/2 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[12.5px] leading-relaxed font-normal text-ink-2 shadow-[0_8px_30px_rgba(20,33,28,.12)] group-hover:block group-focus-within:block',
+          'pointer-events-none absolute left-1/2 z-50 hidden w-72 max-w-[calc(100vw-6rem)] -translate-x-1/2 rounded-[var(--radius-panel)] border border-line bg-surface px-3.5 py-2.5 text-[12.5px] leading-relaxed font-normal text-ink-2 shadow-[0_8px_30px_rgba(20,33,28,.12)] group-hover:block group-focus-within:block',
           side === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2',
         )}
       >
@@ -88,7 +88,7 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
           title={o.title}
           onClick={() => onChange(o.value)}
           className={cn(
-            'rounded-[6px] font-medium whitespace-nowrap transition-colors',
+            'rounded-[var(--radius-ctl)] font-medium whitespace-nowrap transition-colors',
             size === 'sm' ? 'px-2 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]',
             o.value === value ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(20,33,28,.12)]' : 'text-ink-2 hover:text-ink',
           )}
@@ -137,7 +137,7 @@ export function Popover({ trigger, children, align = 'left', width = 300, open: 
       {open && (
         <div
           style={{ width }}
-          className={cn('absolute top-full z-40 mt-2 rounded-xl border border-line bg-surface shadow-[0_18px_50px_rgba(20,33,28,.16)]',
+          className={cn('absolute top-full z-40 mt-2 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[0_18px_50px_rgba(20,33,28,.16)]',
             align === 'right' ? 'right-0' : 'left-0')}
         >
           {children(() => set(false))}
@@ -179,7 +179,7 @@ export function OptionList({ options, selected, onToggle, loading, search, onSea
                 onClick={() => onToggle(o.value)}
                 className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] hover:bg-surface-2"
               >
-                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border',
+                <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-[var(--radius-ctl)] border',
                   on ? 'border-brand bg-brand text-on-brand' : 'border-line-strong')}>
                   {on && <Check className="size-3" strokeWidth={3} />}
                 </span>
@@ -240,7 +240,7 @@ export function Modal({ open, onClose, title, children, footer, width = 480 }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[rgba(15,22,19,.36)]" onClick={onClose} />
-      <div style={{ width: `min(${width}px, 100%)` }} className="ledger-in relative rounded-2xl border border-line bg-surface shadow-[0_30px_80px_rgba(15,22,19,.25)]">
+      <div style={{ width: `min(${width}px, 100%)` }} className="ledger-in relative rounded-[var(--radius-panel)] border border-line bg-surface shadow-[0_30px_80px_rgba(15,22,19,.25)]">
         <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="text-[15px] font-semibold">{title}</h2>
           <button onClick={onClose} aria-label="Kapat" className="text-muted hover:text-ink"><X className="size-4" /></button>
@@ -272,7 +272,7 @@ export function Toaster() {
   return (
     <div aria-live="polite" className="fixed right-5 bottom-5 z-[60] flex w-[min(380px,calc(100vw-40px))] flex-col gap-2">
       {items.map((t) => (
-        <div key={t.id} className={cn('ledger-in rounded-xl border bg-surface px-4 py-3 text-[13.5px] shadow-[0_12px_40px_rgba(15,22,19,.18)]',
+        <div key={t.id} className={cn('ledger-in rounded-[var(--radius-panel)] border bg-surface px-4 py-3 text-[13.5px] shadow-[0_12px_40px_rgba(15,22,19,.18)]',
           t.tone === 'ok' ? 'border-pos/30 text-ink' : 'border-neg/40 text-ink')}>
           <span className={cn('mr-2 inline-block size-2 rounded-full align-middle', t.tone === 'ok' ? 'bg-pos' : 'bg-neg')} />
           {t.text}
@@ -318,7 +318,7 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'good
     critical: 'bg-[color-mix(in_oklab,var(--critical)_14%,transparent)] text-neg',
     brand: 'bg-brand-soft text-brand-ink',
   }[tone]
-  return <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium whitespace-nowrap', toneCls)}>{children}</span>
+  return <span className={cn('inline-flex items-center gap-1 rounded-[var(--radius-ctl)] px-2 py-0.5 text-[12px] font-medium whitespace-nowrap', toneCls)}>{children}</span>
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {

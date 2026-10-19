@@ -175,19 +175,19 @@ function Statement({ g, m, t, currency, onRevenue }: { g: Overview; m: string; t
           {g.previous && <span className="text-muted">önceki dönem: {fmtShort(p?.[`m_${m}`], t)}</span>}
         </div>
         <div className="mt-6">
-          <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full bg-surface-3">
+          <div className="flex h-2.5 w-full gap-[2px] overflow-hidden rounded-[var(--radius-ctl)] bg-surface-3">
             <div className="h-full bg-[var(--rev-product)]" style={{ width: `${toplam ? (urun / toplam) * 100 : 0}%` }} />
             <div className="h-full bg-[var(--rev-recurring)]" style={{ width: `${toplam ? (tekrar / toplam) * 100 : 0}%` }} />
           </div>
           <div className="mt-2.5 grid grid-cols-1 gap-4 sm:grid-cols-2 text-[13px]">
             <div role="button" tabIndex={0} onClick={() => onRevenue('Ürün')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Ürün')}
-              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
+              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-[var(--radius-panel)] p-2 transition-colors hover:bg-surface-2">
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[2px] bg-[var(--rev-product)]" />Ürün</span>
               <Figure value={urun} type={t} className="mt-0.5 text-[17px] font-semibold" />
               <p className="text-[12px] text-muted">%{toplam ? Math.round((urun / toplam) * 100) : 0} pay</p>
             </div>
             <div role="button" tabIndex={0} onClick={() => onRevenue('Tekrarlayan')} onKeyDown={(e) => e.key === 'Enter' && onRevenue('Tekrarlayan')}
-              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-lg p-2 transition-colors hover:bg-surface-2">
+              title="Bu gelirin satış satırlarını aç" className="-m-2 cursor-pointer rounded-[var(--radius-panel)] p-2 transition-colors hover:bg-surface-2">
               <span className="inline-flex items-center gap-1.5 text-ink-2"><span className="size-2.5 rounded-[2px] bg-[var(--rev-recurring)]" />Tekrarlayan
                 <InfoTip>Süreli lisanslar ve abonelikler: düzenli yenilenen, tekrar eden gelir.</InfoTip></span>
               <Figure value={tekrar} type={t} className="mt-0.5 text-[17px] font-semibold" />

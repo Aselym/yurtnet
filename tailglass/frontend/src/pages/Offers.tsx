@@ -43,7 +43,7 @@ export default function OffersPage() {
       <button title="Sil" aria-label="Teklifi sil" onClick={async (e) => {
         e.stopPropagation()
         setSilinecek(o)
-      }} className="rounded-md p-1.5 text-muted hover:text-neg"><Trash2 className="size-4" /></button>
+      }} className="rounded-[var(--radius-ctl)] p-1.5 text-muted hover:text-neg"><Trash2 className="size-4" /></button>
     ) },
     { key: 'offer_date', label: 'Tarih', type: 'date', width: 110 },
     { key: 'status', label: 'Durum', type: 'text', width: 220, render: (o) => (

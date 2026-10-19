@@ -109,21 +109,21 @@ export function PeriodStrip() {
           >
             {band[0] >= 0 && (
               <rect x={band[0] * bw} y={0} width={(band[1] - band[0] + 1) * bw} height={H}
-                fill="var(--brand)" opacity={0.12} rx={4} />
+                fill="var(--brand)" opacity={0.12} rx={1} />
             )}
             {values.map((v, i) => {
               const h = Math.max(1.5, (v / max) * (H - 8))
               const inSel = i >= band[0] && i <= band[1]
               return (
                 <rect key={months[i]} x={i * bw + bw * 0.18} y={H - h} width={Math.max(1, bw * 0.64)} height={h}
-                  rx={Math.min(2, bw * 0.3)}
+                  rx={Math.min(1, bw * 0.3)}
                   fill={inSel ? 'var(--brand)' : 'var(--line-strong)'} opacity={hover === i ? 1 : inSel ? 0.9 : 0.75} />
               )
             })}
           </svg>
         )}
         {hover !== null && months[hover] && (
-          <div className="pointer-events-none absolute -bottom-6 z-30 -translate-x-1/2 rounded-md border border-line bg-surface px-2 py-0.5 text-[11.5px] whitespace-nowrap text-ink-2 shadow-sm"
+          <div className="pointer-events-none absolute -bottom-6 z-30 -translate-x-1/2 rounded-[var(--radius-ctl)] border border-line bg-surface px-2 py-0.5 text-[11.5px] whitespace-nowrap text-ink-2 shadow-sm"
             style={{ left: `${((hover + 0.5) / n) * 100}%` }}>
             {fmtPeriodKey(months[hover], 'month')} <span className="tnum text-ink">{fmtShort(values[hover], 'tl')}</span>
           </div>
@@ -165,13 +165,13 @@ function PeriodMenu() {
             {presets().map((p) => (
               <li key={p.key}>
                 <button onClick={() => { const [a, b] = p.range(); setPeriod(a, b); close() }}
-                  className="w-full rounded-md px-2.5 py-1.5 text-left text-[13px] hover:bg-surface-2">{p.label}</button>
+                  className="w-full rounded-[var(--radius-ctl)] px-2.5 py-1.5 text-left text-[13px] hover:bg-surface-2">{p.label}</button>
               </li>
             ))}
             {meta?.data.first && (
               <li>
                 <button onClick={() => { setPeriod(meta.data.first!, today()); close() }}
-                  className="w-full rounded-md px-2.5 py-1.5 text-left text-[13px] hover:bg-surface-2">Tüm veri</button>
+                  className="w-full rounded-[var(--radius-ctl)] px-2.5 py-1.5 text-left text-[13px] hover:bg-surface-2">Tüm veri</button>
               </li>
             )}
           </ul>

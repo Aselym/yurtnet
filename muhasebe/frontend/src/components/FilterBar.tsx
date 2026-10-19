@@ -25,7 +25,7 @@ export function FilterBar({ exclude = [] }: { exclude?: string[] }) {
         const not = isExclude(v)
         return (
           <FilterPopover key={k} dim={k} trigger={(toggle) => (
-            <span className={cn('inline-flex h-8 items-center gap-1 rounded-full border pr-1 pl-3 text-[13px]',
+            <span className={cn('inline-flex h-8 items-center gap-1 rounded-[var(--radius-ctl)] border pr-1 pl-3 text-[13px]',
               not ? 'border-neg/40 bg-neg/5' : 'border-brand/40 bg-brand-soft')}>
               <button onClick={toggle} className="flex items-center gap-1">
                 <span className="text-ink-2">{label(k)}{not ? ' hariç' : ''}:</span>
@@ -34,7 +34,7 @@ export function FilterBar({ exclude = [] }: { exclude?: string[] }) {
                 </span>
               </button>
               <button onClick={() => setFilter(k, null)} aria-label={`${label(k)} filtresini kaldır`}
-                className="flex size-6 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink">
+                className="flex size-6 items-center justify-center rounded-[var(--radius-ctl)] text-ink-2 hover:bg-surface hover:text-ink">
                 <X className="size-3.5" />
               </button>
             </span>
@@ -58,7 +58,7 @@ function AddFilter({ exclude }: { exclude: string[] }) {
   return (
     <Popover width={330} onOpenChange={(o) => { if (!o) setDim(null) }}
       trigger={(open, toggle) => (
-        <button onClick={toggle} className={cn('inline-flex h-8 items-center gap-1 rounded-full border border-dashed px-3 text-[13px] font-medium',
+        <button onClick={toggle} className={cn('inline-flex h-8 items-center gap-1 rounded-[var(--radius-ctl)] border border-dashed px-3 text-[13px] font-medium',
           open ? 'border-brand text-brand-ink' : 'border-line-strong text-ink-2 hover:border-ink-2 hover:text-ink')}>
           <Plus className="size-3.5" /> Filtre ekle
         </button>

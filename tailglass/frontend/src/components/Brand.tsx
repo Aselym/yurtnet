@@ -15,7 +15,7 @@ const GOVDE = 'M16.18 19.5H26.18L18.98 42H8.98Z'
 export function TailglassMark({ size = 28, className, tile }: { size?: number; className?: string; tile?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" className={cn('shrink-0', className)} role="img" aria-label="Tailglass">
-      {tile && <rect width="48" height="48" rx="11" fill={TG.black} />}
+      {tile && <rect width="48" height="48" rx="7" fill={TG.black} />}
       <g transform={tile ? 'translate(4.8 4.8) scale(.8)' : undefined}>
         <path d={CUBUK} fill={tile ? TG.white : 'currentColor'} />
         <path d={GOVDE} fill={TG.teal} />

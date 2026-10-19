@@ -30,7 +30,7 @@ interface Tip { x: number; y: number; content: ReactNode }
 function Tooltip({ tip }: { tip: Tip | null }) {
   if (!tip) return null
   return (
-    <div className="pointer-events-none absolute z-20 min-w-[160px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-line bg-surface px-3 py-2 text-[12.5px] shadow-[0_10px_30px_rgba(20,33,28,.16)]"
+    <div className="pointer-events-none absolute z-20 min-w-[160px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-[var(--radius-panel)] border border-line bg-surface px-3 py-2 text-[12.5px] shadow-[0_10px_30px_rgba(20,33,28,.16)]"
       style={{ left: tip.x, top: tip.y }}>
       {tip.content}
     </div>
@@ -207,7 +207,7 @@ export function LineChart({ data, xKey, series, type = 'tl', dim, height = 240 }
               {series.map((s, j) => (
                 <p key={s.key} className="flex justify-between gap-4 text-ink-2">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block h-0.5 w-3 rounded" style={{ background: s.color ?? SERIES[j] }} />{s.label}
+                    <span className="inline-block h-0.5 w-3 rounded-[var(--radius-ctl)]" style={{ background: s.color ?? SERIES[j] }} />{s.label}
                   </span>
                   <span className="tnum text-ink">{fmt(data[hi][s.key], type)}</span>
                 </p>
@@ -239,8 +239,8 @@ export function RankBars({ rows, labelKey, valueKey, type = 'tl', sub, onClick, 
                 <span className={cn('min-w-0 truncate text-ink', onClick && 'group-hover:underline')}>{String(r[labelKey])}</span>
                 <span className="tnum shrink-0 font-medium text-ink">{fmtShort(v, type)}</span>
               </div>
-              <div className="mt-1 h-1.5 w-full rounded-full bg-surface-3">
-                <div className="h-full rounded-full" style={{ width: `${top ? Math.max(1.5, (v / top) * 100) : 0}%`, background: color }} />
+              <div className="mt-1 h-1.5 w-full rounded-[var(--radius-ctl)] bg-surface-3">
+                <div className="h-full rounded-[var(--radius-ctl)]" style={{ width: `${top ? Math.max(1.5, (v / top) * 100) : 0}%`, background: color }} />
               </div>
               {sub && <div className="mt-0.5 text-[11.5px] text-muted">{sub(r)}</div>}
             </button>

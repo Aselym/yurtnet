@@ -185,7 +185,7 @@ function isActive(s: Sale) {
 }
 
 function IconBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
-  return <button title={title} aria-label={title} onClick={onClick} className="rounded-md p-1.5 text-ink-2 hover:bg-brand-soft hover:text-brand-ink">{children}</button>
+  return <button title={title} aria-label={title} onClick={onClick} className="rounded-[var(--radius-ctl)] p-1.5 text-ink-2 hover:bg-brand-soft hover:text-brand-ink">{children}</button>
 }
 
 function RenewalPanel({ items, onDone }: { items: Renewal[]; onDone: () => void }) {

@@ -123,7 +123,7 @@ export function CustomerDrawer({ name, dim = 'client', onClose }: { name: string
       <section className="mb-6">
         <h3 className="mb-2 text-[14px] font-semibold">Lisansları ({lisanslar.length})</h3>
         {lisanslar.length === 0 ? <p className="text-[13px] text-muted">Takip edilen lisans yok.</p> : (
-          <ul className="divide-y divide-line rounded-xl border border-line">
+          <ul className="divide-y divide-line rounded-[var(--radius-panel)] border border-line">
             {lisanslar.slice(0, 30).map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 px-3.5 py-2 text-[13px]">
                 <span className="min-w-0 truncate">{s.product_name}</span>
@@ -136,7 +136,7 @@ export function CustomerDrawer({ name, dim = 'client', onClose }: { name: string
       {abonelikler.length > 0 && (
         <section className="mb-6">
           <h3 className="mb-2 text-[14px] font-semibold">Abonelikleri</h3>
-          <ul className="divide-y divide-line rounded-xl border border-line">
+          <ul className="divide-y divide-line rounded-[var(--radius-panel)] border border-line">
             {abonelikler.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 px-3.5 py-2 text-[13px]">
                 <span className="min-w-0 truncate">{s.product_name}</span>
@@ -164,7 +164,7 @@ function GroupLink({ name, current, groups, onDone }: { name: string; current?: 
   const [g, setG] = useState(current || name.split(' ')[0] + ' GRUBU')
   const [busy, setBusy] = useState(false)
   return (
-    <section className="rounded-xl border border-dashed border-line-strong p-4">
+    <section className="rounded-[var(--radius-panel)] border border-dashed border-line-strong p-4">
       <h3 className="flex items-center gap-1.5 text-[14px] font-semibold"><Link2 className="size-4" /> Firma grubu</h3>
       <p className="mt-1 text-[13px] text-ink-2">
         Bu firmanın yan/kardeş firmaları varsa aynı gruba ekleyin. Gruptaki firmalar analizlerde birlikte görülebilir ve abonelik

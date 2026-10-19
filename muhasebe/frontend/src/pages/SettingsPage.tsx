@@ -47,7 +47,7 @@ export default function SettingsPage() {
         <nav className="panel h-fit p-2 lg:sticky lg:top-6" aria-label="Ayar bölümleri">
           {BOLUMLER.map((b) => (
             <button key={b.key} onClick={() => setBolum(b.key)}
-              className={cn('flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13.5px]',
+              className={cn('flex w-full items-center gap-2.5 rounded-[var(--radius-panel)] px-3 py-2 text-left text-[13.5px]',
                 bolum === b.key ? 'bg-brand-soft font-semibold text-brand-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}>
               <b.icon className="size-4" />{b.label}
             </button>
@@ -209,7 +209,7 @@ function Classification() {
           </Field>
           <Button variant="primary" loading={busy} disabled={!yeni.pattern || !yeni.value} onClick={() => ekle(yeni)}>Kural ekle</Button>
         </div>
-        <ul className="mt-5 divide-y divide-line rounded-xl border border-line">
+        <ul className="mt-5 divide-y divide-line rounded-[var(--radius-panel)] border border-line">
           {(rules.data ?? []).length === 0 && <li className="px-4 py-3 text-[13px] text-muted">Henüz kural yok.</li>}
           {(rules.data ?? []).map((r) => (
             <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2 text-[13px]">
@@ -225,7 +225,7 @@ function Classification() {
             Marka kaynakları: {ozet.data.brand_sources.map((x) => `${KAYNAK[x.src] ?? x.src} ${x.n.toLocaleString('tr-TR')}`).join(', ')}
           </p>
         )}
-        <ul className="scroll-thin max-h-[480px] divide-y divide-line overflow-auto rounded-xl border border-line">
+        <ul className="scroll-thin max-h-[480px] divide-y divide-line overflow-auto rounded-[var(--radius-panel)] border border-line">
           {(ozet.data?.review ?? []).slice(0, 150).map((r) => <ReviewRow key={r.item_ref} r={r} onRule={ekle} />)}
         </ul>
       </Panel>
@@ -263,7 +263,7 @@ function Groups() {
       {gruplar.length === 0 && <p className="text-[13px] text-muted">Henüz grup yok. Müşteriler sayfasında bir firmaya tıklayıp en alttaki "Firma grubu" bölümünden oluşturabilirsiniz.</p>}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {gruplar.map(([ad, firmalar]) => (
-          <div key={ad} className="rounded-xl border border-line p-4">
+          <div key={ad} className="rounded-[var(--radius-panel)] border border-line p-4">
             <p className="font-semibold">{ad}</p>
             <ul className="mt-2 flex flex-col gap-1">
               {firmalar.map((f) => (
@@ -346,7 +346,7 @@ function LogoAlani({ etiket, ipucu, deger, degistir, koyu }: {
   return (
     <Field label={etiket} hint={ipucu}>
       <div className="flex items-center gap-3">
-        <span className={cn('grid h-14 w-40 place-items-center rounded-lg border border-line-strong p-2', koyu ? 'bg-[#0b0f0e]' : 'bg-white')}>
+        <span className={cn('grid h-14 w-40 place-items-center rounded-[var(--radius-panel)] border border-line-strong p-2', koyu ? 'bg-[#0b0f0e]' : 'bg-white')}>
           {v ? <img src={v} alt="" className="max-h-full max-w-full object-contain" /> : <span className={cn('text-[12px]', koyu ? 'text-[#82918e]' : 'text-muted')}>Logo yok</span>}
         </span>
         <label className="cursor-pointer text-[13px] font-medium text-brand-ink hover:underline">
