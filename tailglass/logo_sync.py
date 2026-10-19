@@ -10,7 +10,7 @@ lisans_takip.py, siniflandirma.py.
 import threading
 
 from database import get_settings
-from logo_source import baglanti_test
+from kaynaklar import baglanti_test
 import lisans_takip
 import warehouse
 

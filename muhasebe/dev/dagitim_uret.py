@@ -20,7 +20,7 @@ import sys
 KAYNAK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HEDEF = os.path.join(os.path.dirname(KAYNAK), 'tailglass')
 
-HARIC_KLASOR = {'__pycache__', 'node_modules', 'backups', '.git', 'static'}
+HARIC_KLASOR = {'__pycache__', 'node_modules', 'backups', '.git', 'static', 'kaynak_dosyalari', 'ornek_veri'}
 HARIC_DOSYA = {'license_reminders.db', 'build-output.txt', 'DEPLOY.md', 'DEPLOY_LINUX.md', 'server.ps1',
                'start_hidden.vbs', 'dagitim_uret.py', 'logo.png', 'logo2.png', 'logo-dark.png'}
 METIN_UZANTI = {'.py', '.ts', '.tsx', '.css', '.html', '.json', '.md', '.sh', '.ps1', '.txt', '.yaml', '.service'}

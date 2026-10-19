@@ -15,6 +15,10 @@ import warehouse
 from database import get_db_connection, get_settings
 from logo_sync import tam_senkron, test_logo_connection
 
+import api_kaynak  # noqa: E402
+YUKLEME_AZAMI = api_kaynak.YUKLEME_AZAMI
+kaynak_yukle = api_kaynak.kaynak_yukle
+
 # ------------------------------------------------------------------ ayarlar
 GIZLI = {'admin_pass_salt', 'admin_pass_hash'}
 SIFRELER = {'smtp_password', 'logo_sql_pass'}
@@ -141,6 +145,8 @@ def handle(h, method, path, query, body):
 
 def _handle(h, method, path, query, body):
     q = {k: v[0] for k, v in urllib.parse.parse_qs(query or '').items()}
+    if path.startswith('/api/kaynak/') and api_kaynak.handle(h, method, path, body):
+        return True
 
     if method == 'GET':
         if path == '/api/meta':

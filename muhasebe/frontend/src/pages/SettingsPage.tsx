@@ -5,7 +5,8 @@ import { fmt } from '../lib/format'
 import { useAsync, useLocal } from '../lib/hooks'
 import { useWork } from '../lib/state'
 import { PageHeader } from '../components/Shell'
-import { Badge, Button, ErrorBox, Field, Loading, Panel, Segmented, cn, inputCls, toast } from '../components/ui'
+import { EFaturaBaglayici, TabloBaglayici } from '../components/KaynakBaglama'
+import { Badge, Button, ErrorBox, Field, Loading, Panel, cn, inputCls, toast } from '../components/ui'
 
 type S = Record<string, string | boolean | null>
 const BOLUMLER = [
@@ -101,19 +102,40 @@ type Inp = (k: string, p?: React.InputHTMLAttributes<HTMLInputElement>) => React
 function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; inp: Inp; save: (k: string[]) => void; busy: boolean }) {
   const log = useAsync(() => api.get<SyncLog[]>('/api/sync/gecmis'), [])
   const [testing, setTesting] = useState(false)
-  const demo = s.logo_source === 'demo'
+  const kayitli = String(s.logo_source || 'mssql')
+  const [secim, setSecim] = useState(kayitli)
+  const durum = useAsync(() => api.get<{ mod: string; tablo: string | null }>('/api/kaynak/durum'), [])
+  const demo = secim === 'demo'
+  const dosyaMi = secim === 'dosya' || secim === 'efatura'
+  const { reloadMeta } = useWork()
+  const bitti = () => { setS({ ...s, logo_source: secim }); durum.reload(); setTimeout(reloadMeta, 4000) }
   return (
     <div className="flex flex-col gap-5">
-      <Panel title="Veri kaynağı">
-        <Segmented value={demo ? 'demo' : 'mssql'} onChange={(v) => setS({ ...s, logo_source: v })} options={[
-          { value: 'mssql', label: 'Logo (MS SQL Server)' }, { value: 'demo', label: 'Demo veri' },
-        ]} />
-        <p className="mt-2 text-[12.5px] text-muted">
+      <Panel title="Veri kaynağı" hint="Tailglass verinizi nereden okusun? Bütün ekranlar seçilen kaynağın verisiyle çalışır; veri şirketinizin sunucusundan çıkmaz.">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {([
+            ['mssql', 'Logo', 'MS SQL veritabanına salt-okunur bağlantı'],
+            ['efatura', 'e-Fatura', 'UBL-TR XML / ZIP arşivleri; her muhasebe programıyla'],
+            ['dosya', 'Excel / CSV', 'Herhangi bir programdan alınmış satış/alış listesi'],
+            ['demo', 'Demo veri', 'Programı örnek veriyle denemek için'],
+          ] as const).map(([k, ad, alt]) => (
+            <button key={k} onClick={() => { setSecim(k); if (k === 'mssql' || k === 'demo') setS({ ...s, logo_source: k }) }}
+              className={cn('rounded-[var(--radius-panel)] border px-4 py-3 text-left transition-colors',
+                secim === k ? 'border-ink bg-surface ring-1 ring-ink' : 'border-line bg-surface-2 hover:border-line-strong')}>
+              <span className="flex items-center justify-between text-[14px] font-semibold text-ink">{ad}
+                {kayitli === k && <Badge tone="good">kullanımda</Badge>}</span>
+              <span className="mt-0.5 block text-[12.5px] text-ink-2">{alt}</span>
+            </button>
+          ))}
+        </div>
+        {secim === 'dosya' && <div className="mt-5"><TabloBaglayici mevcutDosya={durum.data?.tablo} onBitti={bitti} /></div>}
+        {secim === 'efatura' && <div className="mt-5"><EFaturaBaglayici onBitti={bitti} /></div>}
+        {!dosyaMi && <p className="mt-3 text-[12.5px] text-muted">
           {demo
             ? 'Demo veri, Logo tablolarının birebir kopyası olan örnek bir veritabanıdır. Şirket ağına bağlı değilken programı denemek içindir.'
             : 'Logo veritabanına salt-okunur bağlanılır; hiçbir şey yazılmaz. Sorgular kilitlenmeyi önlemek için NOLOCK ile çalışır.'}
-        </p>
-        {!demo && (
+        </p>}
+        {secim === 'mssql' && (
           <div className="mt-5 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="SQL sunucu">{inp('logo_sql_server')}</Field>
             <Field label="Port">{inp('logo_sql_port')}</Field>
@@ -126,8 +148,9 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
             <Field label="Dönem no" hint="Birden fazla dönem varsa virgülle: 01,02,03">{inp('logo_period_no')}</Field>
           </div>
         )}
+        {!dosyaMi && <>
         <div className="mt-5 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label="Veri başlangıç tarihi" hint="Logo'dan bu tarihten itibaren veri çekilir. Boş bırakırsanız Logo'daki tüm geçmiş alınır.">
+          <Field label="Veri başlangıç tarihi" hint="Bu tarihten itibaren veri alınır. Boş bırakırsanız kaynaktaki tüm geçmiş alınır.">
             <span className="flex gap-2">{inp('data_start_date', { type: 'date' })}
               <Button variant="ghost" onClick={() => setS({ ...s, data_start_date: '' })}>Tümü</Button></span>
           </Field>
@@ -149,6 +172,7 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
           }}>Bağlantıyı test et</Button>
         </div>
         <p className="mt-2 text-[12.5px] text-muted">Önce kaydedin, sonra test edin. Senkronu üst çubuktaki düğmeyle başlatabilirsiniz.</p>
+        </>}
       </Panel>
       <Panel title="Senkron geçmişi" bodyClass="p-0">
         {log.data && log.data.length === 0 && <p className="p-5 text-[13px] text-muted">Henüz senkron yapılmadı.</p>}
@@ -160,7 +184,7 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
               <th className="text-right font-medium">Ürün</th><th className="px-5 text-right font-medium">Cari</th></tr></thead>
             <tbody>{log.data.map((l) => (
               <tr key={l.id} className="border-t border-line">
-                <td className="tnum px-5 py-2">{l.finished_at?.replace('T', ' ')}</td><td>{l.source === 'demo' ? 'Demo' : 'Logo'}</td>
+                <td className="tnum px-5 py-2">{l.finished_at?.replace('T', ' ')}</td><td>{({ demo: 'Demo', dosya: 'Excel / CSV', efatura: 'e-Fatura' } as Record<string, string>)[l.source] ?? 'Logo'}</td>
                 <td className="tnum text-right">{fmt(l.lines, 'num')}</td><td className="tnum text-right">{fmt(l.items, 'num')}</td>
                 <td className="tnum px-5 text-right">{fmt(l.clients, 'num')}</td>
               </tr>

@@ -333,6 +333,18 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         path = parsed_path.path
 
         content_length = int(self.headers.get('Content-Length', 0))
+
+        # Veri kaynagi dosyasi (Excel/CSV/e-Fatura): ham bayt, once oturum ve boyut kontrolu
+        if path == '/api/kaynak/yukle':
+            if not self._is_authenticated():
+                self._send_json({'error': 'Yetkisiz erişim.'}, 401)
+                return
+            if content_length <= 0 or content_length > api_v2.YUKLEME_AZAMI:
+                self._send_json({'success': False, 'message': 'Dosya boş ya da çok büyük (en fazla 300 MB).'}, 413)
+                return
+            api_v2.kaynak_yukle(self, parsed_path.query, self.rfile.read(content_length))
+            return
+
         body_data = {}
         if content_length > 0:
             raw_body = self.rfile.read(content_length).decode('utf-8')

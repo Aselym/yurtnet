@@ -3,3 +3,5 @@ __pycache__/
 venv/
 license_reminders.db
 backups/
+kaynak_dosyalari/
+dev/ornek_veri/

@@ -18,7 +18,8 @@ from collections import defaultdict, deque
 from datetime import datetime
 
 from database import get_db_connection, get_settings
-from logo_source import LogoKaynagi, tarih_str
+from logo_source import tarih_str
+from kaynaklar import kaynak_ac
 import siniflandirma
 
 # Fatura TRCODE -> yon. Fatura disi stok fisleri (sayim, devir, fire,
@@ -75,7 +76,7 @@ def senkronize_et(ayarlar=None, ilerleme=None):
     # Logo'da 200 bin+ satir tek seferde bellege alinmaz. Hepsi tek
     # transaction'da — yarida kalirsa eski veri aynen durur.
     try:
-        with LogoKaynagi(ayarlar) as k:
+        with kaynak_ac(ayarlar) as k:
             kaynak = k.mod
             log('Kartlar okunuyor')
             markalar = k.markalar()
