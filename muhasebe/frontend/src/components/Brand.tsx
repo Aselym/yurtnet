@@ -1,34 +1,38 @@
 import { cn } from './ui'
 
 /*
-  Tailglass markasi. Isaret: siyah karo icinde turkuaz bir mercek (glass)
-  ve ona akan beyaz bir iz (tail) — veriye bakan buyutec. Renkler sabit:
-  siyah / turkuaz / beyaz; temadan bagimsiz, her zeminde ayni gorunur.
+  Tailglass markasi — "Prizma T": ayni egimde iki cam duzlem.
+  Ust cubuk murekkep rengi (acik temada siyah, koyuda beyaz), govde turkuaz.
+  Egim 0.32 (dx/dy) iki parcada da ayni; govde, cubugun egik orta eksenine
+  oturur. Yazi: Instrument Sans — "Tailglass" kalin, "Analytics" ince ve gri.
 */
 export const TG = { black: '#0b0f0e', teal: '#1fc8b6', white: '#ffffff' }
 export const PRODUCT = 'Tailglass Analytics'
 
-export function TailglassMark({ size = 28, className }: { size?: number; className?: string }) {
+const CUBUK = 'M7 6H44L40.8 16H3.8Z'
+const GOVDE = 'M16.18 19.5H26.18L18.98 42H8.98Z'
+
+export function TailglassMark({ size = 28, className, tile }: { size?: number; className?: string; tile?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" className={className} role="img" aria-label="Tailglass">
-      <rect x=".5" y=".5" width="39" height="39" rx="9.5" fill={TG.black} stroke="rgba(255,255,255,.16)" />
-      <path d="M6.5 33.5C11.5 32.4 14.6 29.6 17.6 25.2" stroke={TG.white} strokeWidth="3.2" strokeLinecap="round" fill="none" />
-      <path d="M6.5 26.8C9.6 26.3 12.2 25 14.6 22.8" stroke={TG.teal} strokeWidth="2" strokeLinecap="round" fill="none" opacity=".75" />
-      <circle cx="24.5" cy="16" r="8.2" stroke={TG.teal} strokeWidth="3.6" fill="none" />
-      <path d="M20.6 13.6a4.6 4.6 0 0 1 3.4-2.5" stroke={TG.white} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    <svg width={size} height={size} viewBox="0 0 48 48" className={cn('shrink-0', className)} role="img" aria-label="Tailglass">
+      {tile && <rect width="48" height="48" rx="11" fill={TG.black} />}
+      <g transform={tile ? 'translate(4.8 4.8) scale(.8)' : undefined}>
+        <path d={CUBUK} fill={tile ? TG.white : 'currentColor'} />
+        <path d={GOVDE} fill={TG.teal} />
+      </g>
     </svg>
   )
 }
 
-/** Isaret + "tailglass Analytics" yazisi. Yazi rengi temaya uyar (siyah / beyaz). */
+/** Isaret + "Tailglass Analytics" yazisi. Renkler temaya uyar. */
 export function TailglassLogo({ size = 28, compact, className }: { size?: number; compact?: boolean; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2', className)} title={PRODUCT}>
+    <span className={cn('inline-flex items-center text-ink', className)} style={{ gap: size * 0.32 }} title={PRODUCT}>
       <TailglassMark size={size} />
       {!compact && (
-        <span className="display leading-none whitespace-nowrap" style={{ fontSize: size * 0.62 }}>
-          <span className="font-bold tracking-[-0.02em] text-ink">tailglass</span>
-          <span className="ml-1 font-medium text-brand-ink">Analytics</span>
+        <span className="wordmark leading-none whitespace-nowrap" style={{ fontSize: size * 0.66 }}>
+          <span className="font-[620] tracking-[-0.025em]">Tailglass</span>
+          <span className="ml-[0.24em] font-[420] tracking-[-0.01em] text-muted">Analytics</span>
         </span>
       )}
     </span>
