@@ -153,7 +153,8 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
       <Panel title="Senkron geçmişi" bodyClass="p-0">
         {log.data && log.data.length === 0 && <p className="p-5 text-[13px] text-muted">Henüz senkron yapılmadı.</p>}
         {log.data && log.data.length > 0 && (
-          <table className="w-full text-[13px]">
+          <div className="scroll-thin overflow-x-auto">
+            <table className="w-full min-w-[520px] text-[13px]">
             <thead className="bg-surface-2 text-left text-ink-2"><tr>
               <th className="px-5 py-2 font-medium">Bitiş</th><th className="font-medium">Kaynak</th><th className="text-right font-medium">Satır</th>
               <th className="text-right font-medium">Ürün</th><th className="px-5 text-right font-medium">Cari</th></tr></thead>
@@ -165,6 +166,7 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
               </tr>
             ))}</tbody>
           </table>
+          </div>
         )}
       </Panel>
     </div>

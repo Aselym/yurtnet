@@ -79,7 +79,7 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
   value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode; title?: string }[]; size?: 'sm' | 'md'
 }) {
   return (
-    <div role="radiogroup" className="inline-flex rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5">
+    <div role="radiogroup" className="scroll-thin inline-flex max-w-full overflow-x-auto rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5">
       {options.map((o) => (
         <button
           key={o.value}

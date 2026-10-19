@@ -1,3 +1,4 @@
+import { toast } from '../components/ui'
 // Tek API istemcisi. Oturum cerezle tasinir (credentials: 'include').
 
 export class ApiError extends Error {
@@ -46,6 +47,7 @@ export const api = {
 
 /** Excel gibi dosya donen POST uclari: tarayiciya indirme baslatir. */
 export async function download(path: string, body: unknown, fallbackName = 'rapor.xlsx') {
+  toast.ok('Excel hazırlanıyor…')
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
@@ -70,7 +72,9 @@ export async function download(path: string, body: unknown, fallbackName = 'rapo
   document.body.appendChild(a)
   a.click()
   a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 2000)
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+  toast.ok(`İndirildi: ${name} (tarayıcının İndirilenler klasörü)`)
+  return name
 }
 
 // ------------------------------------------------------------------ tipler

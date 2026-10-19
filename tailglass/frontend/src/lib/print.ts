@@ -10,8 +10,15 @@ export interface PrintCol { label: string; right?: boolean }
 export function printTable(o: {
   title: string; company?: string; lines: string[]; cols: PrintCol[]; rows: string[][]; totals?: string[] | null; note?: string
 }) {
-  const w = window.open('', '_blank')
-  if (!w) { alert('Açılır pencere engellendi. Tarayıcıda bu site için açılır pencerelere izin verin.'); return }
+  // Acilir pencere yerine gizli iframe: acilir pencere engeli olan tarayicilarda da calisir
+  document.getElementById('tg-yazdir')?.remove()
+  const fr = document.createElement('iframe')
+  fr.id = 'tg-yazdir'
+  fr.setAttribute('aria-hidden', 'true')
+  Object.assign(fr.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' })
+  document.body.appendChild(fr)
+  const w = fr.contentWindow
+  if (!w) return
   const th = o.cols.map((c) => `<th${c.right ? ' class="r"' : ''}>${esc(c.label)}</th>`).join('')
   const tr = (cells: string[], cls = '') => `<tr${cls ? ` class="${cls}"` : ''}>${cells.map((v, i) => `<td${o.cols[i]?.right ? ' class="r"' : ''}>${esc(v)}</td>`).join('')}</tr>`
   const zaman = new Date().toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
@@ -36,7 +43,7 @@ export function printTable(o: {
 <div class="brand"><div><i></i><b>Tailglass</b> Analytics</div>${o.company ? `<div>${esc(o.company)}</div>` : ''}<div>${esc(zaman)}</div></div></header>
 <table><thead><tr>${th}</tr></thead><tbody>${o.rows.map((r) => tr(r)).join('')}${o.totals ? tr(o.totals, 'top') : ''}</tbody></table>
 <footer>${esc(o.note || `${o.rows.length.toLocaleString('tr-TR')} satır.`)} Maliyet ve kâr FIFO yöntemiyle tahminidir.</footer>
-<script>window.onload = () => setTimeout(() => window.print(), 250)</script>
 </body></html>`)
   w.document.close()
+  setTimeout(() => { w.focus(); w.print() }, 300)
 }

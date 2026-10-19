@@ -191,7 +191,7 @@ export function DataGrid<R extends Record<string, unknown>>(p: Props<R>) {
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2.5">
-        <div className="flex flex-wrap items-center gap-2">{p.toolbarLeft}</div>
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{p.toolbarLeft}</div>
         <div className="flex flex-wrap items-center gap-2">
           {p.toolbarRight}
           <button onClick={pdf} title="Bu tabloyu yazdır ya da PDF olarak kaydet" disabled={!rows.length}
