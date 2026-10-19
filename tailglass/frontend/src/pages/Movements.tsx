@@ -44,8 +44,8 @@ export default function Movements({ direction }: { direction: Direction }) {
       <PageHeader
         title={satis ? 'Satışlar' : 'Alışlar'}
         subtitle={satis
-          ? 'Logo\'daki satış faturası satırları. Alış tarihi ve kâr, satılan ürünün hangi alıştan karşılandığına göre (FIFO) tahmin edilir.'
-          : 'Logo\'daki alış faturası satırları: tedarikçiden ne, ne zaman, kaça alındı.'}
+          ? 'Satış faturası satırları. Alış tarihi ve kâr, satılan ürünün hangi alıştan karşılandığına göre (FIFO) tahmin edilir.'
+          : 'Alış faturası satırları: tedarikçiden ne, ne zaman, kaça alındı.'}
         actions={<>
           <Segmented value={netMi ? 'net' : 'brut'} onChange={(v) => setNetMi(v === 'net')} options={[
             { value: 'net', label: 'İadeler düşülmüş' }, { value: 'brut', label: 'Brüt' },
@@ -86,7 +86,7 @@ export default function Movements({ direction }: { direction: Direction }) {
           : <GroupedView dir={dir} search={dq} satis={satis} group={group} measures={grupOlcu}
               toolbar={<Toolbar satis={satis} mode={mode} setMode={setMode} group={group} setGroup={setGroup} q={q} setQ={setQ} />} />}
       </div>
-      {!meta?.data.lines && <p className="mt-4 text-[13px] text-ink-2">Henüz veri yok. Üstteki senkron düğmesiyle Logo'dan veri çekin.</p>}
+      {!meta?.data.lines && <p className="mt-4 text-[13px] text-ink-2">Henüz veri yok. Ayarlar &gt; Veri kaynağı'ndan bir kaynak bağlayın ya da üstteki senkron düğmesine basın.</p>}
     </div>
   )
 }

@@ -63,16 +63,16 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
 
         <div className="relative max-w-[460px]">
           <h2 className="wordmark text-[40px] leading-[1.08] font-[600] tracking-[-0.03em] xl:text-[46px]">
-            Logo’daki her satır,<br />tek bir ekranda.
+            Faturadan karara,<br />tek bir ekranda.
           </h2>
           <p className="mt-5 text-[15.5px] leading-relaxed text-white/65">
-            Satış, stok, kâr ve lisans yenilemeleri; şirketinizin kendi sunucusunda, Logo'ya yalnızca okuma erişimiyle.
+            Muhasebe programınıza, e-Fatura arşivinize ya da Excel'inize bağlanır; satış, stok, kâr ve yenilemeleri kendisi çözümler. Veri şirketinizin sunucusundan çıkmaz.
           </p>
           <ul className="mt-9 flex flex-col gap-4 text-[14px] text-white/80">
             {[
-              [ShieldCheck, 'Logo verisi değiştirilmez, yalnızca okunur'],
+              [ShieldCheck, 'Kaynak veriniz değiştirilmez, yalnızca okunur'],
               [BellRing, 'Süresi dolan lisanslar için zamanında hatırlatma'],
-              [FileSpreadsheet, 'Her tablo ve rapor tek tıkla Excel’de'],
+              [FileSpreadsheet, 'Her tablo ve rapor tek tıkla Excel ve PDF olarak'],
             ].map(([Ikon, metin]) => {
               const I = Ikon as typeof ShieldCheck
               return (

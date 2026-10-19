@@ -154,7 +154,7 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
             <span className="flex gap-2">{inp('data_start_date', { type: 'date' })}
               <Button variant="ghost" onClick={() => setS({ ...s, data_start_date: '' })}>Tümü</Button></span>
           </Field>
-          <Field label="Otomatik senkron saatleri" hint="Günün hangi saatlerinde Logo'dan veri çekilsin? Virgülle: 9,12,15,18">{inp('sync_hours')}</Field>
+          <Field label="Otomatik senkron saatleri" hint="Günün hangi saatlerinde kaynaktan veri çekilsin? Virgülle: 9,12,15,18">{inp('sync_hours')}</Field>
           <label className="flex items-center gap-2 text-[13.5px]">
             <input type="checkbox" checked={s.logo_auto_sync === 'ON'} onChange={(e) => setS({ ...s, logo_auto_sync: e.target.checked ? 'ON' : 'OFF' })} className="accent-[var(--brand)]" />
             Otomatik senkron açık
@@ -200,7 +200,7 @@ function DataSource({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
 interface Rule { id: number; field: string; pattern: string; value: string }
 interface Review { item_ref: number; name: string; code: string; brand: string; brand_src: string; category: string; category_src: string; sales_tl: number }
 const ALAN: Record<string, string> = { brand: 'Marka', category: 'Kategori', revenue_type: 'Gelir tipi' }
-const KAYNAK: Record<string, string> = { kural: 'kural', logo: 'Logo kartı', sozluk: 'sözlük', tahmin: 'tahmin', yok: 'bulunamadı' }
+const KAYNAK: Record<string, string> = { kural: 'kural', logo: 'kaynak sistemdeki kart', sozluk: 'sözlük', tahmin: 'tahmin', yok: 'bulunamadı' }
 
 function Classification() {
   const rules = useAsync(() => api.get<Rule[]>('/api/kurallar'), [])
@@ -219,7 +219,7 @@ function Classification() {
   return (
     <div className="flex flex-col gap-5">
       <Panel title="Sınıflandırma kuralları"
-        hint="Ürün adında ya da kodunda geçen bir metne göre marka, kategori veya gelir tipi atar. Kurallar Logo kartındaki bilgiden ve yerleşik sözlükten önce gelir.">
+        hint="Ürün adında ya da kodunda geçen bir metne göre marka, kategori veya gelir tipi atar. Kurallar kaynak sistemdeki ürün kartı bilgisinden ve yerleşik sözlükten önce gelir.">
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Alan">
             <select value={yeni.field} onChange={(e) => setYeni({ ...yeni, field: e.target.value })} className={cn(inputCls, 'w-36')}>

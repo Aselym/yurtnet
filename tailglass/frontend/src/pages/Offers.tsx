@@ -65,7 +65,7 @@ export default function OffersPage() {
 
   return (
     <div>
-      <PageHeader title="Teklifler" subtitle="Logo'ya düşmeyen, satış ekibinin verdiği teklifler. Kabul/ret durumu satıra tıklamadan güncellenir."
+      <PageHeader title="Teklifler" subtitle="Henüz faturaya dönüşmemiş, satış ekibinin verdiği teklifler. Kabul/ret durumu satıra tıklamadan güncellenir."
         actions={<Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setYeni(true)}>Yeni teklif</Button>} />
       {res.error && <ErrorBox message={res.error} onRetry={res.reload} />}
       {!res.data && res.loading && <Loading />}
