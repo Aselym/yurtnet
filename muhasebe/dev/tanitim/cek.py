@@ -57,7 +57,7 @@ def main():
         # ------------------------------------------------------------ giris
         pg.goto(B)
         bekle()
-        sahne('Giriş', 'Bu video, Logo verisiyle çalışan satış, stok ve lisans takip uygulamasını baştan sona tanıtıyor. '
+        sahne('Giriş', 'Bu video, Logo verisiyle çalışan Tailglass Analytics uygulamasını baştan sona tanıtıyor. '
               'Uygulama şirket ağındaki sunucuda çalışır, tarayıcıdan kullanıcı adı ve şifreyle girilir.')
         pg.locator('input').nth(0).fill('admin')
         pg.locator('input[type=password]').fill('Aa123456')
@@ -228,9 +228,9 @@ def main():
         adim(lambda: (pg.get_by_role('button', name='Sınıflandırma').click(), bekle(1.5)))
         sahne('Ayarlar: sınıflandırma', 'Sınıflandırma bölümünde marka ve kategorisi yanlış tahmin edilen ürünler listelenir. Tek tıkla kural '
               'eklenir; kural Logo kartından ve sözlükten önce gelir ve geçmiş verinin tamamına uygulanır.')
-        adim(lambda: (pg.get_by_role('button', name='Şirket ve görünüm').click(), bekle(1)))
-        sahne('Ayarlar: şirket', 'Şirket adı, uygulama adı, marka rengi ve e-postalardaki bağlantı adresi buradan değişir. Aynı program '
-              'Pusula adıyla başka işletmeler için de hazırlandı.')
+        adim(lambda: (pg.get_by_role('button', name='Şirket').click(), bekle(1)))
+        sahne('Ayarlar: şirket', 'Şirket bölümünde lisans sahibi şirketin adı ve logosu girilir; sol üstte ve giriş ekranında görünür. '
+              'Tailglass Analytics her şirkete kendi adı ve logosuyla kurulur.')
 
         # ------------------------------------------------------------ koyu tema + kapanis
         git('genel')

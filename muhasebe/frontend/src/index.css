@@ -5,25 +5,26 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
-  "Defter" — muhasebe defteri esinli calisma masasi.
-  Zemin: soguk adacayi tonu + ince kareli kagit. Paneller beyaz.
-  Turuncu (marka) yalnizca aksiyon ve secim icindir; veri renkleri
-  dataviz paletinden gelir ve dogrulanmistir.
+  Tailglass Analytics — "Defter" calisma masasi.
+  Marka: siyah / turkuaz / beyaz. Zemin: serin, hafif turkuaza calan gri +
+  ince kareli kagit. Turkuaz yalnizca aksiyon ve secim icindir; dugmelerde
+  turkuaz uzerine siyah yazi (okunurluk). Veri renkleri dataviz paletinden.
 */
 :root {
-  --canvas: #e9eee9;
-  --grid: rgba(29, 43, 37, 0.055);
-  --surface: #fbfcfb;
-  --surface-2: #f2f5f3;
-  --surface-3: #e6ece8;
-  --ink: #1d2b25;
-  --ink-2: #4f5d57;
-  --muted: #7d8a84;
-  --line: #dde4df;
-  --line-strong: #c6d0ca;
-  --brand: #f2691f;
-  --brand-ink: #a8410c;
-  --brand-soft: #fdeee4;
+  --canvas: #e8eeed;
+  --grid: rgba(11, 15, 14, 0.05);
+  --surface: #fbfcfc;
+  --surface-2: #f1f5f4;
+  --surface-3: #e4ebea;
+  --ink: #0f1716;
+  --ink-2: #4a5856;
+  --muted: #7a8886;
+  --line: #dbe3e2;
+  --line-strong: #c3cecc;
+  --brand: #1fc8b6;
+  --on-brand: #0b0f0e;
+  --brand-ink: #0b7d72;
+  --brand-soft: #dcf5f1;
   --pos: #1f7a4d;
   --neg: #c4372f;
   --focus: #2a78d6;
@@ -41,18 +42,20 @@
 }
 
 :root[data-theme="dark"] {
-  --canvas: #0f1412;
-  --grid: rgba(232, 238, 233, 0.035);
-  --surface: #171d1a;
-  --surface-2: #1d2420;
-  --surface-3: #262e29;
-  --ink: #e8eee9;
-  --ink-2: #b9c4be;
-  --muted: #84918b;
-  --line: #2a332e;
-  --line-strong: #3a453f;
-  --brand-ink: #ff9a5c;
-  --brand-soft: #3a2217;
+  --canvas: #0b0f0e;
+  --grid: rgba(230, 245, 242, 0.035);
+  --surface: #131918;
+  --surface-2: #19211f;
+  --surface-3: #222c2a;
+  --ink: #eef5f4;
+  --ink-2: #b6c4c1;
+  --muted: #82918e;
+  --line: #26302e;
+  --line-strong: #36423f;
+  --brand: #2dd4bf;
+  --on-brand: #0b0f0e;
+  --brand-ink: #5ee6d3;
+  --brand-soft: #0f2c28;
   --pos: #3fbf7f;
   --neg: #ef6b62;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
@@ -77,6 +80,7 @@
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
   --color-pos: var(--pos);
   --color-neg: var(--neg);
 }

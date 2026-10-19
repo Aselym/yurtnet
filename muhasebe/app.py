@@ -142,9 +142,13 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         if path in ('/', '/index.html', '/login', '/dashboard'):
             self._send_file(os.path.join(STATIC_DIR, 'index.html'), 'text/html; charset=utf-8')
             return
-        elif path == '/favicon.ico':
-            logo_path = os.path.join(STATIC_DIR, 'images', 'logo2.png') if os.path.exists(os.path.join(STATIC_DIR, 'images', 'logo2.png')) else os.path.join(STATIC_DIR, 'images', 'logo.png')
-            self._send_file(logo_path, 'image/png')
+        elif path in ('/favicon.ico', '/favicon.svg'):
+            self._send_file(os.path.join(STATIC_DIR, 'images', 'tailglass-mark.svg'), 'image/svg+xml')
+            return
+        elif path == '/api/brand':
+            # Giris ekrani icin, oturum gerektirmez: yalnizca sirket adi ve logosu
+            a = get_settings()
+            self._send_json({k: a.get(k) or '' for k in ('company_name', 'company_logo', 'company_logo_dark')})
             return
         elif path.startswith('/static/'):
             rel_path = path[8:]
@@ -612,12 +616,12 @@ def run_server():
     except (OSError, AttributeError):
         server = ThreadingHTTPServer(('0.0.0.0', PORT), LicenseReminderHTTPHandler)
     server.daemon_threads = True
-    ad = get_settings().get('app_name') or 'Lisans Takip'
+    ad = 'Tailglass Analytics'
     print("============================================================")
     print(f"  {ad}")
     print(f"  Adres: http://localhost:{PORT}")
     print("============================================================")
-    send_windows_toast(get_settings().get('app_name') or 'Lisans Takip', "Uygulama çalışıyor")
+    send_windows_toast('Tailglass Analytics', "Uygulama çalışıyor")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

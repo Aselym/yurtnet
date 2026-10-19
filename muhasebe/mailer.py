@@ -5,7 +5,8 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from database import get_db_connection
 
-MARKA = '#f2691f'
+MARKA = '#0f9e8f'   # Tailglass turkuazi (beyaz zeminde okunur tonu)
+URUN = 'Tailglass Analytics'
 METIN = '#1a1a1c'
 SOLUK = '#55555e'
 CIZGI = '#e6e6e9'
@@ -103,7 +104,7 @@ def lisans_maili(sale_data):
         eylem = 'Yenileme teklifi hazırlamak için uygun zaman.'
 
     ayarlar = get_settings()
-    uygulama = html.escape(ayarlar.get('app_name') or 'Lisans Takip')
+    uygulama = URUN
     taban = (ayarlar.get('app_public_url') or '').strip().rstrip('/')
     # Mailden tek tikla uygulamada o lisansa gidilsin (sunumdaki istek)
     dugme = ''
@@ -164,7 +165,7 @@ def smtp_gonder(settings, recipients, subject, body_html):
         smtp_user = settings.get('smtp_user', '')
         smtp_password = settings.get('smtp_password', '')
         sender_email = settings.get('sender_email') or smtp_user
-        sender_name = settings.get('sender_name') or settings.get('app_name') or 'Lisans Takip'
+        sender_name = settings.get('sender_name') or URUN
 
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
@@ -199,15 +200,15 @@ def send_test_email(recipients=None):
         return False, "Alıcı yok. Önce iç bildirim adreslerini girin."
 
     zaman = datetime.now().strftime('%d.%m.%Y %H:%M')
-    uygulama = settings.get('app_name') or 'Lisans Takip'
+    uygulama = URUN
     subject = f"Test: {uygulama} e-posta ayarları çalışıyor"
     body_html = f'''<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;
      border:1px solid #e6e6e9;border-radius:12px;padding:24px;color:#1a1a1c">
-  <h2 style="margin:0 0 6px;color:#f2691f;font-size:19px">Test e-postası</h2>
+  <h2 style="margin:0 0 6px;color:{MARKA};font-size:19px">Test e-postası</h2>
   <p style="margin:0 0 16px;color:#55555e;font-size:14px">
     Bu mesajı görüyorsanız SMTP ayarlarınız doğru çalışıyor. Lisans yenileme hatırlatmaları bu adrese ulaşacak.
   </p>
-  <div style="background:#fafafa;border-left:3px solid #f2691f;padding:12px 14px;
+  <div style="background:#fafafa;border-left:3px solid {MARKA};padding:12px 14px;
        border-radius:6px;font-size:13px;color:#55555e">
     Gönderim zamanı: <strong style="color:#1a1a1c">{zaman}</strong><br>
     Sunucu: <strong style="color:#1a1a1c">{settings.get('smtp_host', '-')}</strong>

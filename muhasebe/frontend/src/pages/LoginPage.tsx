@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Button, inputCls } from '../components/ui'
+import { CompanyBadge, TailglassLogo } from '../components/Brand'
 
 export function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [marka, setMarka] = useState<{ company_name?: string; company_logo?: string; company_logo_dark?: string }>({})
+  useEffect(() => { api.get<typeof marka>('/api/brand').then(setMarka, () => {}) }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,9 +28,9 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="grid min-h-full place-items-center px-4 py-10">
       <div className="ledger-in w-full max-w-[400px]">
-        <div className="mb-7 flex items-center gap-3">
-          <img src="/static/images/logo.png" alt="" className="h-8 dark:hidden" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          <img src="/static/images/logo-dark.png" alt="" className="hidden h-8 dark:block" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        <div className="mb-7 flex items-center justify-between gap-4">
+          <TailglassLogo size={36} />
+          <CompanyBadge name={marka.company_name} logo={marka.company_logo} logoDark={marka.company_logo_dark} className="opacity-90" />
         </div>
         <form onSubmit={submit} className="panel p-7">
           <h1 className="display text-[28px] leading-tight font-semibold">Hesabınıza girin</h1>

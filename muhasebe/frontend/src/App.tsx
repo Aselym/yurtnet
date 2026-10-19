@@ -81,7 +81,7 @@ class SayfaHatasi extends Component<{ children: ReactNode }, { hata: Error | nul
           {surum ? 'Sunucuda yeni sürüm kurulmuş. Sayfayı yenileyince devam edebilirsiniz.' : 'Sayfayı yenilemek genellikle sorunu çözer. Tekrarlarsa sistem yöneticisine bu mesajı iletin: '}
           {!surum && <code className="text-[12px]">{this.state.hata.message}</code>}
         </p>
-        <button onClick={() => window.location.reload()} className="mt-4 h-9 rounded-[var(--radius-ctl)] bg-brand px-3.5 text-sm font-medium text-white">Sayfayı yenile</button>
+        <button onClick={() => window.location.reload()} className="mt-4 h-9 rounded-[var(--radius-ctl)] bg-brand px-3.5 text-sm font-medium text-on-brand">Sayfayı yenile</button>
       </div>
     )
   }

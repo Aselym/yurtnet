@@ -1,3 +1,4 @@
+import { CompanyBadge, PRODUCT, TailglassLogo, TailglassMark } from './Brand'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   BarChart3, Boxes, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Moon,
@@ -54,20 +55,17 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
     try { localStorage.setItem('defter.tema', dark ? 'koyu' : 'acik') } catch { /* yok say */ }
   }, [dark])
 
-  const appName = meta?.settings?.app_name || 'Lisans ve Satış Analizi'
   const company = meta?.settings?.company_name || ''
 
   return (
     <div className="flex h-full">
       <aside className="no-print flex w-[232px] shrink-0 flex-col border-r border-line bg-surface/85 backdrop-blur max-lg:w-[68px]">
-        <div className="flex items-center gap-2.5 px-4 pt-5 pb-4">
-          <img src="/static/images/logo.png" alt="" className="h-7 w-auto dark:hidden max-lg:h-6" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          <img src="/static/images/logo-dark.png" alt="" className="hidden h-7 w-auto dark:block max-lg:h-6" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        {/* Lisans sahibi sirket (Ayarlar > Sirket). Urun markasi sag ustte. */}
+        <div className="px-4 pt-5 pb-3 max-lg:hidden">
+          <CompanyBadge name={company} logo={meta?.settings?.company_logo} logoDark={meta?.settings?.company_logo_dark} />
+          {company && meta?.settings?.company_logo && <p className="mt-1.5 truncate text-[12px] text-muted">{company}</p>}
         </div>
-        <div className="px-4 pb-3 max-lg:hidden">
-          <p className="display text-[17px] leading-tight font-semibold text-ink">{appName}</p>
-          {company && <p className="text-[12px] text-muted">{company}</p>}
-        </div>
+        <div className="hidden justify-center pt-4 pb-2 max-lg:flex"><TailglassMark size={30} /></div>
         <nav className="scroll-thin flex-1 overflow-y-auto px-2.5 pb-4" aria-label="Ana menü">
           {NAV.map((g) => (
             <div key={g.group} className="mt-3">
@@ -107,8 +105,8 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {!DONEMSIZ.has(page) && (
-          <div className="no-print sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-canvas/90 px-6 py-2.5 max-sm:px-3 backdrop-blur max-md:flex-wrap">
+        <div className="no-print sticky top-0 z-30 flex items-center gap-x-4 gap-y-2 border-b border-line bg-canvas/90 px-6 py-2.5 max-sm:px-3 backdrop-blur max-md:flex-wrap">
+          {!DONEMSIZ.has(page) && <>
             <PeriodStrip />
             <Segmented<Currency> value={currency} onChange={setCurrency} options={[
               { value: 'TL', label: '₺ TL', title: 'Tutarlar Türk lirası' },
@@ -116,8 +114,12 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
               { value: 'BOTH', label: 'İkisi', title: 'TL ve USD yan yana' },
             ]} />
             <SyncButton />
-          </div>
-        )}
+          </>}
+          <a href="#/genel" className="ml-auto flex h-[52px] shrink-0 items-center pl-2 max-md:h-9" aria-label={`${PRODUCT} ana sayfa`}>
+            <span className="max-xl:hidden"><TailglassLogo size={30} /></span>
+            <span className="xl:hidden"><TailglassLogo size={32} compact /></span>
+          </a>
+        </div>
         <main className="scroll-thin min-w-0 flex-1 overflow-y-auto px-6 pt-6 max-sm:px-3 pb-16">{children}</main>
       </div>
     </div>

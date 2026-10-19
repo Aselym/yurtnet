@@ -154,8 +154,8 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
   ]
   const d = delta(s[`m_${m}`], p?.[`m_${m}`])
   return (
-    <section className="panel ledger-in grid grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <div className="border-b border-line p-6 lg:border-r lg:border-b-0">
+    <section className="panel ledger-in grid grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="border-b border-line p-6 xl:border-r xl:border-b-0">
         <p className="text-[13px] font-medium text-ink-2">Satış (iadeler düşülmüş)</p>
         <p className="display tnum mt-1 text-[44px] leading-none font-semibold text-ink max-sm:text-[34px]">{fmt(s[`m_${m}`], t)}</p>
         <p className="mt-1.5 text-[13px] text-ink-2">{fmtSpoken(s[`m_${m}`], t)}</p>
@@ -184,9 +184,9 @@ function Statement({ g, m, t, currency }: { g: Overview; m: string; t: 'tl' | 'u
           </div>
         </div>
       </div>
-      <dl className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <dl className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
         {items.map((it) => (
-          <div key={it.label} className="border-b border-line p-5 min-[420px]:even:border-l sm:[&:not(:nth-child(3n+1))]:border-l lg:[&:nth-child(odd)]:border-l-0 lg:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
+          <div key={it.label} className="border-b border-line p-5 min-[420px]:even:border-l sm:[&:not(:nth-child(3n+1))]:border-l sm:[&:nth-child(3n+1)]:border-l-0 xl:[&:nth-child(odd)]:border-l-0 xl:[&:nth-child(even)]:border-l 2xl:[&:nth-child(even)]:border-l-0 2xl:[&:not(:nth-child(3n+1))]:border-l">
             <dt className="flex items-center gap-1.5 text-[13px] text-ink-2">{it.label}{it.hint && <InfoTip>{it.hint}</InfoTip>}</dt>
             <dd className="mt-1 text-[20px] font-semibold text-ink">
               {it.raw !== undefined ? <Figure value={it.raw} type={t} /> : <span className="tnum">{it.value}</span>}

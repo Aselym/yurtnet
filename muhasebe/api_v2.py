@@ -23,8 +23,12 @@ YAZILABILIR = {
     'logo_sql_server', 'logo_sql_port', 'logo_sql_db', 'logo_sql_user', 'logo_sql_pass', 'logo_firm_no',
     'logo_period_no', 'logo_auto_sync', 'logo_source', 'demo_db_path', 'data_start_date', 'license_min_expiry',
     'reminder_days', 'expiring_soon_days', 'sub_min_invoices', 'sub_max_interval_days', 'sub_risk_factor',
-    'app_public_url', 'company_name', 'app_name', 'brand_color', 'base_currency', 'sync_hours', 'pinned_brands',
+    'app_public_url', 'company_name', 'base_currency', 'sync_hours', 'pinned_brands',
+    'company_logo', 'company_logo_dark',
 }
+LOGO_ANAHTARLARI = {'company_logo', 'company_logo_dark'}
+LOGO_TIPLERI = ('data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/webp;base64,', 'data:image/svg+xml;base64,')
+LOGO_AZAMI = 400 * 1024   # data URL uzunlugu; ~300 KB gorsel
 
 
 def ayarlari_oku():
@@ -43,6 +47,11 @@ def ayarlari_yaz(veri):
                 continue
             if k in SIFRELER and (v is None or v == ''):
                 continue                      # bos gelen sifre mevcut sifreyi silmez
+            if k in LOGO_ANAHTARLARI and v:
+                if not isinstance(v, str) or not v.startswith(LOGO_TIPLERI):
+                    raise ValueError('Logo PNG, JPG, WEBP ya da SVG olmalı.')
+                if len(v) > LOGO_AZAMI:
+                    raise ValueError('Logo dosyası çok büyük (en fazla ~300 KB).')
             conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (k, str(v)))
         conn.commit()
     finally:
@@ -137,7 +146,7 @@ def _handle(h, method, path, query, body):
         if path == '/api/meta':
             a = ayarlari_oku()
             h._send_json({**analytics.meta(), 'data': analytics.veri_araligi(), 'settings': {
-                k: a.get(k) for k in ('app_name', 'company_name', 'brand_color', 'base_currency',
+                k: a.get(k) for k in ('company_name', 'company_logo', 'company_logo_dark', 'base_currency',
                                       'expiring_soon_days', 'reminder_days', 'logo_source', 'pinned_brands',
                                       'data_start_date', 'app_public_url')}})
             return True

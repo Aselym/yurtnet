@@ -221,13 +221,14 @@ def init_db():
         ('sub_risk_factor', '2.0'),
         ('app_public_url', ''),
         ('company_name', 'Piramit Bilgisayar'),
-        ('app_name', 'Piramit Lisans Takip'),
-        ('brand_color', '#f2691f'),
+        ('company_logo', ''),              # data URL; Ayarlar > Sirket'ten yuklenir
+        ('company_logo_dark', ''),
         ('base_currency', 'TRY'),
         ('sync_hours', '11,15,17'),
     ]
     for key, val in default_settings:
         cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, val))
+    _sirket_logosu_tasi(cursor)
 
     conn.commit()
     conn.close()
@@ -351,6 +352,20 @@ def calculate_dates(sale_date_str, duration_months):
     
     expiration_date = datetime(year, month, day)
     return expiration_date.strftime('%Y-%m-%d')
+
+def _sirket_logosu_tasi(cursor):
+    """Urun adi artik sabit (Tailglass Analytics); eski kurulumlarin
+    static/images altindaki sirket logosu bir kez ayara tasinir, boylece logo
+    arayuz derlemesinden bagimsiz olur ve Ayarlar'dan degistirilebilir."""
+    import base64
+    gorseller = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images')
+    for anahtar, dosya in (('company_logo', 'logo.png'), ('company_logo_dark', 'logo-dark.png')):
+        mevcut = cursor.execute('SELECT value FROM settings WHERE key = ?', (anahtar,)).fetchone()
+        yol = os.path.join(gorseller, dosya)
+        if mevcut and not mevcut[0] and os.path.exists(yol) and os.path.getsize(yol) < 300 * 1024:
+            veri = 'data:image/png;base64,' + base64.b64encode(open(yol, 'rb').read()).decode('ascii')
+            cursor.execute('UPDATE settings SET value = ? WHERE key = ?', (veri, anahtar))
+
 
 def sure_dolmuslari_isaretle():
     """Bitis tarihi gecmis lisanslari EXPIRED yapar.

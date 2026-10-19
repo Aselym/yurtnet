@@ -20,7 +20,7 @@ export function Button({ variant = 'secondary', size = 'md', loading, icon, chil
       className={cn(
         'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-ctl)] font-medium transition-colors disabled:opacity-50',
         size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-9 px-3.5 text-sm',
-        variant === 'primary' && 'bg-brand text-white hover:brightness-95',
+        variant === 'primary' && 'bg-brand font-semibold text-on-brand hover:brightness-105',
         variant === 'secondary' && 'border border-line-strong bg-surface text-ink hover:bg-surface-2',
         variant === 'ghost' && 'text-ink-2 hover:bg-surface-2 hover:text-ink',
         variant === 'danger' && 'border border-neg/40 bg-surface text-neg hover:bg-neg/5',
@@ -180,7 +180,7 @@ export function OptionList({ options, selected, onToggle, loading, search, onSea
                 className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] hover:bg-surface-2"
               >
                 <span className={cn('flex size-4 shrink-0 items-center justify-center rounded border',
-                  on ? 'border-brand bg-brand text-white' : 'border-line-strong')}>
+                  on ? 'border-brand bg-brand text-on-brand' : 'border-line-strong')}>
                   {on && <Check className="size-3" strokeWidth={3} />}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-ink">{o.label ?? o.value}</span>

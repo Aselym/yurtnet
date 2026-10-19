@@ -134,7 +134,7 @@ function ValuePicker({ dim, onBack, onDone }: { dim: string; onBack?: () => void
       <div className="flex items-center justify-between border-t border-line px-3 py-2">
         <button onClick={() => setSelected([])} className="text-[13px] text-ink-2 hover:text-ink">Seçimi temizle</button>
         <button onClick={() => { setFilter(dim, selected.length ? (not ? { not: true, values: selected } : selected) : null); onDone() }}
-          className="h-8 rounded-[var(--radius-ctl)] bg-brand px-3 text-[13px] font-medium text-white">
+          className="h-8 rounded-[var(--radius-ctl)] bg-brand px-3 text-[13px] font-semibold text-on-brand">
           Uygula{selected.length ? ` (${selected.length})` : ''}
         </button>
       </div>

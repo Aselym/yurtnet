@@ -80,12 +80,10 @@ export function StateProvider({ children }: { children: ReactNode }) {
     reloadMeta()
   }, [reloadMeta])
 
-  // Marka rengi ayarlardan: beyaz etiket / farkli isletme kullanimi icin
+  // Urun adi sabit; sekme basliginda lisans sahibi sirket de gorunur
   useEffect(() => {
-    const c = meta?.settings?.brand_color
-    if (c && /^#[0-9a-f]{6}$/i.test(c)) document.documentElement.style.setProperty('--brand', c)
-    const ad = meta?.settings?.app_name
-    if (ad) document.title = ad
+    const sirket = meta?.settings?.company_name
+    document.title = sirket ? `Tailglass Analytics — ${sirket}` : 'Tailglass Analytics'
   }, [meta])
 
   const value = useMemo<Ctx>(() => ({

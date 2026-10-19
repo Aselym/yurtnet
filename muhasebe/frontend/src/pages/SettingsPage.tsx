@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Database, Mail, Palette, Rows3, Shapes, ShieldCheck, Trash2, Users2 } from 'lucide-react'
+import { Building2, Database, Mail, Rows3, Shapes, ShieldCheck, Trash2, Users2 } from 'lucide-react'
 import { api, type ActionResult, type SyncLog } from '../lib/api'
 import { fmt } from '../lib/format'
 import { useAsync, useLocal } from '../lib/hooks'
@@ -14,7 +14,7 @@ const BOLUMLER = [
   { key: 'sinif', label: 'Sınıflandırma', icon: Shapes },
   { key: 'grup', label: 'Firma grupları', icon: Users2 },
   { key: 'eposta', label: 'E-posta', icon: Mail },
-  { key: 'gorunum', label: 'Şirket ve görünüm', icon: Palette },
+  { key: 'gorunum', label: 'Şirket', icon: Building2 },
   { key: 'hesap', label: 'Hesap', icon: ShieldCheck },
 ]
 
@@ -79,19 +79,14 @@ export default function SettingsPage() {
           {res.data && bolum === 'grup' && <Groups />}
           {res.data && bolum === 'eposta' && <EmailSettings s={s} inp={inp} save={save} busy={busy} />}
           {res.data && bolum === 'gorunum' && (
-            <Panel title="Şirket ve görünüm" hint="Program başka bir işletmede kullanılırsa adı, şirket adı ve rengi buradan değiştirilir.">
+            <Panel title="Şirket" hint="Tailglass Analytics bu şirket adına çalışır. Ad ve logo sol üstte, giriş ekranında ve sekme başlığında görünür.">
               <div className="grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
-                <Field label="Uygulama adı">{inp('app_name')}</Field>
                 <Field label="Şirket adı">{inp('company_name')}</Field>
-                <Field label="Marka rengi" hint="Düğmeler ve seçim vurgusu.">
-                  <span className="flex items-center gap-2">
-                    <input type="color" value={String(s.brand_color || '#f2691f')} onChange={(e) => setS({ ...s, brand_color: e.target.value })} className="h-9 w-12 rounded border border-line-strong" />
-                    {inp('brand_color')}
-                  </span>
-                </Field>
                 <Field label="Sabit marka sekmeleri" hint="Ürünler ve stok sayfasında sekme olarak görünen markalar. Virgülle ayırın.">{inp('pinned_brands')}</Field>
+                <LogoAlani etiket="Şirket logosu" ipucu="Açık zemin için. PNG, JPG, WEBP ya da SVG; en fazla ~300 KB." deger={s.company_logo} degistir={(v) => setS({ ...s, company_logo: v })} />
+                <LogoAlani etiket="Koyu tema logosu" ipucu="İsteğe bağlı. Boşsa koyu temada da yukarıdaki logo kullanılır." deger={s.company_logo_dark} degistir={(v) => setS({ ...s, company_logo_dark: v })} koyu />
               </div>
-              <Button variant="primary" className="mt-6" loading={busy} onClick={() => save(['app_name', 'company_name', 'brand_color', 'pinned_brands'])}>Kaydet</Button>
+              <Button variant="primary" className="mt-6" loading={busy} onClick={() => save(['company_name', 'pinned_brands', 'company_logo', 'company_logo_dark'])}>Kaydet</Button>
             </Panel>
           )}
           {res.data && bolum === 'hesap' && <Account />}
@@ -334,5 +329,32 @@ function Account() {
         } catch (e) { toast.err(e instanceof Error ? e.message : 'Güncellenemedi.') } finally { setBusy(false) }
       }}>Hesabı güncelle</Button>
     </Panel>
+  )
+}
+
+function LogoAlani({ etiket, ipucu, deger, degistir, koyu }: {
+  etiket: string; ipucu: string; deger: unknown; degistir: (v: string) => void; koyu?: boolean
+}) {
+  const sec = (f: File | undefined) => {
+    if (!f) return
+    if (f.size > 300 * 1024) { toast.err('Logo dosyası çok büyük (en fazla ~300 KB).'); return }
+    const r = new FileReader()
+    r.onload = () => degistir(String(r.result))
+    r.readAsDataURL(f)
+  }
+  const v = typeof deger === 'string' ? deger : ''
+  return (
+    <Field label={etiket} hint={ipucu}>
+      <div className="flex items-center gap-3">
+        <span className={cn('grid h-14 w-40 place-items-center rounded-lg border border-line-strong p-2', koyu ? 'bg-[#0b0f0e]' : 'bg-white')}>
+          {v ? <img src={v} alt="" className="max-h-full max-w-full object-contain" /> : <span className={cn('text-[12px]', koyu ? 'text-[#82918e]' : 'text-muted')}>Logo yok</span>}
+        </span>
+        <label className="cursor-pointer text-[13px] font-medium text-brand-ink hover:underline">
+          Dosya seç
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => sec(e.target.files?.[0])} />
+        </label>
+        {v && <button onClick={() => degistir('')} className="text-[13px] text-ink-2 hover:text-neg">Kaldır</button>}
+      </div>
+    </Field>
   )
 }
