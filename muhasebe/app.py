@@ -1,6 +1,7 @@
 import os
 import json
 import socket
+import time
 import uuid
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -17,6 +18,27 @@ PORT = int(os.environ.get("MUHASEBE_PORT") or 5000)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 ACTIVE_SESSIONS = set()
+
+# Sifre tahminine karsi: ayni adresten art arda 5 hatali giris -> 60 sn bekleme
+_HATALI_GIRIS = {}          # ip -> (sayi, son_hata_zamani)
+GIRIS_HAK, GIRIS_CEZA_SN = 5, 60
+
+
+def _giris_bekleme(ip):
+    sayi, zaman = _HATALI_GIRIS.get(ip, (0, 0))
+    kalan = int(GIRIS_CEZA_SN - (time.time() - zaman))
+    if sayi >= GIRIS_HAK and kalan > 0:
+        return kalan
+    if sayi >= GIRIS_HAK:
+        _HATALI_GIRIS.pop(ip, None)
+    return 0
+
+
+def _giris_hatasi(ip):
+    sayi, zaman = _HATALI_GIRIS.get(ip, (0, 0))
+    if time.time() - zaman > 900:        # 15 dk sessizlik: sayac bastan
+        sayi = 0
+    _HATALI_GIRIS[ip] = (sayi + 1, time.time())
 
 # Uygulama normalde ayni origin'den servis ediliyor (React build'i static/
 # altina konup ayni Python sunucusundan sunuluyor) — gercek kullanimda CORS
@@ -322,15 +344,25 @@ class LicenseReminderHTTPHandler(BaseHTTPRequestHandler):
         if path in ('/api/login', '/login'):
             username = body_data.get('username')
             password = body_data.get('password') or ''
+            ip = self.client_address[0]
+            bekle = _giris_bekleme(ip)
+            if bekle:
+                self._send_json({'success': False, 'message': f'Çok fazla hatalı deneme. {bekle} saniye sonra tekrar deneyin.',
+                                 'retry_after': bekle}, 429)
+                return
 
             admin_user, admin_salt, admin_hash = _get_credentials()
             if username == admin_user and verify_password(password, admin_salt, admin_hash):
+                _HATALI_GIRIS.pop(ip, None)
                 token = str(uuid.uuid4())
                 ACTIVE_SESSIONS.add(token)
                 cookie_header = f"session_token={token}; Path=/; HttpOnly; SameSite=Lax"
+                if body_data.get('remember'):
+                    cookie_header += '; Max-Age=2592000'     # 30 gun; tarayici kapansa da surer
                 self._send_json({'success': True, 'redirect': '/dashboard', 'message': 'Giriş başarılı.'}, 200, {'Set-Cookie': cookie_header})
             else:
-                self._send_json({'success': False, 'message': 'Kullanıcı adı veya şifre hatalı!'}, 401)
+                _giris_hatasi(ip)
+                self._send_json({'success': False, 'message': 'Kullanıcı adı veya şifre hatalı.'}, 401)
             return
 
         if path in ('/api/logout', '/logout'):

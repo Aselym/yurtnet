@@ -25,14 +25,14 @@ export function TailglassMark({ size = 28, className, tile }: { size?: number; c
 }
 
 /** Isaret + "Tailglass Analytics" yazisi. Renkler temaya uyar. */
-export function TailglassLogo({ size = 28, compact, className }: { size?: number; compact?: boolean; className?: string }) {
+export function TailglassLogo({ size = 28, compact, className, onDark }: { size?: number; compact?: boolean; className?: string; onDark?: boolean }) {
   return (
-    <span className={cn('inline-flex items-center text-ink', className)} style={{ gap: size * 0.32 }} title={PRODUCT}>
+    <span className={cn('inline-flex items-center', onDark ? 'text-white' : 'text-ink', className)} style={{ gap: size * 0.32 }} title={PRODUCT}>
       <TailglassMark size={size} />
       {!compact && (
         <span className="wordmark leading-none whitespace-nowrap" style={{ fontSize: size * 0.66 }}>
           <span className="font-[620] tracking-[-0.025em]">Tailglass</span>
-          <span className="ml-[0.24em] font-[420] tracking-[-0.01em] text-muted">Analytics</span>
+          <span className={cn('ml-[0.24em] font-[420] tracking-[-0.01em]', onDark ? 'text-white/55' : 'text-muted')}>Analytics</span>
         </span>
       )}
     </span>
