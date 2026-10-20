@@ -7,6 +7,7 @@ import { Loading, Toaster } from './components/ui'
 import { LoginPage } from './pages/LoginPage'
 
 const Overview = lazy(() => import('./pages/Overview'))
+const Studio = lazy(() => import('./pages/Studio'))
 const Movements = lazy(() => import('./pages/Movements'))
 const Stock = lazy(() => import('./pages/Stock'))
 const Customers = lazy(() => import('./pages/Customers'))
@@ -57,11 +58,15 @@ function Routed({ onLogout }: { onLogout: () => void }) {
       case 'teklifler': return <Offers />
       case 'temsilciler': return <Reps />
       case 'ayarlar': return <SettingsPage />
-      default: return <Overview />
+      case 'genel': return <Overview />
+      case 'studyo': return <Studio />
+      default: return <Studio />
     }
   })()
+  const bilinen = ['satislar', 'alislar', 'stok', 'musteriler', 'analiz', 'donem', 'lisanslar', 'abonelikler', 'teklifler', 'temsilciler', 'ayarlar', 'genel', 'studyo']
+  const etkin = bilinen.includes(page) ? page : 'studyo'
   return (
-    <Shell page={page} onLogout={onLogout}>
+    <Shell page={etkin} onLogout={onLogout}>
       <SayfaHatasi key={page}><Suspense fallback={<Loading />}>{sayfa}</Suspense></SayfaHatasi>
     </Shell>
   )

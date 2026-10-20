@@ -30,6 +30,14 @@ Son kontrol: 2026-10-19 (arayüz yenilemesi sonrası).
 - [x] Süresi girilmemiş lisanslar görünür ve kapatılabilir [17:13–17:30] — Genel bakış > Dikkat isteyenler > Süresi girilmeli; Lisanslar > Süre girilmeli (satıra tıkla, süre seç)
 - [x] İnternet hizmeti de tekrarlayan gelir [18:14–18:30] — Logo hizmet kartlarındaki internet/barındırma/bakım sözleşmesi hizmetleri "Tekrarlayan"; Ayarlar > Sınıflandırma ile değiştirilebilir. Gerçek Logo'daki hizmet adları canlıda doğrulanmalı.
 
+## 3b. Analiz stüdyosu (açılış sayfası) — kullanıcı isteği, 2026-10-20
+- [x] Açılışta sade, sunuma uygun bir çalışma alanı; karmaşık hazır analiz yok — Analiz stüdyosu
+- [x] Veri bloklarını sürükleyip ızgaraya bırakarak kendi analizini kurma (Scratch benzeri)
+- [x] Tarih aralığı, müşteri, ürün, lisans seçimini basit arayüzle kullanıcı yapar — sol panel
+- [x] Grafiklere anında Türkçe yorum, "bu aralık önemli zira…" — sağ panel (kural tabanlı; yapay zekâ API'si sonra)
+- [x] Not alma (analiz ve kart notu), kaydetme/açma, Excel (tüm analiz), grafiği görsel indirme, sunum modu
+- [ ] Analiz hakkında yapay zekâ sohbeti — API anahtarı gelince
+
 ## 4. Lisans hatırlatmaları
 - [x] Mailde uygulamaya link, tıklayınca o kayıt açılır [13:05] — Ayarlar > E-posta > Uygulama adresi
 - [x] Bitişten önce kademeli hatırlatma, günler ayarlanabilir [12:35–12:49] — Ayarlar > Takip kuralları

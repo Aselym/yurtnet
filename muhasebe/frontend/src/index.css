@@ -151,3 +151,13 @@
 
 /* Tailglass yazi logosu */
 .wordmark { font-family: "Instrument Sans Variable", "Onest Variable", ui-sans-serif, sans-serif; font-optical-sizing: auto; }
+
+/* Analiz Studyosu veri bloklari: Scratch esinli ust centik */
+.blok {
+  clip-path: polygon(0 0, 10px 0, 13px 4px, 21px 4px, 24px 0, 100% 0, 100% 100%, 0 100%);
+  padding-top: 3px;
+  border-radius: 2px;
+  transition: transform .12s ease, filter .12s ease;
+}
+.blok:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.blok:active { transform: translateY(0); }

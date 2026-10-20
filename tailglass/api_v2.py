@@ -208,6 +208,10 @@ def _handle(h, method, path, query, body):
             return True
         if path.startswith('/api/export/'):
             tur = path.rsplit('/', 1)[-1]
+            if tur == 'pano':
+                h._send_bytes(excel_export.pano_excel(body), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              _dosya_adi(body.get('ad') or 'Analiz'))
+                return True
             uretici = {'sorgu': excel_export.sorgu_excel, 'satirlar': excel_export.satirlar_excel,
                        'stok': excel_export.stok_excel, 'donem': excel_export.donem_excel}.get(tur)
             if not uretici:

@@ -1,7 +1,7 @@
 import { CompanyBadge, PRODUCT, TailglassLogo, TailglassMark } from './Brand'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  BarChart3, Boxes, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Moon,
+  BarChart3, Boxes, FileSpreadsheet, Shapes, FileText, LayoutDashboard, LogOut, Moon,
   PackageCheck, RefreshCw, Repeat, Settings, ShoppingCart, Sun, Truck, UserRound, Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -11,7 +11,7 @@ import { PeriodStrip } from './PeriodStrip'
 import { Segmented, cn, toast } from './ui'
 
 export const NAV: { group: string; items: { key: string; label: string; icon: typeof Users }[] }[] = [
-  { group: 'Özet', items: [{ key: 'genel', label: 'Genel bakış', icon: LayoutDashboard }] },
+  { group: 'Başlangıç', items: [{ key: 'studyo', label: 'Analiz stüdyosu', icon: Shapes }, { key: 'genel', label: 'Genel bakış', icon: LayoutDashboard }] },
   {
     group: 'Hareketler', items: [
       { key: 'satislar', label: 'Satışlar', icon: ShoppingCart },
@@ -45,7 +45,7 @@ export const PAGE_TITLE: Record<string, string> = Object.fromEntries(
 )
 
 // Donemden bagimsiz sayfalar ust seridi gostermez
-const DONEMSIZ = new Set(['ayarlar', 'teklifler', 'lisanslar', 'abonelikler'])
+const DONEMSIZ = new Set(['studyo', 'ayarlar', 'teklifler', 'lisanslar', 'abonelikler'])
 
 export function Shell({ page, children, onLogout }: { page: string; children: ReactNode; onLogout: () => void }) {
   const { meta, currency, setCurrency } = useWork()
@@ -115,7 +115,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
             ]} />
             <SyncButton />
           </>}
-          <a href="#/genel" className="ml-auto flex h-[52px] shrink-0 items-center pl-2 max-md:h-9" aria-label={`${PRODUCT} ana sayfa`}>
+          <a href="#/studyo" className="ml-auto flex h-[52px] shrink-0 items-center pl-2 max-md:h-9" aria-label={`${PRODUCT} ana sayfa`}>
             <span className="max-xl:hidden"><TailglassLogo size={30} /></span>
             <span className="xl:hidden"><TailglassLogo size={32} compact /></span>
           </a>

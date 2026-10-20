@@ -203,3 +203,41 @@ def donem_excel(istek):
                        {'key': 'm_net_tl', 'label': 'Tutar (TL)', 'type': 'tl'},
                        {'key': 'm_net_usd', 'label': 'Tutar (USD)', 'type': 'usd'}], d[anahtar])
     return _kaydet(wb)
+
+
+def pano_excel(govde):
+    """Analiz Studyosu: her kart ayri sayfa, en basta notlar ve yorumlar.
+    govde: {'ad', 'not', 'kartlar': [{'baslik', 'request', 'not', 'yorum': [..]}]}"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Analiz'
+    ws.cell(row=1, column=1, value=govde.get('ad') or 'Analiz').font = Font(bold=True, size=14)
+    ws.cell(row=2, column=1, value=f"Üretildi: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    satir = 4
+    if govde.get('not'):
+        ws.cell(row=satir, column=1, value='Analiz notu').font = TOPLAM_YAZI
+        ws.cell(row=satir, column=2, value=govde['not']).alignment = Alignment(wrap_text=True, vertical='top')
+        satir += 2
+    kartlar = govde.get('kartlar') or []
+    for i, k in enumerate(kartlar, 1):
+        ws.cell(row=satir, column=1, value=f'{i}. {k.get("baslik") or "Kart"}').font = TOPLAM_YAZI
+        satir += 1
+        for c in k.get('yorum') or []:
+            ws.cell(row=satir, column=2, value=c).alignment = Alignment(wrap_text=True, vertical='top')
+            satir += 1
+        if k.get('not'):
+            ws.cell(row=satir, column=1, value='Not')
+            ws.cell(row=satir, column=2, value=k['not']).alignment = Alignment(wrap_text=True)
+            satir += 1
+        satir += 1
+    ws.column_dimensions['A'].width = 36
+    ws.column_dimensions['B'].width = 110
+
+    for i, k in enumerate(kartlar, 1):
+        istek = k.get('request') or {}
+        sonuc = analytics.sorgu({**istek, 'limit': 0})
+        baslik = ''.join(' ' if ch in '[]:*?/' + chr(92) else ch for ch in f'{i} {k.get("baslik") or "Kart"}')[:31]
+        w = wb.create_sheet(baslik)
+        _sayfa_yaz(w, sonuc['columns'], sonuc['rows'], sonuc['totals'],
+                   baslik=f"{k.get('baslik') or 'Kart'} ({istek.get('date_from') or 'başlangıç'} – {istek.get('date_to') or 'bugün'})")
+    return _kaydet(wb)

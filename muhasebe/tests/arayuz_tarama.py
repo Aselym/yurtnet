@@ -10,7 +10,7 @@ import os, sys, time
 from playwright.sync_api import sync_playwright
 
 B = 'http://localhost:5050'
-SAYFALAR = ['genel', 'satislar', 'alislar', 'stok', 'musteriler', 'analiz', 'donem', 'lisanslar', 'abonelikler', 'teklifler', 'temsilciler', 'ayarlar']
+SAYFALAR = ['studyo', 'genel', 'satislar', 'alislar', 'stok', 'musteriler', 'analiz', 'donem', 'lisanslar', 'abonelikler', 'teklifler', 'temsilciler', 'ayarlar']
 SORUN = []
 
 

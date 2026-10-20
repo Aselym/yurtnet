@@ -11,7 +11,7 @@ export interface Route {
 function parse(): Route {
   const h = window.location.hash.replace(/^#\/?/, '')
   const [page, qs] = h.split('?')
-  return { page: page || 'genel', params: new URLSearchParams(qs || '') }
+  return { page: page || 'studyo', params: new URLSearchParams(qs || '') }
 }
 
 export function useRoute(): Route {
