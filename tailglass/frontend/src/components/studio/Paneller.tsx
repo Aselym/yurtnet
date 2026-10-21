@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, Bot, CalendarRange, CircleDot, Layers, MessageSquareText, NotebookPen, Plus, Search, Send, Sparkles, X } from 'lucide-react'
+import { BarChart3, Bot, CalendarRange, Layers, MessageSquareText, NotebookPen, Plus, Search, Send, Sparkles, X } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useAsync, useDebounced } from '../../lib/hooks'
 import { iso, today, useWork } from '../../lib/state'
 import { rangeLabel } from '../../lib/format'
 import type { Cumle } from '../../lib/yorum'
-import { cn, inputCls } from '../ui'
+import { Popover, cn, inputCls } from '../ui'
 import { BOYUTLAR, DND_TIPI, HAZIRLAR, OLCULER, type Blok } from './bloklar'
 import type { Grafik, Kart, Pano } from './model'
 
@@ -27,15 +27,32 @@ function BlokCip({ b, onTikla }: { b: Blok; onTikla: (id: string) => void }) {
   )
 }
 
+// En cok kullanilan bloklar gorunur; digerleri "Daha fazla" menusunde (sade gorunum)
+const TEMEL = new Set(['satis', 'kar', 'marj', 'adet', 'alis', 'ay', 'musteri', 'urun', 'marka', 'kategori', 'temsilci', 'lisanslar', 'tekrar'])
+
 export function BlokPaleti({ onTikla }: { onTikla: (id: string) => void }) {
+  const tum = [...OLCULER, ...BOYUTLAR, ...HAZIRLAR]
+  const diger = tum.filter((b) => !TEMEL.has(b.id))
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-1 py-2">
-      {([['Ne ölçülsün?', OLCULER, BarChart3], ['Neye göre?', BOYUTLAR, Layers], ['Hazır seçim', HAZIRLAR, CircleDot]] as const).map(([ad, liste, I]) => (
-        <div key={ad} className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-[11.5px] font-medium whitespace-nowrap text-muted"><I className="size-3.5" />{ad}</span>
-          <div className="flex flex-wrap gap-1.5">{liste.map((b) => <BlokCip key={b.id} b={b} onTikla={onTikla} />)}</div>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+      {([['Ne?', OLCULER], ['Neye göre?', BOYUTLAR], ['Sadece', HAZIRLAR]] as const).map(([ad, liste]) => (
+        <div key={ad} className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-0.5 text-[12px] font-medium text-muted">{ad}</span>
+          {liste.filter((b) => TEMEL.has(b.id)).map((b) => <BlokCip key={b.id} b={b} onTikla={onTikla} />)}
         </div>
       ))}
+      <Popover width={360} trigger={(acik, t) => (
+        <button onClick={t} className={cn('inline-flex h-8 items-center gap-1 rounded-[var(--radius-ctl)] border border-dashed px-2.5 text-[12.5px]',
+          acik ? 'border-ink text-ink' : 'border-line-strong text-ink-2 hover:text-ink')}>
+          <Plus className="size-3.5" /> Daha fazla
+        </button>
+      )}>
+        {() => (
+          <div className="flex flex-wrap gap-1.5 p-3">
+            {diger.map((b) => <BlokCip key={b.id} b={b} onTikla={onTikla} />)}
+          </div>
+        )}
+      </Popover>
     </div>
   )
 }
@@ -54,7 +71,7 @@ function hazirAraliklar(ilk?: string | null): { ad: string; from: string; to: st
   ]
 }
 
-function AralikSecici({ from, to, onDegis }: { from: string; to: string; onDegis: (f: string, t: string) => void }) {
+export function AralikSecici({ from, to, onDegis }: { from: string; to: string; onDegis: (f: string, t: string) => void }) {
   const { meta } = useWork()
   return (
     <div>

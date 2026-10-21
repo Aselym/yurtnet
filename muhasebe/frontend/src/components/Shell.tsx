@@ -105,7 +105,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="no-print sticky top-0 z-30 flex items-center gap-x-4 gap-y-2 border-b border-line bg-canvas/90 px-6 py-2.5 max-sm:px-3 backdrop-blur max-md:flex-wrap">
+        {page !== 'studyo' && <div className="no-print sticky top-0 z-30 flex items-center gap-x-4 gap-y-2 border-b border-line bg-canvas/90 px-6 py-2.5 max-sm:px-3 backdrop-blur max-md:flex-wrap">
           {!DONEMSIZ.has(page) && <>
             <PeriodStrip />
             <Segmented<Currency> value={currency} onChange={setCurrency} options={[
@@ -119,7 +119,7 @@ export function Shell({ page, children, onLogout }: { page: string; children: Re
             <span className="max-xl:hidden"><TailglassLogo size={30} /></span>
             <span className="xl:hidden"><TailglassLogo size={32} compact /></span>
           </a>
-        </div>
+        </div>}
         <main className="scroll-thin min-w-0 flex-1 overflow-y-auto px-6 pt-6 max-sm:px-3 pb-16">{children}</main>
       </div>
     </div>

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FilePlus2, FileSpreadsheet, FolderOpen, Presentation, Redo2, Save, Trash2, Undo2, X } from 'lucide-react'
+import { CalendarRange, ChevronDown, FilePlus2, FileSpreadsheet, FolderOpen, Presentation, Redo2, Save, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { api, download } from '../lib/api'
 import { rangeLabel } from '../lib/format'
 import { useWork } from '../lib/state'
 import { yorumla } from '../lib/yorum'
 import { blokBul } from '../components/studio/bloklar'
 import { BosHucre, KartGorunum } from '../components/studio/Kart'
-import { BlokPaleti, SagPanel, SolPanel, type AnalizParcasi } from '../components/studio/Paneller'
+import { AralikSecici, BlokPaleti, SagPanel, SolPanel, type AnalizParcasi } from '../components/studio/Paneller'
+import { TailglassLogo } from '../components/Brand'
 import { istek, kartAraligi, kartBasligi, olcuBlok, varsayilanPano, yeniKart, type Kart, type KartVeri, type Pano } from '../components/studio/model'
 import { Button, Modal, Popover, cn, inputCls, toast } from '../components/ui'
 
@@ -136,14 +137,47 @@ export default function StudioPage() {
     return () => document.removeEventListener('fullscreenchange', k)
   }, [])
 
+  // Bos ekranda tek tikla baslatilan hazir sorular
+  const HAZIR_SORULAR: { soru: string; kur: () => Kart }[] = [
+    { soru: 'Satışlar aylara göre nasıl gitti?', kur: () => ({ ...yeniKart('satis'), boyut: 'month' }) },
+    { soru: 'En çok kâr bırakan müşteriler kim?', kur: () => ({ ...yeniKart('kar'), boyut: 'client' }) },
+    { soru: 'Lisans gelirleri hangi markadan?', kur: () => ({ ...yeniKart('satis'), boyut: 'brand', filtre: { kind: ['Süreli lisans'] } }) },
+    { soru: 'Hangi kategoride kâr marjı yüksek?', kur: () => ({ ...yeniKart('marj'), boyut: 'category' }) },
+  ]
+  const hazirEkle = (k: Kart) => {
+    const h = [...pano.hucreler]
+    const i = h.findIndex((x) => x === null)
+    if (i < 0) h.push(k); else h[i] = k
+    setPano({ ...pano, hucreler: h }); setSecili(k.id)
+  }
+  const bosIndeks = pano.hucreler.findIndex((x) => x === null)
+
   return (
-    <div ref={kok} className={cn('-mx-6 -mt-6 -mb-16 flex h-[calc(100dvh-73px)] flex-col bg-canvas max-sm:-mx-3', sunum && 'h-dvh')}>
-      {/* ------------------------------------------------ arac cubugu */}
-      <div className="flex flex-wrap items-center gap-1 border-b border-line bg-surface px-4 py-1.5">
+    <div ref={kok} className="-mx-6 -mt-6 -mb-16 flex h-dvh flex-col bg-canvas max-sm:-mx-3">
+      {/* ------------------------------------------------ tek satir: ad, aralik, islemler, logo */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-line bg-surface px-4 py-2">
         <input value={pano.ad} onChange={(e) => setPano({ ...pano, ad: e.target.value }, true)} aria-label="Analizin adı"
-          className="mr-2 h-8 w-56 rounded-[var(--radius-ctl)] border border-transparent bg-transparent px-2 text-[15px] font-semibold text-ink hover:border-line focus:border-line-strong focus:outline-none" />
-        <Arac ad="Yeni" ikon={FilePlus2} onClick={() => { setPano(varsayilanPano()); setSecili(null) }} />
-        <Popover width={300} trigger={(_, t) => <Arac ad="Aç" ikon={FolderOpen} onClick={() => { panolar.yukle(); t() }} />}>
+          className="h-9 w-52 rounded-[var(--radius-ctl)] border border-transparent bg-transparent px-2 text-[16px] font-semibold text-ink hover:border-line focus:border-line-strong focus:outline-none" />
+        <Popover width={330} trigger={(acik, t) => (
+          <button onClick={t} className={cn('inline-flex h-9 items-center gap-2 rounded-[var(--radius-ctl)] border px-3 text-[13px]',
+            acik ? 'border-ink' : 'border-line-strong hover:border-ink-2')}>
+            <CalendarRange className="size-4 text-brand-ink" />
+            <span className="font-medium text-ink">{rangeLabel(pano.aralik.from, pano.aralik.to)}</span>
+            <ChevronDown className="size-3.5 text-muted" />
+          </button>
+        )}>
+          {() => (
+            <div className="p-3.5">
+              <p className="mb-2.5 text-[12.5px] text-ink-2">Bütün kartlar bu tarih aralığını kullanır (kartın kendi aralığı yoksa).</p>
+              <AralikSecici from={pano.aralik.from} to={pano.aralik.to} onDegis={(from, to) => setPano({ ...pano, aralik: { from, to } })} />
+            </div>
+          )}
+        </Popover>
+        <span className="mx-1 h-5 w-px bg-line" />
+        <Simge ad="Geri al (Ctrl+Z)" ikon={Undo2} onClick={geriAl} disabled={!gecmis.length} />
+        <Simge ad="Yinele (Ctrl+Y)" ikon={Redo2} onClick={yinele} disabled={!ileri.length} />
+        <Simge ad="Yeni analiz" ikon={FilePlus2} onClick={() => { setPano(varsayilanPano()); setSecili(null) }} />
+        <Popover width={300} trigger={(_, t) => <Simge ad="Kayıtlı analizi aç" ikon={FolderOpen} onClick={() => { panolar.yukle(); t() }} />}>
           {(kapat) => (
             <ul className="scroll-thin max-h-80 overflow-auto py-1.5">
               {!panolar.liste.length && <li className="px-3.5 py-2 text-[13px] text-muted">Kayıtlı analiz yok.</li>}
@@ -158,40 +192,56 @@ export default function StudioPage() {
             </ul>
           )}
         </Popover>
-        <Arac ad="Kaydet" ikon={Save} onClick={() => setKaydetAcik(true)} />
-        <span className="mx-1.5 h-5 w-px bg-line" />
-        <Arac ad="Geri al" ikon={Undo2} onClick={geriAl} disabled={!gecmis.length} kisayol="Ctrl+Z" />
-        <Arac ad="Yinele" ikon={Redo2} onClick={yinele} disabled={!ileri.length} kisayol="Ctrl+Y" />
-        <span className="mx-1.5 h-5 w-px bg-line" />
-        <Arac ad="Excel" ikon={FileSpreadsheet} onClick={panoyuExcel} disabled={!kartlar.length} />
-        <Arac ad={sunum ? 'Sunumdan çık' : 'Sunum'} ikon={sunum ? X : Presentation} onClick={sunumAc} />
-        <span className="ml-auto text-[12px] text-muted max-md:hidden">{rangeLabel(pano.aralik.from, pano.aralik.to)} · {kartlar.length} kart</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Button size="sm" icon={<Save className="size-4" />} onClick={() => setKaydetAcik(true)}>Kaydet</Button>
+          <Button size="sm" icon={<FileSpreadsheet className="size-4" />} onClick={panoyuExcel} disabled={!kartlar.length}>Excel</Button>
+          <Button size="sm" variant="primary" icon={sunum ? <X className="size-4" /> : <Presentation className="size-4" />} onClick={sunumAc}>
+            {sunum ? 'Sunumdan çık' : 'Sunum'}
+          </Button>
+          <a href="#/genel" className="ml-3 max-lg:hidden" aria-label="Tailglass Analytics"><TailglassLogo size={26} /></a>
+        </div>
       </div>
 
-      {/* ------------------------------------------------ blok paleti */}
+      {/* ------------------------------------------------ bloklar */}
       {!sunum && <div className="border-b border-line bg-surface/70 px-4 backdrop-blur"><BlokPaleti onTikla={paletTik} /></div>}
 
       {/* ------------------------------------------------ calisma alani */}
-      <div className="flex min-h-0 flex-1">
-        {!sunum && (
-          <aside className="scroll-thin hidden w-[280px] shrink-0 overflow-y-auto border-r border-line bg-surface lg:block">
+      <div className="relative flex min-h-0 flex-1">
+        {!sunum && seciliKart && (
+          <aside className="scroll-thin absolute inset-y-0 left-0 z-20 w-[300px] overflow-y-auto border-r border-line bg-surface shadow-[8px_0_24px_rgba(11,15,14,.06)]">
             <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-              <span className="text-[13px] font-semibold text-ink">{seciliKart ? 'Seçili kart' : 'Analiz'}</span>
-              {seciliKart && <button onClick={() => setSecili(null)} className="text-[12px] text-ink-2 hover:text-ink">Seçimi bırak</button>}
+              <span className="text-[13px] font-semibold text-ink">Kartı düzenle</span>
+              <button onClick={() => setSecili(null)} aria-label="Kapat" className="text-muted hover:text-ink"><X className="size-4" /></button>
             </div>
             <SolPanel pano={pano} kart={seciliKart} etiket={etiket} onPano={(p) => setPano(p)}
               onKart={(k) => kartDegis(k, k.not !== seciliKart?.not)} />
           </aside>
         )}
 
-        <section aria-label="Analiz ızgarası" className="@container scroll-thin min-w-0 flex-1 overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) setSecili(null) }}>
-          <div data-izgara className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
+        <section aria-label="Analiz ızgarası" className={cn('@container scroll-thin min-w-0 flex-1 overflow-y-auto p-5', !sunum && seciliKart && 'pl-[320px] max-md:pl-5')}
+          onClick={(e) => { if (e.target === e.currentTarget) setSecili(null) }}>
+          {!kartlar.length && !sunum && (
+            <div className="mx-auto mt-[6vh] max-w-2xl text-center">
+              <Sparkles className="mx-auto size-7 text-brand-ink" />
+              <h2 className="display mt-3 text-[28px] leading-tight font-semibold text-ink">Ne merak ediyorsunuz?</h2>
+              <p className="mt-2 text-[14.5px] text-ink-2">Yukarıdaki bloklardan birini aşağıdaki alana sürükleyin ya da bir soruyla başlayın.</p>
+              <div className="mt-6 grid grid-cols-1 gap-2 text-left sm:grid-cols-2">
+                {HAZIR_SORULAR.map((h) => (
+                  <button key={h.soru} onClick={() => hazirEkle(h.kur())}
+                    className="panel px-4 py-3 text-[14px] font-medium text-ink transition-colors hover:border-ink">{h.soru}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div data-izgara className={cn('grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3', !kartlar.length && 'mx-auto mt-6 max-w-2xl @2xl:grid-cols-1 @5xl:grid-cols-1')}>
             {pano.hucreler.map((k, i) => k
               ? <KartGorunum key={k.id} k={k} p={pano} secili={secili === k.id} etiket={etiket}
                   onSec={() => setSecili(k.id)} onBlok={(b) => kartDegis(blokUygula(k, b))} onTasi={(id) => tasi(id, i)}
                   onSil={() => { setPano({ ...pano, hucreler: pano.hucreler.map((x) => (x?.id === k.id ? null : x)) }); if (secili === k.id) setSecili(null) }}
                   onDegis={(y) => kartDegis(y)} onVeri={(v) => setVeriler((s) => ({ ...s, [k.id]: v }))} />
-              : sunum ? null : <BosHucre key={`bos-${i}`} ilk={!kartlar.length && i === 0} onBlok={(b) => bosaBirak(i, b)} onTasi={(id) => tasi(id, i)} />)}
+              : !sunum && i === bosIndeks
+                ? <BosHucre key={`bos-${i}`} ilk={!kartlar.length} onBlok={(b) => bosaBirak(i, b)} onTasi={(id) => tasi(id, i)} />
+                : null)}
           </div>
         </section>
 
@@ -211,11 +261,11 @@ export default function StudioPage() {
   )
 }
 
-function Arac({ ad, ikon: I, onClick, disabled, kisayol }: { ad: string; ikon: typeof Save; onClick: () => void; disabled?: boolean; kisayol?: string }) {
+function Simge({ ad, ikon: I, onClick, disabled }: { ad: string; ikon: typeof Save; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} title={kisayol ? `${ad} (${kisayol})` : ad}
-      className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-ctl)] px-2.5 text-[13px] text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-35">
-      <I className="size-4" /><span className="max-md:hidden">{ad}</span>
+    <button type="button" onClick={onClick} disabled={disabled} title={ad} aria-label={ad}
+      className="grid size-9 place-items-center rounded-[var(--radius-ctl)] text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-30">
+      <I className="size-[18px]" />
     </button>
   )
 }
