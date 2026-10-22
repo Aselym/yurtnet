@@ -85,6 +85,15 @@ def senkronize_et(ayarlar=None, ilerleme=None):
             cariler = list(k.cariler())
             temsilciler = list(k.temsilciler())
             kurlar = k.doviz_kurlari()
+            if k.mod in ('dosya', 'efatura') and (ayarlar.get('tcmb_rates') or 'ON') != 'OFF':
+                # Logo kendi kurunu tutar; dosya/e-Fatura kaynaginda eksik gunler TCMB'den
+                log('TCMB kurları alınıyor')
+                gunler = {tarih_str(s['date']) for s in k.satirlar(bas)} - set(kurlar)
+                try:
+                    from dis_servisler import tcmb_usd_kurlari
+                    kurlar = {**tcmb_usd_kurlari(gunler), **kurlar}
+                except Exception as e:
+                    log(f'TCMB kurları alınamadı: {e}')
             kur_gunleri = sorted(kurlar)
 
             def gunluk_kur(gun):

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarRange, ChevronDown, FilePlus2, FileSpreadsheet, FolderOpen, Presentation, Redo2, Save, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { api, download } from '../lib/api'
-import { rangeLabel } from '../lib/format'
+import { fmtShort, isNum, rangeLabel } from '../lib/format'
+import { useAsync } from '../lib/hooks'
 import { useWork } from '../lib/state'
-import { yorumla } from '../lib/yorum'
+import { donemAdi, yorumla } from '../lib/yorum'
 import { blokBul } from '../components/studio/bloklar'
 import { BosHucre, KartGorunum } from '../components/studio/Kart'
 import { AralikSecici, BlokPaleti, SagPanel, SolPanel, type AnalizParcasi } from '../components/studio/Paneller'
@@ -102,6 +103,12 @@ export default function StudioPage() {
   }
 
   // ------------------------------------------------------------ yorumlar
+  // Resmi tatiller (ucretsiz, anahtarsiz); internet yoksa bos gelir ve yorumlar tatilsiz yazilir
+  const tatilRes = useAsync(() => {
+    const y = new Date().getFullYear()
+    return api.get<{ tatiller: { date: string; ad: string }[] }>(`/api/tatiller?yillar=${[y - 3, y - 2, y - 1, y].join(',')}`)
+  }, [])
+  const tatiller = tatilRes.data?.tatiller
   const parcalar: AnalizParcasi[] = useMemo(() => kartlar.map((k) => {
     const v = veriler[k.id]
     const b = olcuBlok(k)
@@ -111,9 +118,33 @@ export default function StudioPage() {
     return { id: k.id, baslik, cumleler: yorumla({
       olcuAdi: b.ad, tip: b.tip ?? 'num', mkey: `m_${b.olcu}`, boyut: k.boyut, boyutAdi: k.boyut ? etiket(k.boyut) : undefined,
       seri: k.seri, sonuc: v.sonuc, onceki: v.onceki, surucu: v.surucu, aralikAdi: rangeLabel(ar.from, ar.to),
-      sonDonemSuruyor: ar.to >= new Date().toISOString().slice(0, 10),
+      sonDonemSuruyor: ar.to >= new Date().toISOString().slice(0, 10), tatiller,
     }) }
-  }), [kartlar, veriler, pano, etiket])
+  }), [kartlar, veriler, pano, etiket, tatiller])
+
+  // Yapay zeka sohbetine giden ozet: kart basligi, araligi, ilk satirlar, yorumlar, notlar. Ham fatura gitmez.
+  const baglam = useMemo(() => {
+    const L: string[] = [`Pano: ${pano.ad}`, `Analiz aralığı: ${rangeLabel(pano.aralik.from, pano.aralik.to)}`]
+    if (pano.not.trim()) L.push(`Analiz notu: ${pano.not.trim()}`)
+    for (const k of kartlar) {
+      const b = olcuBlok(k), v = veriler[k.id], ar = kartAraligi(k, pano), mk = `m_${b.olcu}`
+      const deger = (x: unknown) => (isNum(x) ? (b.tip === 'pct' ? `%${x.toLocaleString('tr-TR', { maximumFractionDigits: 1 })}` : fmtShort(x, b.tip ?? 'num')) : '-')
+      L.push('', `## ${kartBasligi(k, etiket)} (${rangeLabel(ar.from, ar.to)})`)
+      const filtre = Object.entries(k.filtre).filter(([, d]) => d?.length).map(([f, d]) => `${etiket(f)}: ${d.join(', ')}`)
+      if (filtre.length) L.push(`Kapsam: ${filtre.join('; ')}`)
+      if (v) {
+        if (isNum(v.sonuc.totals?.[mk])) L.push(`Toplam: ${deger(v.sonuc.totals[mk])}${isNum(v.onceki?.totals?.[mk]) ? ` (önceki eşit dönem: ${deger(v.onceki!.totals[mk])})` : ''}`)
+        for (const r of v.sonuc.rows.slice(0, 15)) {
+          if (k.boyut) L.push(`- ${donemAdi(r.d0, k.boyut)}${k.seri && r.d1 != null ? ` / ${r.d1}` : ''}: ${deger(r[mk])}`)
+        }
+        if (v.sonuc.rows.length > 15) L.push(`(toplam ${v.sonuc.row_count} satırın ilk 15'i)`)
+      }
+      const p = parcalar.find((x) => x.id === k.id)
+      if (p) L.push('Kural tabanlı yorum: ' + p.cumleler.map((c) => c.metin).join(' '))
+      if (k.not.trim()) L.push(`Kart notu: ${k.not.trim()}`)
+    }
+    return L.join('\n')
+  }, [kartlar, veriler, pano, etiket, parcalar])
 
   // ------------------------------------------------------------ arac cubugu
   const panolar = useAsyncPanolar()
@@ -246,7 +277,7 @@ export default function StudioPage() {
         </section>
 
         <aside className={cn('hidden w-[340px] shrink-0 border-l border-line bg-surface xl:block', sunum && 'w-[400px]')}>
-          <SagPanel parcalar={parcalar} seciliId={secili} pano={pano} kartlar={kartlar} etiket={etiket}
+          <SagPanel parcalar={parcalar} baglam={baglam} seciliId={secili} pano={pano} kartlar={kartlar} etiket={etiket}
             onPano={(p) => setPano(p, true)} onKartNot={(id, not) => { const k = kartlar.find((x) => x.id === id); if (k) kartDegis({ ...k, not }, true) }}
             onSec={setSecili} />
         </aside>

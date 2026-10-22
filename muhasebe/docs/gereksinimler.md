@@ -4,7 +4,7 @@ Bu liste bir kaidedir: arayüz ne kadar değişirse değişsin her madde çalı�
 kolayca bulunur durumda kalmalı. Her tasarım değişikliğinden sonra bu listeyi
 uygulamada tek tek kontrol et. Köşeli parantez = kayıttaki dakika.
 
-Son kontrol: 2026-10-19 (arayüz yenilemesi sonrası).
+Son kontrol: 2026-10-22 (sade stüdyo + yapay zekâ sohbeti sonrası).
 
 ## 1. Dönem raporu (ay sonu) [10:43–11:15]
 - [x] O ay ne alındı (alış faturaları) — Dönem raporu > Alışlar; ayrıca Alışlar sayfası
@@ -36,7 +36,8 @@ Son kontrol: 2026-10-19 (arayüz yenilemesi sonrası).
 - [x] Tarih aralığı, müşteri, ürün, lisans seçimini basit arayüzle kullanıcı yapar — sol panel
 - [x] Grafiklere anında Türkçe yorum, "bu aralık önemli zira…" — sağ panel (kural tabanlı; yapay zekâ API'si sonra)
 - [x] Not alma (analiz ve kart notu), kaydetme/açma, Excel (tüm analiz), grafiği görsel indirme, sunum modu
-- [ ] Analiz hakkında yapay zekâ sohbeti — API anahtarı gelince
+- [x] Analiz hakkında yapay zekâ sohbeti — sağ panel > Sohbet; sağlayıcı Ayarlar > Yapay zekâ (Groq ücretsiz / Claude / yerel Ollama). Modele yalnızca kart özetleri ve notlar gider. Canlıda anahtar girilmeli.
+- [x] Yorumlarda resmî tatil (Ramazan/Kurban Bayramı) açıklaması; dosya/e-Fatura kaynağında TCMB kuru — Ayarlar > Yapay zekâ > Ücretsiz veri servisleri
 
 ## 4. Lisans hatırlatmaları
 - [x] Mailde uygulamaya link, tıklayınca o kayıt açılır [13:05] — Ayarlar > E-posta > Uygulama adresi

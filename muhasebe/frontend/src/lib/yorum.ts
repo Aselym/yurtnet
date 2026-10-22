@@ -42,10 +42,32 @@ export interface YorumGirdi {
   surucu?: { donem: string; satirlar: { ad: string; deger: number }[]; toplam: number }
   aralikAdi: string
   sonDonemSuruyor?: boolean        // aralik bugunu kapsiyorsa son donem eksik
+  tatiller?: { date: string; ad: string }[]   // resmi tatiller (Nager.Date); olagandisi donemi aciklamak icin
+}
+
+/** Bir ay/gun dilimine denk gelen resmi tatiller: " (bu dönemde Kurban Bayramı var)". */
+function tatilNotu(key: unknown, boyut: string | undefined, tatiller?: { date: string; ad: string }[]) {
+  if (!tatiller?.length || !boyut) return ''
+  const k = String(key ?? '')
+  let icinde: (d: string) => boolean
+  if (boyut === 'month' && /^\d{4}-\d{2}$/.test(k)) icinde = (d) => d.startsWith(k)
+  else if (boyut === 'day') icinde = (d) => d === k
+  else if (boyut === 'quarter' && k.includes('-Ç')) {
+    const [y, q] = k.split('-Ç').map(Number)
+    icinde = (d) => Number(d.slice(0, 4)) === y && Math.ceil(Number(d.slice(5, 7)) / 3) === q
+  } else return ''
+  // Yalnizca gecmis ve cok gunlu bayramlar (Ramazan, Kurban) satisi gercekten etkiler
+  const bugun = new Date().toISOString().slice(0, 10)
+  const adlar = [...new Set(tatiller.filter((t) => t.date <= bugun && icinde(t.date) && /Ramazan|Kurban/.test(t.ad))
+    .map((t) => t.ad.replace(/\s*\d+\.\s*Gün$/, '').replace(/\s*Arifesi$/, '').trim()))]
+  if (!adlar.length) return ''
+  return ` Bu dönemde ${adlar.join(' ve ')} tatili var; iş günü sayısı azalmış olabilir.`
 }
 
 export function yorumla(g: YorumGirdi): Cumle[] {
   const c: Cumle[] = []
+  const anilan = new Set<string>()
+  const tatil = (key: unknown) => { const k = String(key); if (anilan.has(k)) return ''; const n = tatilNotu(key, g.boyut, g.tatiller); if (n) anilan.add(k); return n }
   const toplam = g.sonuc.totals?.[g.mkey]
   const oncekiToplam = g.onceki?.totals?.[g.mkey]
   const oran = g.tip === 'pct'
@@ -79,7 +101,7 @@ export function yorumla(g: YorumGirdi): Cumle[] {
     const sd = Math.sqrt(y.reduce((a, b) => a + (b - ort) ** 2, 0) / y.length)
     const iMax = y.indexOf(Math.max(...y)), iMin = y.indexOf(Math.min(...y))
     if (y.length >= 3) {
-      c.push({ metin: `En güçlü dönem ${donemAdi(s[iMax].d0, g.boyut)} (${deger(y[iMax], g.tip)}), en zayıf dönem ${donemAdi(s[iMin].d0, g.boyut)} (${deger(y[iMin], g.tip)}).`, ton: 'notr' })
+      c.push({ metin: `En güçlü dönem ${donemAdi(s[iMax].d0, g.boyut)} (${deger(y[iMax], g.tip)}), en zayıf dönem ${donemAdi(s[iMin].d0, g.boyut)} (${deger(y[iMin], g.tip)}).${oran ? '' : tatil(s[iMin].d0)}`, ton: 'notr' })
       const t = trend(y)
       if (Math.abs(t) >= 1.5) c.push({ metin: `Genel eğilim ${t > 0 ? 'yukarı' : 'aşağı'} yönlü: dönem başına ortalama ${yuzde(t)} ${t > 0 ? 'büyüme' : 'gerileme'}.`, ton: t > 0 ? 'iyi' : 'kotu' })
       else c.push({ metin: 'Dönemler arasında belirgin bir yükseliş ya da düşüş eğilimi yok; seyir yatay.', ton: 'notr' })
@@ -88,14 +110,14 @@ export function yorumla(g: YorumGirdi): Cumle[] {
         const sapan = s.map((r, i) => ({ r, z: (y[i] - ort) / sd, v: y[i] })).filter((x) => Math.abs(x.z) >= 1.8)
         for (const x of sapan.slice(0, 2)) {
           const fark = ((x.v - ort) / Math.abs(ort)) * 100
-          c.push({ metin: `${donemAdi(x.r.d0, g.boyut)} önemli bir aralık: ortalamanın ${yuzde(fark)} ${fark > 0 ? 'üstünde' : 'altında'}${fark > 0 ? ', olağan dışı bir sıçrama' : ', olağan dışı bir düşüş'}.`, ton: 'dikkat' })
+          c.push({ metin: `${donemAdi(x.r.d0, g.boyut)} önemli bir aralık: ortalamanın ${yuzde(fark)} ${fark > 0 ? 'üstünde' : 'altında'}${fark > 0 ? ', olağan dışı bir sıçrama' : ', olağan dışı bir düşüş'}.${fark < 0 ? tatil(x.r.d0) : ''}`, ton: 'dikkat' })
         }
       }
       // son donem
       const son = y[y.length - 1], once = y[y.length - 2]
       if (isNum(once) && once !== 0 && !oran) {
         const d = ((son - once) / Math.abs(once)) * 100
-        if (Math.abs(d) >= 10) c.push({ metin: `Son dönem (${donemAdi(s[s.length - 1].d0, g.boyut)}) bir öncekine göre ${yuzde(d)} ${d > 0 ? 'yukarıda' : 'aşağıda'}${g.sonDonemSuruyor ? '; ancak bu dönem henüz bitmedi' : ''}.`, ton: d > 0 ? 'iyi' : 'kotu' })
+        if (Math.abs(d) >= 10) c.push({ metin: `Son dönem (${donemAdi(s[s.length - 1].d0, g.boyut)}) bir öncekine göre ${yuzde(d)} ${d > 0 ? 'yukarıda' : 'aşağıda'}${g.sonDonemSuruyor ? '; ancak bu dönem henüz bitmedi' : ''}.${d < 0 ? tatil(s[s.length - 1].d0) : ''}`, ton: d > 0 ? 'iyi' : 'kotu' })
       }
     }
     if (g.surucu && g.surucu.satirlar.length && g.surucu.toplam > 0) {

@@ -226,6 +226,11 @@ def init_db():
         ('company_logo_dark', ''),
         ('base_currency', 'TRY'),
         ('sync_hours', '11,15,17'),
+        ('tcmb_rates', 'ON'),              # dosya/e-Fatura kaynaginda eksik kurlar TCMB'den
+        ('ai_provider', 'kapali'),         # kapali | groq | anthropic | ollama | openai
+        ('ai_model', ''),                  # bos = saglayicinin varsayilani
+        ('ai_api_key', ''),
+        ('ai_base_url', ''),
     ]
     for key, val in default_settings:
         cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, val))

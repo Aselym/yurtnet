@@ -10,8 +10,10 @@ import urllib.parse
 from datetime import datetime
 
 import analytics
+import dis_servisler
 import excel_export
 import warehouse
+import yapay_zeka
 from database import get_db_connection, get_settings
 from logo_sync import tam_senkron, test_logo_connection
 
@@ -21,7 +23,7 @@ kaynak_yukle = api_kaynak.kaynak_yukle
 
 # ------------------------------------------------------------------ ayarlar
 GIZLI = {'admin_pass_salt', 'admin_pass_hash'}
-SIFRELER = {'smtp_password', 'logo_sql_pass'}
+SIFRELER = {'smtp_password', 'logo_sql_pass', 'ai_api_key'}
 YAZILABILIR = {
     'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'sender_email', 'sender_name', 'internal_recipients',
     'logo_sql_server', 'logo_sql_port', 'logo_sql_db', 'logo_sql_user', 'logo_sql_pass', 'logo_firm_no',
@@ -29,6 +31,7 @@ YAZILABILIR = {
     'reminder_days', 'expiring_soon_days', 'sub_min_invoices', 'sub_max_interval_days', 'sub_risk_factor',
     'app_public_url', 'company_name', 'base_currency', 'sync_hours', 'pinned_brands',
     'company_logo', 'company_logo_dark',
+    'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'tcmb_rates',
 }
 LOGO_ANAHTARLARI = {'company_logo', 'company_logo_dark'}
 LOGO_TIPLERI = ('data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/webp;base64,', 'data:image/svg+xml;base64,')
@@ -159,6 +162,13 @@ def _handle(h, method, path, query, body):
         if path == '/api/settings':
             h._send_json(ayarlari_oku())
             return True
+        if path == '/api/ai/durum':
+            h._send_json(yapay_zeka.durum())
+            return True
+        if path == '/api/tatiller':
+            yillar = [int(y) for y in (q.get('yillar') or '').split(',') if y.strip().isdigit()][:10]
+            h._send_json({'tatiller': dis_servisler.tatiller(yillar) if yillar else []})
+            return True
         if path == '/api/sync/durum':
             h._send_json({**_SYNC, 'data': analytics.veri_araligi()})
             return True
@@ -228,6 +238,15 @@ def _handle(h, method, path, query, body):
         if path == '/api/logo/test-connection':
             ok, mesaj = test_logo_connection()
             h._send_json({'success': ok, 'message': mesaj})
+            return True
+        if path in ('/api/ai/sohbet', '/api/ai/test'):
+            if path == '/api/ai/test':
+                body = {'mesajlar': [{'rol': 'kullanici', 'metin': 'Tek cümleyle kendini tanıt.'}], 'baglam': ''}
+            try:
+                yanit = yapay_zeka.sohbet(body.get('mesajlar'), body.get('baglam'))
+                h._send_json({'success': True, 'yanit': yanit})
+            except yapay_zeka.YapayZekaHatasi as e:
+                h._send_json({'success': False, 'message': str(e)}, 502)
             return True
         if path == '/api/settings':
             ayarlari_yaz(body)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Building2, Database, Mail, Rows3, Shapes, ShieldCheck, Trash2, Users2 } from 'lucide-react'
+import { Bot, Building2, Database, Mail, Rows3, Shapes, ShieldCheck, Trash2, Users2 } from 'lucide-react'
 import { api, type ActionResult, type SyncLog } from '../lib/api'
 import { fmt } from '../lib/format'
 import { useAsync, useLocal } from '../lib/hooks'
@@ -15,6 +15,7 @@ const BOLUMLER = [
   { key: 'sinif', label: 'Sınıflandırma', icon: Shapes },
   { key: 'grup', label: 'Firma grupları', icon: Users2 },
   { key: 'eposta', label: 'E-posta', icon: Mail },
+  { key: 'ai', label: 'Yapay zekâ', icon: Bot },
   { key: 'gorunum', label: 'Şirket', icon: Building2 },
   { key: 'hesap', label: 'Hesap', icon: ShieldCheck },
 ]
@@ -79,6 +80,7 @@ export default function SettingsPage() {
           {res.data && bolum === 'sinif' && <Classification />}
           {res.data && bolum === 'grup' && <Groups />}
           {res.data && bolum === 'eposta' && <EmailSettings s={s} inp={inp} save={save} busy={busy} />}
+          {res.data && bolum === 'ai' && <AiSettings s={s} setS={setS} inp={inp} save={save} busy={busy} />}
           {res.data && bolum === 'gorunum' && (
             <Panel title="Şirket" hint="Tailglass Analytics bu şirket adına çalışır. Ad ve logo sol üstte, giriş ekranında ve sekme başlığında görünür.">
               <div className="grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
@@ -333,6 +335,69 @@ function EmailSettings({ s, inp, save, busy }: { s: S; inp: Inp; save: (k: strin
         }}>Test e-postası gönder</Button>
       </div>
     </Panel>
+  )
+}
+
+const SAGLAYICI: Record<string, { ad: string; aciklama: string; model: string; adres: string; anahtar: boolean; ucret: string }> = {
+  kapali: { ad: 'Kapalı', aciklama: 'Yalnızca kural tabanlı yorumlar.', model: '', adres: '', anahtar: false, ucret: '' },
+  groq: { ad: 'Groq', aciklama: 'Llama modelleri; kredi kartı gerekmez. Anahtar: console.groq.com > API Keys.', model: 'llama-3.3-70b-versatile', adres: 'https://api.groq.com/openai/v1', anahtar: true, ucret: 'Ücretsiz katman' },
+  anthropic: { ad: 'Claude', aciklama: 'En iyi Türkçe ve analiz kalitesi. Anahtar: console.anthropic.com.', model: 'claude-sonnet-5-5', adres: 'https://api.anthropic.com', anahtar: true, ucret: 'Ücretli' },
+  ollama: { ad: 'Ollama (yerel)', aciklama: 'Model şirketin kendi sunucusunda çalışır; veri hiç dışarı çıkmaz. Sunucuya Ollama kurulmalı.', model: 'qwen2.5:7b', adres: 'http://localhost:11434', anahtar: false, ucret: 'Ücretsiz' },
+  openai: { ad: 'OpenAI uyumlu', aciklama: 'OpenRouter, Gemini ya da başka bir OpenAI uyumlu servis; adres ve model girin.', model: '', adres: '', anahtar: true, ucret: '' },
+}
+
+function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; inp: Inp; save: (k: string[]) => void; busy: boolean }) {
+  const [testing, setTesting] = useState(false)
+  const secim = String(s.ai_provider || 'kapali')
+  const v = SAGLAYICI[secim] ?? SAGLAYICI.kapali
+  return (
+    <div className="flex flex-col gap-5">
+      <Panel title="Yapay zekâ" hint="Analiz stüdyosundaki Sohbet sekmesi bu sağlayıcıyı kullanır. Modele ham fatura gitmez; yalnızca ekrandaki kartların başlıkları, yorumları ve notlarınız gönderilir.">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {Object.entries(SAGLAYICI).map(([k, d]) => (
+            <button key={k} onClick={() => setS({ ...s, ai_provider: k, ai_model: '', ai_base_url: '' })}
+              className={cn('border px-3 py-2.5 text-left rounded-[var(--radius-panel)]', secim === k ? 'border-ink bg-surface-2' : 'border-line hover:border-line-strong')}>
+              <span className="flex items-center justify-between gap-2 text-[13.5px] font-semibold text-ink">{d.ad}{d.ucret && <Badge>{d.ucret}</Badge>}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-[12.5px] text-muted">{v.aciklama}</p>
+        {secim !== 'kapali' && (
+          <div className="mt-5 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Model" hint={v.model ? `Boş bırakılırsa: ${v.model}` : 'Örn: google/gemini-2.5-flash'}>{inp('ai_model', { placeholder: v.model })}</Field>
+            <Field label="Adres" hint={v.adres ? `Boş bırakılırsa: ${v.adres}` : 'Örn: https://openrouter.ai/api/v1'}>{inp('ai_base_url', { placeholder: v.adres })}</Field>
+            {v.anahtar && (
+              <div className="md:col-span-2">
+                <Field label="API anahtarı" hint={s.ai_api_key_set ? 'Kayıtlı bir anahtar var; değiştirmek istemiyorsanız boş bırakın.' : 'Anahtar yalnızca bu sunucuda saklanır, ekranda bir daha gösterilmez.'}>
+                  {inp('ai_api_key', { type: 'password', autoComplete: 'new-password', placeholder: s.ai_api_key_set ? '••••••••' : '' })}
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mt-6 flex gap-2">
+          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key'])}>Kaydet</Button>
+          {secim !== 'kapali' && (
+            <Button loading={testing} onClick={async () => {
+              setTesting(true)
+              try {
+                const r = await api.post<{ success: boolean; yanit?: string; message?: string }>('/api/ai/test', {})
+                r.success ? toast.ok(`Bağlantı çalışıyor: ${r.yanit}`) : toast.err(r.message || 'Bağlanılamadı.')
+              } catch (e) { toast.err(e instanceof Error ? e.message : 'Bağlanılamadı.') } finally { setTesting(false) }
+            }}>Bağlantıyı dene</Button>
+          )}
+        </div>
+        <p className="mt-3 text-[12.5px] text-muted">Denemeden önce Kaydet'e basın.</p>
+      </Panel>
+      <Panel title="Ücretsiz veri servisleri" hint="Anahtar gerektirmez. İnternet yoksa sessizce atlanır, hiçbir ekran bozulmaz.">
+        <label className="flex items-start gap-2.5 text-[13.5px] text-ink">
+          <input type="checkbox" className="mt-1" checked={(s.tcmb_rates ?? 'ON') !== 'OFF'} onChange={(e) => setS({ ...s, tcmb_rates: e.target.checked ? 'ON' : 'OFF' })} />
+          <span><b className="font-semibold">TCMB döviz kurları</b><span className="block text-[12.5px] text-muted">Excel/CSV ve e-Fatura kaynağında kur bilgisi olmayan satırların USD karşılığı, işlem günündeki TCMB kuruyla hesaplanır. Logo kaynağında Logo'nun kendi kuru kullanılır.</span></span>
+        </label>
+        <p className="mt-4 text-[13.5px] text-ink"><b className="font-semibold">Resmî tatiller</b><span className="block text-[12.5px] text-muted">Analiz stüdyosundaki yorumlar, olağan dışı bir dönemde bayram ya da resmî tatil varsa bunu belirtir (Nager.Date).</span></p>
+        <Button variant="primary" className="mt-5" loading={busy} onClick={() => save(['tcmb_rates'])}>Kaydet</Button>
+      </Panel>
+    </div>
   )
 }
 

@@ -259,8 +259,8 @@ function Yazan({ metin }: { metin: string }) {
   return <>{metin.slice(0, n)}{n < metin.length && <span className="ml-px inline-block h-3.5 w-1.5 animate-pulse bg-brand align-middle" />}</>
 }
 
-export function SagPanel({ parcalar, seciliId, pano, kartlar, etiket, onPano, onKartNot, onSec }: {
-  parcalar: AnalizParcasi[]; seciliId: string | null; pano: Pano; kartlar: Kart[]; etiket: (d: string) => string
+export function SagPanel({ parcalar, baglam, seciliId, pano, kartlar, etiket, onPano, onKartNot, onSec }: {
+  parcalar: AnalizParcasi[]; baglam: string; seciliId: string | null; pano: Pano; kartlar: Kart[]; etiket: (d: string) => string
   onPano: (p: Pano) => void; onKartNot: (id: string, not: string) => void; onSec: (id: string) => void
 }) {
   const [sekme, setSekme] = useState<'analiz' | 'not' | 'sohbet'>('analiz')
@@ -314,25 +314,7 @@ export function SagPanel({ parcalar, seciliId, pano, kartlar, etiket, onPano, on
         </div>
       )}
 
-      {sekme === 'sohbet' && (
-        <div className="flex flex-1 flex-col px-4 py-4">
-          <div className="flex-1">
-            <div className="flex items-start gap-2.5 text-[13px] text-ink-2">
-              <span className="grid size-7 shrink-0 place-items-center bg-ink text-surface rounded-[var(--radius-ctl)]"><Bot className="size-4" /></span>
-              <p>Bu analiz hakkında soru sorabileceğiniz yapay zekâ asistanı, Ayarlar'dan bir yapay zekâ anahtarı girildiğinde açılacak. Asistan ekrandaki kartları ve notları görecek; ham veriye değil, yalnızca bu özetlere erişecek.</p>
-            </div>
-            <div className="mt-4 space-y-1.5">
-              {['Bu dönemdeki düşüşün nedeni ne?', 'Hangi müşteriye odaklanmalıyız?', 'Bu tabloyu yöneticiye nasıl özetlerim?'].map((s) => (
-                <p key={s} className="border border-dashed border-line-strong px-3 py-2 text-[12.5px] text-muted rounded-[var(--radius-ctl)]">{s}</p>
-              ))}
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2 opacity-60">
-            <input disabled placeholder="Soru yazın… (yakında)" className={cn(inputCls, 'h-9 flex-1 text-[13px]')} />
-            <button disabled className="grid size-9 place-items-center bg-ink text-surface rounded-[var(--radius-ctl)]" aria-label="Gönder"><Send className="size-4" /></button>
-          </div>
-        </div>
-      )}
+      {sekme === 'sohbet' && <Sohbet baglam={baglam} />}
     </div>
   )
 }
@@ -340,4 +322,72 @@ export function SagPanel({ parcalar, seciliId, pano, kartlar, etiket, onPano, on
 function etiketBaslik(k: Kart, etiket: (d: string) => string) {
   const ad = OLCULER.find((o) => o.id === k.olcu)?.ad ?? 'Kart'
   return k.boyut ? `${etiket(k.boyut)} bazında ${ad.toLocaleLowerCase('tr')}` : ad
+}
+
+// ------------------------------------------------------------------ yapay zeka sohbeti
+interface Mesaj { rol: 'kullanici' | 'asistan'; metin: string; hata?: boolean }
+const ORNEK_SORULAR = ['Bu dönemdeki düşüşün nedeni ne olabilir?', 'Hangi müşteriye odaklanmalıyız?', 'Bu panoyu yöneticiye üç maddede özetle.']
+
+function Sohbet({ baglam }: { baglam: string }) {
+  const durum = useAsync(() => api.get<{ acik: boolean; ad?: string; model?: string; eksik?: string | null }>('/api/ai/durum'), [])
+  const [mesajlar, setMesajlar] = useState<Mesaj[]>([])
+  const [yazi, setYazi] = useState('')
+  const [bekliyor, setBekliyor] = useState(false)
+  const alt = useRef<HTMLDivElement>(null)
+  useEffect(() => { alt.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [mesajlar, bekliyor])
+
+  const gonder = async (soru: string) => {
+    const metin = soru.trim()
+    if (!metin || bekliyor) return
+    const yeni: Mesaj[] = [...mesajlar.filter((m) => !m.hata), { rol: 'kullanici', metin }]
+    setMesajlar(yeni); setYazi(''); setBekliyor(true)
+    try {
+      const r = await api.post<{ success: boolean; yanit?: string; message?: string }>('/api/ai/sohbet', {
+        mesajlar: yeni.map(({ rol, metin }) => ({ rol, metin })), baglam,
+      })
+      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: r.yanit || '(boş yanıt)' } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
+    } catch (e) {
+      setMesajlar([...yeni, { rol: 'asistan', metin: e instanceof Error ? e.message : 'Yanıt alınamadı.', hata: true }])
+    } finally { setBekliyor(false) }
+  }
+
+  if (durum.data && !durum.data.acik) {
+    return (
+      <div className="flex-1 px-4 py-4 text-[13px] text-ink-2">
+        <div className="flex items-start gap-2.5">
+          <span className="grid size-7 shrink-0 place-items-center bg-ink text-surface rounded-[var(--radius-ctl)]"><Bot className="size-4" /></span>
+          <p>{durum.data.eksik ?? 'Yapay zekâ kapalı.'} Ayarlar &gt; Yapay zekâ bölümünden bir sağlayıcı seçin. Groq'un ücretsiz katmanıyla başlayabilirsiniz. Asistan yalnızca ekrandaki kartların özetini ve notlarınızı görür, ham faturaları görmez.</p>
+        </div>
+        <a href="#/ayarlar" onClick={() => { try { localStorage.setItem('ayar.bolum', JSON.stringify('ai')) } catch { /* yok */ } }}
+          className="mt-4 inline-flex h-9 items-center border border-line-strong px-3 text-[13px] font-medium text-ink hover:bg-surface-2 rounded-[var(--radius-ctl)]">Ayarlara git</a>
+      </div>
+    )
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="scroll-thin flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+        {!mesajlar.length && (
+          <>
+            <p className="text-[13px] text-ink-2">Panodaki kartlar hakkında soru sorun.{durum.data?.ad && <span className="text-muted"> ({durum.data.ad} · {durum.data.model})</span>}</p>
+            <div className="space-y-1.5">
+              {ORNEK_SORULAR.map((q) => (
+                <button key={q} onClick={() => gonder(q)} className="block w-full border border-line px-3 py-2 text-left text-[12.5px] text-ink-2 hover:border-line-strong hover:text-ink rounded-[var(--radius-ctl)]">{q}</button>
+              ))}
+            </div>
+          </>
+        )}
+        {mesajlar.map((m, i) => (
+          <div key={i} className={cn('text-[13px] leading-relaxed', m.rol === 'kullanici' ? 'ml-6 bg-surface-2 px-3 py-2 text-ink rounded-[var(--radius-ctl)]' : 'whitespace-pre-wrap text-ink-2', m.hata && 'border-l-2 border-[var(--neg)] pl-2.5 text-[var(--neg)]')}>
+            {m.metin}
+          </div>
+        ))}
+        {bekliyor && <p className="text-[12.5px] text-muted">Yanıt yazılıyor…</p>}
+        <div ref={alt} />
+      </div>
+      <form className="flex items-center gap-2 border-t border-line px-4 py-3" onSubmit={(e) => { e.preventDefault(); gonder(yazi) }}>
+        <input value={yazi} onChange={(e) => setYazi(e.target.value)} placeholder="Soru yazın…" aria-label="Soru" className={cn(inputCls, 'h-9 flex-1 text-[13px]')} />
+        <button type="submit" disabled={!yazi.trim() || bekliyor} className="grid size-9 place-items-center bg-ink text-surface disabled:opacity-40 rounded-[var(--radius-ctl)]" aria-label="Gönder"><Send className="size-4" /></button>
+      </form>
+    </div>
+  )
 }
