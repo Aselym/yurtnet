@@ -54,6 +54,11 @@ def ayarlari_yaz(veri):
                 continue
             if k in SIFRELER and (v is None or v == ''):
                 continue                      # bos gelen sifre mevcut sifreyi silmez
+            if k == 'ai_api_key':
+                v = str(v).strip()
+                if v.lower().startswith(('http://', 'https://', 'www.')) or ' ' in v:
+                    raise ValueError('API anahtarı kutusuna bir adres yazılmış. Groq anahtarı "gsk_" ile başlar; '
+                                     'tarayıcının otomatik doldurmasını kontrol edin.')
             if k in LOGO_ANAHTARLARI and v:
                 if not isinstance(v, str) or not v.startswith(LOGO_TIPLERI):
                     raise ValueError('Logo PNG, JPG, WEBP ya da SVG olmalı.')
@@ -249,7 +254,11 @@ def _handle(h, method, path, query, body):
                 h._send_json({'success': False, 'message': str(e)}, 502)
             return True
         if path == '/api/settings':
-            ayarlari_yaz(body)
+            try:
+                ayarlari_yaz(body)
+            except ValueError as e:              # kullaniciya anlamli mesaj (logo boyutu, adres yazilmis anahtar)
+                h._send_json({'success': False, 'message': str(e)}, 400)
+                return True
             h._send_json({'success': True, 'message': 'Ayarlar kaydedildi.'})
             return True
         if path == '/api/kurallar':
