@@ -231,6 +231,7 @@ def init_db():
         ('ai_model', ''),                  # bos = saglayicinin varsayilani
         ('ai_api_key', ''),
         ('ai_base_url', ''),
+        ('ai_instructions', ''),           # kullanicinin asistana ek talimatlari
     ]
     for key, val in default_settings:
         cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, val))

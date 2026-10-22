@@ -24,12 +24,14 @@ SAGLAYICILAR = {
 ZAMAN_ASIMI = 90
 AZAMI_BAGLAM = 24000       # karakter
 AZAMI_MESAJ = 20
+AZAMI_TALIMAT = 2000   # kullanicinin ek talimatlari (Ayarlar)
 
 SISTEM = """Sen Tailglass Analytics'in analiz asistanısın. Bir KOBİ yöneticisine, ekrandaki analiz panosu hakkında yardım ediyorsun.
 Kurallar:
 - Yalnızca aşağıdaki PANO bölümündeki bilgilere dayan. Orada olmayan rakam, müşteri ya da ürün uydurma; bilmiyorsan "panoda bu bilgi yok" de ve hangi bloğu eklerlerse görebileceklerini öner (ör. "Müşteri" kırılımı).
 - Türkçe, sade ve kısa yaz; yönetici dili kullan. Gerektiğinde madde işareti kullan, en fazla birkaç paragraf.
 - Rakamları panodaki biçimiyle aynen kullan.
+- Tamamen Türkçe yaz (ay adları dahil: Haziran, Temmuz…). Düz metin kullan; ** ya da # gibi biçim işaretleri koyma, madde için satır başına "- " yaz.
 - Somut, uygulanabilir öneriler ver; ama kesin olmayan çıkarımları "olabilir" diye belirt.
 
 PANO:
@@ -99,7 +101,11 @@ def sohbet(mesajlar, baglam, ayarlar=None):
         raise YapayZekaHatasi('API anahtarı girilmemiş. Ayarlar > Yapay zekâ bölümünden ekleyin.')
     if not y['adres'] or not y['model']:
         raise YapayZekaHatasi('Yapay zekâ adresi ya da modeli eksik. Ayarlar > Yapay zekâ bölümünü kontrol edin.')
-    sistem = SISTEM + str(baglam or '(pano boş)')[:AZAMI_BAGLAM]
+    sistem = SISTEM.replace('\nPANO:\n', '')
+    talimat = ((ayarlar or get_settings()).get('ai_instructions') or '').strip()[:AZAMI_TALIMAT]
+    if talimat:
+        sistem += '\nŞirketin ek talimatları (yukarıdaki kurallarla çelişmedikçe uy):\n' + talimat + '\n'
+    sistem += '\nPANO:\n' + str(baglam or '(pano boş)')[:AZAMI_BAGLAM]
 
     if s == 'anthropic':
         cevap = _post(f"{y['adres']}/v1/messages",

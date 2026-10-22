@@ -56,6 +56,13 @@ class YapayZekaTest(unittest.TestCase):
         self.assertIn('PANO-OZETI', govde['messages'][0]['content'])
         self.assertEqual(govde['messages'][-1], {'role': 'user', 'content': 'Neden düştü?'})
 
+    def test_ek_talimat(self):
+        a = {**self.a('groq'), 'ai_instructions': 'Her cevaba Merhaba ile başla.'}
+        yz.sohbet(self.MSJ, 'PANO-OZETI', a)
+        sistem = GELEN[0][2]['messages'][0]['content']
+        self.assertIn('Merhaba ile başla', sistem)
+        self.assertLess(sistem.index('Merhaba'), sistem.index('PANO-OZETI'))   # pano en sonda
+
     def test_anthropic(self):
         self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('anthropic')), 'claude yanıtı')
         yol, bas, govde = GELEN[0]

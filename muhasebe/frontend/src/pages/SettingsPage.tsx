@@ -373,10 +373,16 @@ function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
                 </Field>
               </div>
             )}
+            <div className="md:col-span-2">
+              <Field label="Asistan talimatları" hint="İsteğe bağlı. Asistanın nasıl konuşacağını siz belirleyin; örn. &quot;Her cevaba Merhaba ile başla&quot;, &quot;Cevabı en fazla 3 madde yap&quot;, &quot;Rakamları milyon ₺ olarak yuvarla&quot;. Rakam uydurmama gibi temel kurallar her zaman geçerlidir.">
+                <textarea value={String(s.ai_instructions ?? '')} onChange={(e) => setS({ ...s, ai_instructions: e.target.value })} rows={4} maxLength={2000}
+                  placeholder="Her cevaba Merhaba ile başla." className={cn(inputCls, 'h-auto py-2')} />
+              </Field>
+            </div>
           </div>
         )}
         <div className="mt-6 flex gap-2">
-          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key'])}>Kaydet</Button>
+          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key', 'ai_instructions'])}>Kaydet</Button>
           {secim !== 'kapali' && (
             <Button loading={testing} onClick={async () => {
               setTesting(true)

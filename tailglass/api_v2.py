@@ -31,7 +31,7 @@ YAZILABILIR = {
     'reminder_days', 'expiring_soon_days', 'sub_min_invoices', 'sub_max_interval_days', 'sub_risk_factor',
     'app_public_url', 'company_name', 'base_currency', 'sync_hours', 'pinned_brands',
     'company_logo', 'company_logo_dark',
-    'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'tcmb_rates',
+    'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'ai_instructions', 'tcmb_rates',
 }
 LOGO_ANAHTARLARI = {'company_logo', 'company_logo_dark'}
 LOGO_TIPLERI = ('data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/webp;base64,', 'data:image/svg+xml;base64,')

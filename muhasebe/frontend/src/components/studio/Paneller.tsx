@@ -345,7 +345,7 @@ function Sohbet({ baglam }: { baglam: string }) {
       const r = await api.post<{ success: boolean; yanit?: string; message?: string }>('/api/ai/sohbet', {
         mesajlar: yeni.map(({ rol, metin }) => ({ rol, metin })), baglam,
       })
-      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: r.yanit || '(boş yanıt)' } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
+      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: (r.yanit || '(boş yanıt)').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,6}\s+/gm, '') } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
     } catch (e) {
       setMesajlar([...yeni, { rol: 'asistan', metin: e instanceof Error ? e.message : 'Yanıt alınamadı.', hata: true }])
     } finally { setBekliyor(false) }
