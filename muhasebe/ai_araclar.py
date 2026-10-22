@@ -5,6 +5,7 @@ Model veritabanina dogrudan erismez; yalnizca bu beyaz listeli araclari cagirir:
   deger_ara         musteri / urun adinin tam yazimini bulur (filtre icin)
   tahmin            gelecek aylar icin istatistiksel ongoru; rakamlari PROGRAM hesaplar
   lisans_bitisleri  yaklasan lisans bitisleri
+  abonelikleri_listele, stok_ozeti
 Hepsi salt okunur. Musteri e-posta/telefonu hicbir aracta donmez.
 """
 import json
@@ -13,7 +14,7 @@ from datetime import date, timedelta
 import analytics
 from database import get_db_connection
 
-AZAMI_SATIR = 50
+AZAMI_SATIR = 25
 TAHMIN_OLCULERI = ('net_tl', 'net_usd', 'qty', 'profit_tl', 'profit_usd', 'invoices')
 _FILTRE_ACIKLAMA = ('Boyut -> değer listesi. Örn {"brand": ["WatchGuard"], "client": ["ABC LTD"]}. '
                     'Müşteri/ürün adını bilmiyorsan önce deger_ara ile tam yazımını bul.')
@@ -74,6 +75,30 @@ ARACLAR = [
         'parametreler': {
             'type': 'object',
             'properties': {'gun': {'type': 'integer', 'description': 'Kaç gün içinde (varsayılan 90)'}},
+        },
+    },
+    {
+        'ad': 'abonelikleri_listele',
+        'aciklama': 'Aylık faturalanan abonelikler (Microsoft 365, Azure...); faturası kesilmeyi bırakan riskli/kayıp müşteriler.',
+        'parametreler': {
+            'type': 'object',
+            'properties': {
+                'durum': {'type': 'string', 'enum': ['ACTIVE', 'AT_RISK', 'LOST', 'tumu'],
+                          'description': 'ACTIVE=düzenli, AT_RISK=gecikmiş, LOST=kayıp'},
+                'musteri': {'type': 'string', 'description': 'Müşteri adında geçen metin (isteğe bağlı)'},
+            },
+            'required': ['durum'],
+        },
+    },
+    {
+        'ad': 'stok_ozeti',
+        'aciklama': 'Belirli bir tarihteki stok değeri ve adedi (kategori ya da markaya göre), ölü stok dahil.',
+        'parametreler': {
+            'type': 'object',
+            'properties': {
+                'tarih': {'type': 'string', 'description': 'YYYY-MM-DD (varsayılan bugün)'},
+                'boyut': {'type': 'string', 'enum': ['category', 'brand']},
+            },
         },
     },
 ]
@@ -203,7 +228,35 @@ def lisans_bitisleri(gun=90):
             'toplam_son_satis_tutari_tl': _yuvarla(sum(x['son_satis_tutari_tl'] or 0 for x in liste))}
 
 
-CALISTIR = {'veri_sorgula': veri_sorgula, 'deger_ara': deger_ara, 'tahmin': tahmin, 'lisans_bitisleri': lisans_bitisleri}
+def abonelikleri_listele(durum='AT_RISK', musteri=None):
+    where, p = ('1=1', []) if durum == 'tumu' else ('status = ?', [durum if durum in ('ACTIVE', 'AT_RISK', 'LOST') else 'AT_RISK'])
+    if musteri:
+        where += ' AND client_name LIKE ?'
+        p.append(f'%{str(musteri)[:60]}%')
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(f"""SELECT client_name, product_name, status, invoice_count, last_invoice_date, days_since_last,
+                                avg_interval_days FROM subscriptions WHERE {where} ORDER BY days_since_last DESC LIMIT ?""",
+                            p + [AZAMI_SATIR]).fetchall()
+    finally:
+        conn.close()
+    ad = {'ACTIVE': 'düzenli', 'AT_RISK': 'riskli', 'LOST': 'kayıp'}
+    return {'abonelikler': [{'musteri': r['client_name'], 'urun': r['product_name'], 'durum': ad.get(r['status'], r['status']),
+                             'fatura_sayisi': r['invoice_count'], 'son_fatura': r['last_invoice_date'],
+                             'son_faturadan_beri_gun': r['days_since_last'],
+                             'normal_aralik_gun': _yuvarla(r['avg_interval_days'])} for r in rows]}
+
+
+def stok_ozeti(tarih=None, boyut='category'):
+    boyut = boyut if boyut in ('category', 'brand') else 'category'
+    gruplar, toplam = analytics.stok_grup_ozeti(tarih or date.today().isoformat(), boyut)
+    return {'toplam': {k: _yuvarla(v) for k, v in toplam.items()},
+            'gruplar': [{boyut: k, **{x: _yuvarla(y) for x, y in v.items()}}
+                        for k, v in sorted(gruplar.items(), key=lambda x: -x[1]['value_tl'])[:AZAMI_SATIR]]}
+
+
+CALISTIR = {'veri_sorgula': veri_sorgula, 'deger_ara': deger_ara, 'tahmin': tahmin, 'lisans_bitisleri': lisans_bitisleri,
+            'abonelikleri_listele': abonelikleri_listele, 'stok_ozeti': stok_ozeti}
 
 
 def calistir(ad, argumanlar):
@@ -222,4 +275,4 @@ def calistir(ad, argumanlar):
         sonuc = CALISTIR[ad](**{k: v for k, v in argumanlar.items() if k in izinli})
     except (ValueError, TypeError) as e:
         sonuc = {'hata': f'Geçersiz istek: {e}'}
-    return json.dumps(sonuc, ensure_ascii=False, default=str)[:20000]
+    return json.dumps(sonuc, ensure_ascii=False, default=str)[:6000]

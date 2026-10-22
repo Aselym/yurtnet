@@ -31,11 +31,12 @@ ARAC_TURU = 6              # bir soruda en fazla bu kadar arac turu
 
 SISTEM = """Sen Tailglass Analytics'in analiz asistanısın. Bir KOBİ yöneticisiyle konuşuyorsun: sorularını yanıtlar, şirketin satış, kâr, stok ve lisans verisini yorumlar, öngörü ve öneri sunarsın. Genel sorularda normal bir sohbet ortağı gibi davranabilirsin.
 Kurallar:
-- Şirket verisiyle ilgili her rakam ya kullanıcının ekrandaki PANO bölümünden ya da araçlardan (veri_sorgula, tahmin, lisans_bitisleri) gelmeli. Kafandan rakam, müşteri ya da ürün adı uydurma. Gerekirse önce aracı çağır; erişimin yoksa "bu bilgiye erişimim yok" de.
+- Şirket verisiyle ilgili her rakam ya kullanıcının ekrandaki PANO bölümünden, ŞİRKET PROFİLİ'nden ya da araçlardan (veri_sorgula, tahmin, lisans_bitisleri, abonelikleri_listele, stok_ozeti) gelmeli. Kafandan rakam, müşteri ya da ürün adı uydurma. Gerekirse önce aracı çağır; erişimin yoksa "bu bilgiye erişimim yok" de.
+- Önerilerine tahmini etki rakamı ekleme ("%3-5 marj artışı", "5 milyon ₺ ek kâr", "stoğu %10 azaltın" gibi). Bu rakamlar hiçbir veriden gelmez. Öneriyi rakamsız yaz ya da yalnızca verideki gerçek rakama dayandır (ör. "90 gün içinde dolacak lisansların son satış tutarı 800 bin ₺").
 - Gelecek hakkında rakam vereceksen tahmin aracını kullan; aralığı (alt-üst) ve yöntemin geçmişteki hata payını da söyle. Öngörünün kesin olmadığını belirt.
-- Müşteri ya da ürün adını tam bilmiyorsan önce deger_ara ile bul, sonra filtrele. Adları araçtan geldiği gibi aynen yaz; harf, kısaltma ya da Türkçe karakter düzeltmesi yapma.
+- Müşteri ya da ürün adını tam bilmiyorsan önce deger_ara ile bul, sonra filtrele. Adları araçtan geldiği gibi aynen yaz; harf, kısaltma ya da Türkçe karakter düzeltmesi yapma. "Müşteri #594", "Temsilci #12" gibi numaralı adları da aynen (numarasıyla) yaz.
 - Türkçe, sade ve kısa yaz; yönetici dili kullan. En fazla birkaç paragraf.
-- Tamamen Türkçe yaz (ay adları dahil: Haziran, Temmuz…). Düz metin kullan; ** ya da # gibi biçim işaretleri koyma, madde için satır başına "- " yaz.
+- Tamamen Türkçe yaz (ay adları dahil: Haziran, Temmuz…). Düz metin kullan; ** ya da # gibi biçim işaretleri ve tablo koyma, madde için satır başına "- " yaz.
 - Tutarları okunur yuvarla (ör. 187,4 milyon ₺).
 - Somut, uygulanabilir öneriler ver; kesin olmayan çıkarımları "olabilir" diye belirt.
 """
@@ -71,7 +72,7 @@ def durum():
             'eksik': 'API anahtarı, adres ya da model eksik.' if eksik else None}
 
 
-def _post(url, govde, basliklar, deneme=2):
+def _post(url, govde, basliklar, deneme=3):
     req = urllib.request.Request(url, data=json.dumps(govde).encode('utf-8'),
                                  headers={'Content-Type': 'application/json', 'User-Agent': 'TailglassAnalytics/1.0', **basliklar})
     try:
@@ -80,12 +81,15 @@ def _post(url, govde, basliklar, deneme=2):
     except urllib.error.HTTPError as e:
         kod = e.code
         if kod == 429 and deneme > 1:
-            # ucretsiz katmanlarin dakikalik sinirlari: kisa bir sure bekleyip bir kez daha dene
-            try:
-                bekle = float(e.headers.get('retry-after') or 6)
-            except (TypeError, ValueError):
-                bekle = 6
-            if bekle <= 20:
+            # ucretsiz katmanlarin dakikalik token sinirlari (Groq: 8000/dk): saglayicinin soyledigi kadar bekle
+            bekle = 6
+            for b in ('retry-after', 'x-ratelimit-reset-tokens'):
+                v = (e.headers.get(b) or '').strip().rstrip('s')
+                try:
+                    bekle = max(bekle, float(v) + 1) if v else bekle
+                except ValueError:
+                    pass
+            if bekle <= 60:
                 time.sleep(bekle)
                 return _post(url, govde, basliklar, deneme - 1)
         if kod in (401, 403):
@@ -103,10 +107,12 @@ def _sistem_metni(ayarlar, baglam, araclar_acik):
     sistem = SISTEM
     if araclar_acik:
         try:
+            import ai_veri
+            sistem += ('\nŞİRKET PROFİLİ (senkronla gelen verinin özeti; arka plan bilginiz. Ayrıntı için araçları kullanın):\n'
+                       + ai_veri.sirket_profili() + '\n')
+        except Exception:
             import ai_araclar
             sistem += '\n' + ai_araclar.sistem_bilgisi() + '\n'
-        except Exception:
-            pass
     else:
         sistem += '\nVeritabanı araçları kapalı: yalnızca PANO bölümündeki bilgilere dayan.\n'
     talimat = (ayarlar.get('ai_instructions') or '').strip()[:AZAMI_TALIMAT]
@@ -138,6 +144,10 @@ def _arac_ozeti(ad, arg):
         return f"Lisans bitişleri ({arg.get('gun') or 90} gün)"
     if ad == 'deger_ara':
         return f"Ad araması ({arg.get('metin', '')})"
+    if ad == 'abonelikleri_listele':
+        return f"Abonelikler ({arg.get('durum') or 'riskli'})"
+    if ad == 'stok_ozeti':
+        return f"Stok özeti ({arg.get('tarih') or 'bugün'})"
     return str(ad)
 
 
@@ -155,37 +165,89 @@ def sohbet(mesajlar, baglam, ayarlar=None):
             temiz.append({'role': 'assistant' if m.get('rol') == 'asistan' else 'user', 'content': metin})
     if not temiz or temiz[-1]['role'] != 'user':
         raise ValueError('Soru boş.')
-    s = y['saglayici']
-    if SAGLAYICILAR[s]['anahtar'] and not y['anahtar']:
+    _hazir_mi(y)
+    araclar_acik = (ayarlar.get('ai_db_access') or 'ON') != 'OFF'
+    return _maskeli_konus(y, temiz, lambda acik: _sistem_metni(ayarlar, baglam, acik), araclar_acik, ayarlar)
+
+
+def _hazir_mi(y):
+    if SAGLAYICILAR[y['saglayici']]['anahtar'] and not y['anahtar']:
         raise YapayZekaHatasi('API anahtarı girilmemiş. Ayarlar > Yapay zekâ bölümünden ekleyin.')
     if not y['adres'] or not y['model']:
         raise YapayZekaHatasi('Yapay zekâ adresi ya da modeli eksik. Ayarlar > Yapay zekâ bölümünü kontrol edin.')
 
-    araclar_acik = (ayarlar.get('ai_db_access') or 'ON') != 'OFF'
+
+def gorev(gorev_metni, rol_metni, ayarlar=None):
+    """Sohbet disi tek seferlik is (denetci): rol_metni + sirket profili + araclar.
+    Doner: {'yanit', 'araclar'}. Yapay zeka kapaliysa YapayZekaHatasi."""
+    ayarlar = ayarlar or get_settings()
+    y = yapilandirma(ayarlar)
+    if not y:
+        raise YapayZekaHatasi('Yapay zekâ kapalı.')
+    _hazir_mi(y)
+
+    def sistem_uret(acik):
+        metin = SISTEM + '\n' + rol_metni + '\n'
+        if acik:
+            import ai_veri
+            metin += '\nŞİRKET PROFİLİ:\n' + ai_veri.sirket_profili() + '\n'
+        talimat = (ayarlar.get('ai_instructions') or '').strip()[:AZAMI_TALIMAT]
+        if talimat:
+            metin += '\nŞirketin ek talimatları (yukarıdaki kurallarla çelişmedikçe uy):\n' + talimat + '\n'
+        return metin
+    return _maskeli_konus(y, [{'role': 'user', 'content': gorev_metni[:20000]}], sistem_uret,
+                          (ayarlar.get('ai_db_access') or 'ON') != 'OFF', ayarlar)
+
+
+def maske_acik_mi(ayarlar):
+    return (ayarlar.get('ai_mask_names') or 'ON') != 'OFF'
+
+
+def _maskeli_konus(y, temiz, sistem_uret, araclar_acik, ayarlar):
+    """Musteri/temsilci adlarini (ayar aciksa) modele gondermeden once gizler, cevapta geri acar.
+    Model adlari "Müşteri #594" diye yazdigi icin gercek ad cevaba harfi harfine geri konur."""
+    import ai_araclar
+    import ai_veri
+    m = ai_veri.Maske(maske_acik_mi(ayarlar))
+    gizli = [{**x, 'content': m.gizle(x['content'])} for x in temiz]
+
+    def calistir_maskeli(ad, arg):
+        if isinstance(arg, str):
+            try:
+                arg = json.loads(arg or '{}')
+            except ValueError:
+                arg = {}
+        return m.gizle(ai_araclar.calistir(ad, m.ac_deger(arg if isinstance(arg, dict) else {})))
+
+    def bitir(sonuc):
+        sonuc['yanit'] = m.ac(sonuc.get('yanit') or '')
+        sonuc['araclar'] = [m.ac(a) for a in sonuc.get('araclar') or []]
+        return sonuc
     try:
-        return _konus(y, temiz, _sistem_metni(ayarlar, baglam, araclar_acik), araclar_acik)
+        return bitir(_konus(y, gizli, m.gizle(sistem_uret(araclar_acik)), araclar_acik, calistir_maskeli))
     except YapayZekaHatasi as e:
         if araclar_acik and e.kod == 400:
             # bazi modeller (ozellikle kucuk yerel modeller) arac cagirmayi desteklemez: aracsiz tekrar dene
-            sonuc = _konus(y, temiz, _sistem_metni(ayarlar, baglam, False), False)
+            sonuc = bitir(_konus(y, gizli, m.gizle(sistem_uret(False)), False, calistir_maskeli))
             sonuc['uyari'] = 'Bu model veritabanı araçlarını desteklemiyor; yalnızca ekrandaki panoya göre yanıtlandı.'
             return sonuc
         raise
 
 
-def _konus(y, temiz, sistem, araclar_acik):
+def _konus(y, temiz, sistem, araclar_acik, calistirici=None):
     import ai_araclar
     s, kullanilan = y['saglayici'], []
+    calistirici = calistirici or ai_araclar.calistir
 
     def calistir(ad, arg):
         kullanilan.append(_arac_ozeti(ad, arg))
-        return ai_araclar.calistir(ad, arg)
+        return calistirici(ad, arg)
 
     if s == 'anthropic':
         tanim = [{'name': a['ad'], 'description': a['aciklama'], 'input_schema': a['parametreler']} for a in ai_araclar.ARACLAR]
         msj = list(temiz)
         for _ in range(ARAC_TURU + 1):
-            govde = {'model': y['model'], 'max_tokens': 1500, 'system': sistem, 'messages': msj}
+            govde = {'model': y['model'], 'max_tokens': 1000, 'system': sistem, 'messages': msj}
             if araclar_acik:
                 govde['tools'] = tanim
             cevap = _post(f"{y['adres']}/v1/messages", govde, {'x-api-key': y['anahtar'], 'anthropic-version': '2023-06-01'})
@@ -208,7 +270,7 @@ def _konus(y, temiz, sistem, araclar_acik):
                 govde['tools'] = tanim
             mesaj = _post(f"{y['adres']}/api/chat", govde, {}).get('message') or {}
         else:   # groq ve diger OpenAI uyumlu servisler
-            govde = {'model': y['model'], 'max_tokens': 1500, 'temperature': 0.3, 'messages': msj}
+            govde = {'model': y['model'], 'max_tokens': 1000, 'temperature': 0.3, 'messages': msj}
             if araclar_acik:
                 govde['tools'] = tanim
             bas = {'Authorization': f"Bearer {y['anahtar']}"} if y['anahtar'] else {}

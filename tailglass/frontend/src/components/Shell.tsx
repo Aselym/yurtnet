@@ -2,7 +2,7 @@ import { CompanyBadge, PRODUCT, TailglassLogo, TailglassMark } from './Brand'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   BarChart3, Boxes, FileSpreadsheet, Shapes, FileText, LayoutDashboard, LogOut, Moon,
-  PackageCheck, RefreshCw, Repeat, Settings, ShoppingCart, Sun, Truck, UserRound, Users,
+  PackageCheck, Radar, RefreshCw, Repeat, Settings, ShoppingCart, Sun, Truck, UserRound, Users,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { navigate } from '../lib/router'
@@ -36,6 +36,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: ty
       { key: 'abonelikler', label: 'Abonelikler', icon: Repeat },
       { key: 'teklifler', label: 'Teklifler', icon: FileText },
       { key: 'temsilciler', label: 'Temsilciler', icon: UserRound },
+      { key: 'asistan', label: 'Asistan günlüğü', icon: Radar },
     ],
   },
 ]
@@ -45,7 +46,7 @@ export const PAGE_TITLE: Record<string, string> = Object.fromEntries(
 )
 
 // Donemden bagimsiz sayfalar ust seridi gostermez
-const DONEMSIZ = new Set(['studyo', 'ayarlar', 'teklifler', 'lisanslar', 'abonelikler'])
+const DONEMSIZ = new Set(['studyo', 'ayarlar', 'teklifler', 'lisanslar', 'abonelikler', 'asistan'])
 
 export function Shell({ page, children, onLogout }: { page: string; children: ReactNode; onLogout: () => void }) {
   const { meta, currency, setCurrency } = useWork()

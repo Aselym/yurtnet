@@ -147,6 +147,9 @@ def start_background_scheduler():
     backup_thread = threading.Thread(target=backup_loop, daemon=True)
     backup_thread.start()
 
+    import denetci
+    threading.Thread(target=denetci.ozet_dongusu, daemon=True).start()   # asistanin gunluk ozet maili
+
     print("Background reminder scheduler started.")
 
 if __name__ == '__main__':

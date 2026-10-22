@@ -34,6 +34,8 @@ class Sahte(BaseHTTPRequestHandler):
             else:
                 cevap = {'choices': [{'message': {'content': None, 'tool_calls': [
                     {'id': 'c1', 'type': 'function', 'function': {'name': 'lisans_bitisleri', 'arguments': '{"gun": 30}'}}]}}]}
+        elif self.path.endswith('/chat/completions') and 'maske' in self.path:
+            cevap = {'choices': [{'message': {'content': 'Müşteri #77 öne çıkıyor.'}}]}
         elif self.path.endswith('/chat/completions'):
             cevap = {'choices': [{'message': {'content': ' openai yanıtı '}}]}
         elif self.path.endswith('/v1/messages'):
@@ -72,6 +74,22 @@ class YapayZekaTest(unittest.TestCase):
         self.assertIn('PANO-OZETI', govde['messages'][0]['content'])
         self.assertEqual(govde['messages'][-1], {'role': 'user', 'content': 'Neden düştü?'})
 
+    def test_ad_maskeleme(self):
+        from database import get_db_connection
+        conn = get_db_connection()
+        conn.execute("INSERT OR REPLACE INTO wh_clients (client_ref, code, name) VALUES (77, 'C77', 'ORNEK MAKINA A.S.')")
+        conn.commit(); conn.close()
+        soru = [{'rol': 'kullanici', 'metin': 'ORNEK MAKINA A.S. neden önemli?'}]
+        # acik (varsayilan): gercek ad saglayiciya gitmez, cevapta geri acilir
+        r = yz.sohbet(soru, 'pano: ORNEK MAKINA A.S. 5 milyon', self.a('openai', adres=self.adres + '/maske'))
+        govde = json.dumps(GELEN[-1][2], ensure_ascii=False)
+        self.assertNotIn('ORNEK MAKINA', govde)
+        self.assertIn('Müşteri #77', govde)
+        self.assertEqual(r['yanit'], 'ORNEK MAKINA A.S. öne çıkıyor.')
+        # kapali: ad oldugu gibi gider
+        yz.sohbet(soru, '', {**self.a('openai', adres=self.adres + '/maske'), 'ai_mask_names': 'OFF'})
+        self.assertIn('ORNEK MAKINA A.S.', json.dumps(GELEN[-1][2], ensure_ascii=False))
+
     def test_ek_talimat(self):
         a = {**self.a('groq'), 'ai_instructions': 'Her cevaba Merhaba ile başla.'}
         yz.sohbet(self.MSJ, 'PANO-OZETI', a)
@@ -102,7 +120,7 @@ class YapayZekaTest(unittest.TestCase):
         self.assertEqual(bas['X-Api-Key'], 'gizli')
         self.assertIn('x', govde['system'])
         self.assertEqual(govde['messages'], [{'role': 'user', 'content': 'Neden düştü?'}])
-        self.assertEqual({t['name'] for t in govde['tools']}, {'veri_sorgula', 'deger_ara', 'tahmin', 'lisans_bitisleri'})
+        self.assertEqual({t['name'] for t in govde['tools']}, {'veri_sorgula', 'deger_ara', 'tahmin', 'lisans_bitisleri', 'abonelikleri_listele', 'stok_ozeti'})
 
     def test_ollama_anahtarsiz(self):
         self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('ollama', anahtar=''))['yanit'], 'ollama yanıtı')

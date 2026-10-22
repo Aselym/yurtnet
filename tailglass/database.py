@@ -233,6 +233,10 @@ def init_db():
         ('ai_base_url', ''),
         ('ai_instructions', ''),           # kullanicinin asistana ek talimatlari
         ('ai_db_access', 'ON'),            # asistan salt okunur araclarla toplu veri sorgulayabilir
+        ('ai_mask_names', 'ON'),           # musteri/temsilci adlari saglayiciya takma adla gider
+        ('ai_watch', 'ON'),                # 7/24 denetci: her senkrondan sonra tarama
+        ('ai_digest_hour', '18'),          # gunluk ozet mailinin saati
+        ('ai_urgent_limit', '3'),          # gunde en fazla bu kadar acil mail
     ]
     for key, val in default_settings:
         cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, val))

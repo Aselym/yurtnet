@@ -46,6 +46,11 @@ def tam_senkron(ilerleme=None):
         if riskli:
             mesaj += f" ({riskli} riskli)"
         ozet.update({'success': True, 'message': mesaj + '.'})
+        try:
+            import denetci                       # ayar aciksa ve yapay zeka hazirsa arka planda denetim
+            ozet['denetim'] = denetci.arka_planda_denetle('senkron')
+        except Exception as e:
+            print(f'[Denetçi] başlatılamadı: {e}')
         return ozet
     finally:
         _KILIT.release()

@@ -37,6 +37,9 @@ Son kontrol: 2026-10-22 (sade stüdyo + yapay zekâ sohbeti sonrası).
 - [x] Grafiklere anında Türkçe yorum, "bu aralık önemli zira…" — sağ panel (kural tabanlı; yapay zekâ API'si sonra)
 - [x] Not alma (analiz ve kart notu), kaydetme/açma, Excel (tüm analiz), grafiği görsel indirme, sunum modu
 - [x] Analiz hakkında yapay zekâ sohbeti — sağ panel > Sohbet; sağlayıcı Ayarlar > Yapay zekâ (Groq ücretsiz / Claude / yerel Ollama). Asistan pano özetini görür; "şirket verisini sorgulayabilsin" açıkken salt okunur araçlarla toplu sorgu, öngörü (rakamları program hesaplar) ve lisans bitişlerine erişir. Ek talimatlar Ayarlar'dan. Canlıda anahtar girilmeli.
+- [x] Asistanın arka plan bilgisi: her senkrondan sonra şirket profili (13 aylık seyir, büyük müşteriler, markalar, lisans/abonelik/stok) her konuşmaya eklenir; abonelik ve stok araçları — kullanıcı isteği 2026-10-22
+- [x] Müşteri/temsilci adlarını sağlayıcıdan gizleme (Ayarlar > Yapay zekâ, varsayılan açık); yanıtta gerçek ad geri yazılır
+- [x] 7/24 denetçi: senkron sonrası tarama, Asistan günlüğü sayfası, acil bulgu iç ekibe hemen e-posta (günlük sınır), diğerleri günlük özet maili — Ayarlar > Yapay zekâ > 7/24 denetçi. Canlıda SMTP ve iç alıcılar girilmeli.
 - [x] Yorumlarda resmî tatil (Ramazan/Kurban Bayramı) açıklaması; dosya/e-Fatura kaynağında TCMB kuru — Ayarlar > Yapay zekâ > Ücretsiz veri servisleri
 
 ## 4. Lisans hatırlatmaları

@@ -18,6 +18,7 @@ const Subscriptions = lazy(() => import('./pages/Subscriptions'))
 const Offers = lazy(() => import('./pages/Offers'))
 const Reps = lazy(() => import('./pages/Reps'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const Assistant = lazy(() => import('./pages/Assistant'))
 
 type Auth = 'checking' | 'in' | 'out'
 
@@ -58,12 +59,13 @@ function Routed({ onLogout }: { onLogout: () => void }) {
       case 'teklifler': return <Offers />
       case 'temsilciler': return <Reps />
       case 'ayarlar': return <SettingsPage />
+      case 'asistan': return <Assistant />
       case 'genel': return <Overview />
       case 'studyo': return <Studio />
       default: return <Studio />
     }
   })()
-  const bilinen = ['satislar', 'alislar', 'stok', 'musteriler', 'analiz', 'donem', 'lisanslar', 'abonelikler', 'teklifler', 'temsilciler', 'ayarlar', 'genel', 'studyo']
+  const bilinen = ['satislar', 'alislar', 'stok', 'musteriler', 'analiz', 'donem', 'lisanslar', 'abonelikler', 'teklifler', 'temsilciler', 'ayarlar', 'genel', 'studyo', 'asistan']
   const etkin = bilinen.includes(page) ? page : 'studyo'
   return (
     <Shell page={etkin} onLogout={onLogout}>

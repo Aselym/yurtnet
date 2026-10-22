@@ -32,6 +32,7 @@ YAZILABILIR = {
     'app_public_url', 'company_name', 'base_currency', 'sync_hours', 'pinned_brands',
     'company_logo', 'company_logo_dark',
     'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'ai_instructions', 'ai_db_access', 'tcmb_rates',
+    'ai_mask_names', 'ai_watch', 'ai_digest_hour', 'ai_urgent_limit',
 }
 LOGO_ANAHTARLARI = {'company_logo', 'company_logo_dark'}
 LOGO_TIPLERI = ('data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/webp;base64,', 'data:image/svg+xml;base64,')
@@ -167,6 +168,10 @@ def _handle(h, method, path, query, body):
         if path == '/api/settings':
             h._send_json(ayarlari_oku())
             return True
+        if path == '/api/asistan/gunluk':
+            import denetci
+            h._send_json({'kayitlar': denetci.gunluk(int(q.get('limit') or 200))})
+            return True
         if path == '/api/ai/durum':
             h._send_json(yapay_zeka.durum())
             return True
@@ -243,6 +248,14 @@ def _handle(h, method, path, query, body):
         if path == '/api/logo/test-connection':
             ok, mesaj = test_logo_connection()
             h._send_json({'success': ok, 'message': mesaj})
+            return True
+        if path == '/api/asistan/denetle':
+            import denetci
+            h._send_json(denetci.denetle('elle'))
+            return True
+        if path == '/api/asistan/ozet':
+            import denetci
+            h._send_json(denetci.gunluk_ozet_gonder())
             return True
         if path in ('/api/ai/sohbet', '/api/ai/test'):
             if path == '/api/ai/test':

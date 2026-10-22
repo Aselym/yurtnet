@@ -385,11 +385,18 @@ function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
           <label className="mt-5 flex max-w-3xl items-start gap-2.5 text-[13.5px] text-ink">
             <input type="checkbox" className="mt-1" checked={(s.ai_db_access ?? 'ON') !== 'OFF'} onChange={(e) => setS({ ...s, ai_db_access: e.target.checked ? 'ON' : 'OFF' })} />
             <span><b className="font-semibold">Asistan şirket verisini sorgulayabilsin</b>
-              <span className="block text-[12.5px] text-muted">Açıkken asistan, sorunuzu yanıtlamak için analiz motoruna salt okunur toplu sorgular yapar (ör. aylık satış, müşteri sıralaması) ve gelecek aylar için öngörü ister; öngörü rakamlarını program hesaplar. Ham fatura satırı, e-posta ve telefon gönderilmez. {secim === 'ollama' ? 'Ollama yerel çalıştığı için veri sunucudan çıkmaz.' : 'Sorgu sonuçları (ör. müşteri adları ve tutarlar) seçili yapay zekâ sağlayıcısına gider.'}</span></span>
+              <span className="block text-[12.5px] text-muted">Açıkken asistan her konuşmada şirketin özet profilini (aylık satış ve kâr, büyük müşteriler, markalar, lisans, abonelik ve stok durumu) bilir; ayrıntı için analiz motoruna salt okunur sorgular yapar ve öngörü ister. Öngörü rakamlarını program hesaplar. Ham fatura satırı, e-posta ve telefon gönderilmez.</span></span>
+          </label>
+        )}
+        {secim !== 'kapali' && (
+          <label className="mt-4 flex max-w-3xl items-start gap-2.5 text-[13.5px] text-ink">
+            <input type="checkbox" className="mt-1" checked={(s.ai_mask_names ?? 'ON') !== 'OFF'} onChange={(e) => setS({ ...s, ai_mask_names: e.target.checked ? 'ON' : 'OFF' })} />
+            <span><b className="font-semibold">Müşteri ve temsilci adlarını gizle</b>
+              <span className="block text-[12.5px] text-muted">Açıkken adlar sağlayıcıya "Müşteri #594" gibi takma adla gider; yanıtta gerçek ad geri yazılır. Tutarlar yine gider. {secim === 'ollama' ? 'Ollama yerel çalıştığı için veri zaten sunucudan çıkmaz; kapatabilirsiniz.' : 'Kapatırsanız müşteri adları seçili sağlayıcıya açık olarak gider.'}</span></span>
           </label>
         )}
         <div className="mt-6 flex gap-2">
-          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key', 'ai_instructions', 'ai_db_access'])}>Kaydet</Button>
+          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key', 'ai_instructions', 'ai_db_access', 'ai_mask_names'])}>Kaydet</Button>
           {secim !== 'kapali' && (
             <Button loading={testing} onClick={async () => {
               setTesting(true)
@@ -401,6 +408,20 @@ function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
           )}
         </div>
         <p className="mt-3 text-[12.5px] text-muted">Denemeden önce Kaydet'e basın.</p>
+      </Panel>
+      <Panel title="7/24 denetçi" hint="Her senkrondan sonra asistan şirketin hareketini tarar; dikkat gerektireni Asistan günlüğüne yazar ve iç ekibe e-postayla bildirir. Müşteriye asla mail atmaz, veriyi değiştirmez.">
+        <label className="flex max-w-3xl items-start gap-2.5 text-[13.5px] text-ink">
+          <input type="checkbox" className="mt-1" checked={(s.ai_watch ?? 'ON') !== 'OFF'} onChange={(e) => setS({ ...s, ai_watch: e.target.checked ? 'ON' : 'OFF' })} />
+          <span><b className="font-semibold">Denetçi açık</b><span className="block text-[12.5px] text-muted">Yapay zekâ sağlayıcısı seçili değilse çalışmaz. Alıcılar Ayarlar &gt; E-posta &gt; İç alıcılar; SMTP girilmemişse bulgular yalnızca günlükte görünür.</span></span>
+        </label>
+        <div className="mt-5 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Günlük özet saati" hint="Acil olmayan bulgular her gün bu saatte tek bir mailde toplanır (0–23).">{inp('ai_digest_hour', { type: 'number', min: 0, max: 23 })}</Field>
+          <Field label="Günde en fazla acil mail" hint="Bu sayı aşılırsa yeni acil bulgular akşam özetine eklenir; gelen kutusu dolmaz.">{inp('ai_urgent_limit', { type: 'number', min: 0, max: 20 })}</Field>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button variant="primary" loading={busy} onClick={() => save(['ai_watch', 'ai_digest_hour', 'ai_urgent_limit'])}>Kaydet</Button>
+          <a href="#/asistan" className="inline-flex h-9 items-center border border-line-strong px-3 text-[13px] font-medium text-ink hover:bg-surface-2 rounded-[var(--radius-ctl)]">Asistan günlüğünü aç</a>
+        </div>
       </Panel>
       <Panel title="Ücretsiz veri servisleri" hint="Anahtar gerektirmez. İnternet yoksa sessizce atlanır, hiçbir ekran bozulmaz.">
         <label className="flex items-start gap-2.5 text-[13.5px] text-ink">

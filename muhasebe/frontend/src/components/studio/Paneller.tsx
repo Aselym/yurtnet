@@ -326,7 +326,19 @@ function etiketBaslik(k: Kart, etiket: (d: string) => string) {
 
 // ------------------------------------------------------------------ yapay zeka sohbeti
 interface Mesaj { rol: 'kullanici' | 'asistan'; metin: string; hata?: boolean; araclar?: string[]; uyari?: string }
-const ORNEK_SORULAR = ['Önümüzdeki 3 ayda satışlar nasıl gider?', 'Hangi müşteriye odaklanmalıyız?', 'Önümüzdeki 60 günde hangi lisanslar bitiyor?', 'Bu panoyu yöneticiye üç maddede özetle.']
+/** Model kurala ragmen markdown yazarsa duz metne cevirir: kalin/italik isaretleri, basliklar, tablolar. */
+function duzMetin(t: string) {
+  return t.split('\n').flatMap((satir) => {
+    const s = satir.trim()
+    if (/^\|?[\s:|-]+\|[\s:|-]*$/.test(s) && s.includes('-')) return []          // tablo ayirici satiri
+    if (s.startsWith('|')) return ['- ' + s.replace(/^\||\|$/g, '').split('|').map((h) => h.trim()).filter(Boolean).join(' · ')]
+    return [satir]
+  }).join('\n')
+    .replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,:;]|$)/g, '$1$2')
+    .replace(/^#{1,6}\s+/gm, '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+const ORNEK_SORULAR =['Önümüzdeki 3 ayda satışlar nasıl gider?', 'Hangi müşteriye odaklanmalıyız?', 'Önümüzdeki 60 günde hangi lisanslar bitiyor?', 'Bu panoyu yöneticiye üç maddede özetle.']
 
 function Sohbet({ baglam }: { baglam: string }) {
   const durum = useAsync(() => api.get<{ acik: boolean; ad?: string; model?: string; eksik?: string | null }>('/api/ai/durum'), [])
@@ -345,7 +357,7 @@ function Sohbet({ baglam }: { baglam: string }) {
       const r = await api.post<{ success: boolean; yanit?: string; message?: string; araclar?: string[]; uyari?: string }>('/api/ai/sohbet', {
         mesajlar: yeni.map(({ rol, metin }) => ({ rol, metin })), baglam,
       })
-      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: (r.yanit || '(boş yanıt)').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,6}\s+/gm, ''), araclar: r.araclar, uyari: r.uyari } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
+      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: duzMetin(r.yanit || '(boş yanıt)'), araclar: r.araclar, uyari: r.uyari } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
     } catch (e) {
       setMesajlar([...yeni, { rol: 'asistan', metin: e instanceof Error ? e.message : 'Yanıt alınamadı.', hata: true }])
     } finally { setBekliyor(false) }
@@ -388,7 +400,7 @@ function Sohbet({ baglam }: { baglam: string }) {
             {m.uyari && <p className="mt-1.5 text-[11.5px] text-muted">{m.uyari}</p>}
           </div>
         ))}
-        {bekliyor && <p className="text-[12.5px] text-muted">Yanıt yazılıyor…</p>}
+        {bekliyor && <p className="text-[12.5px] text-muted">Asistan veriyi inceliyor… Ücretsiz katmanda dakikalık sınır nedeniyle bir dakikaya kadar sürebilir.</p>}
         <div ref={alt} />
       </div>
       <form className="flex items-center gap-2 border-t border-line px-4 py-3" onSubmit={(e) => { e.preventDefault(); gonder(yazi) }}>
