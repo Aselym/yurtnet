@@ -16,7 +16,7 @@ import urllib.request
 from database import get_settings
 
 SAGLAYICILAR = {
-    'groq': {'ad': 'Groq (ücretsiz katman)', 'adres': 'https://api.groq.com/openai/v1', 'model': 'llama-3.3-70b-versatile', 'anahtar': True},
+    'groq': {'ad': 'Groq (ücretsiz katman)', 'adres': 'https://api.groq.com/openai/v1', 'model': 'openai/gpt-oss-120b', 'anahtar': True},
     'anthropic': {'ad': 'Claude (Anthropic)', 'adres': 'https://api.anthropic.com', 'model': 'claude-sonnet-5-5', 'anahtar': True},
     'ollama': {'ad': 'Ollama (yerel)', 'adres': 'http://localhost:11434', 'model': 'qwen2.5:7b', 'anahtar': False},
     'openai': {'ad': 'OpenAI uyumlu', 'adres': '', 'model': '', 'anahtar': True},

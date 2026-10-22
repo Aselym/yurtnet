@@ -340,7 +340,7 @@ function EmailSettings({ s, inp, save, busy }: { s: S; inp: Inp; save: (k: strin
 
 const SAGLAYICI: Record<string, { ad: string; aciklama: string; model: string; adres: string; anahtar: boolean; ucret: string }> = {
   kapali: { ad: 'Kapalı', aciklama: 'Yalnızca kural tabanlı yorumlar.', model: '', adres: '', anahtar: false, ucret: '' },
-  groq: { ad: 'Groq', aciklama: 'Llama modelleri; kredi kartı gerekmez. Anahtar: console.groq.com > API Keys.', model: 'llama-3.3-70b-versatile', adres: 'https://api.groq.com/openai/v1', anahtar: true, ucret: 'Ücretsiz katman' },
+  groq: { ad: 'Groq', aciklama: 'GPT OSS, Qwen gibi açık modeller; kredi kartı gerekmez. Anahtar: console.groq.com > API Keys.', model: 'openai/gpt-oss-120b', adres: 'https://api.groq.com/openai/v1', anahtar: true, ucret: 'Ücretsiz katman' },
   anthropic: { ad: 'Claude', aciklama: 'En iyi Türkçe ve analiz kalitesi. Anahtar: console.anthropic.com.', model: 'claude-sonnet-5-5', adres: 'https://api.anthropic.com', anahtar: true, ucret: 'Ücretli' },
   ollama: { ad: 'Ollama (yerel)', aciklama: 'Model şirketin kendi sunucusunda çalışır; veri hiç dışarı çıkmaz. Sunucuya Ollama kurulmalı.', model: 'qwen2.5:7b', adres: 'http://localhost:11434', anahtar: false, ucret: 'Ücretsiz' },
   openai: { ad: 'OpenAI uyumlu', aciklama: 'OpenRouter, Gemini ya da başka bir OpenAI uyumlu servis; adres ve model girin.', model: '', adres: '', anahtar: true, ucret: '' },
