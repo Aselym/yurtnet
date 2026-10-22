@@ -36,7 +36,7 @@ Son kontrol: 2026-10-22 (sade stüdyo + yapay zekâ sohbeti sonrası).
 - [x] Tarih aralığı, müşteri, ürün, lisans seçimini basit arayüzle kullanıcı yapar — sol panel
 - [x] Grafiklere anında Türkçe yorum, "bu aralık önemli zira…" — sağ panel (kural tabanlı; yapay zekâ API'si sonra)
 - [x] Not alma (analiz ve kart notu), kaydetme/açma, Excel (tüm analiz), grafiği görsel indirme, sunum modu
-- [x] Analiz hakkında yapay zekâ sohbeti — sağ panel > Sohbet; sağlayıcı Ayarlar > Yapay zekâ (Groq ücretsiz / Claude / yerel Ollama). Modele yalnızca kart özetleri ve notlar gider. Canlıda anahtar girilmeli.
+- [x] Analiz hakkında yapay zekâ sohbeti — sağ panel > Sohbet; sağlayıcı Ayarlar > Yapay zekâ (Groq ücretsiz / Claude / yerel Ollama). Asistan pano özetini görür; "şirket verisini sorgulayabilsin" açıkken salt okunur araçlarla toplu sorgu, öngörü (rakamları program hesaplar) ve lisans bitişlerine erişir. Ek talimatlar Ayarlar'dan. Canlıda anahtar girilmeli.
 - [x] Yorumlarda resmî tatil (Ramazan/Kurban Bayramı) açıklaması; dosya/e-Fatura kaynağında TCMB kuru — Ayarlar > Yapay zekâ > Ücretsiz veri servisleri
 
 ## 4. Lisans hatırlatmaları

@@ -352,7 +352,7 @@ function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
   const v = SAGLAYICI[secim] ?? SAGLAYICI.kapali
   return (
     <div className="flex flex-col gap-5">
-      <Panel title="Yapay zekâ" hint="Analiz stüdyosundaki Sohbet sekmesi bu sağlayıcıyı kullanır. Modele ham fatura gitmez; yalnızca ekrandaki kartların başlıkları, yorumları ve notlarınız gönderilir.">
+      <Panel title="Yapay zekâ" hint="Analiz stüdyosundaki Sohbet sekmesi bu sağlayıcıyı kullanır. Modele ham fatura gitmez; ekrandaki kartların özeti, notlarınız ve (aşağıda açıksa) toplu sorgu sonuçları gönderilir.">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {Object.entries(SAGLAYICI).map(([k, d]) => (
             <button key={k} onClick={() => setS({ ...s, ai_provider: k, ai_model: '', ai_base_url: '' })}
@@ -381,8 +381,15 @@ function AiSettings({ s, setS, inp, save, busy }: { s: S; setS: (s: S) => void; 
             </div>
           </div>
         )}
+        {secim !== 'kapali' && (
+          <label className="mt-5 flex max-w-3xl items-start gap-2.5 text-[13.5px] text-ink">
+            <input type="checkbox" className="mt-1" checked={(s.ai_db_access ?? 'ON') !== 'OFF'} onChange={(e) => setS({ ...s, ai_db_access: e.target.checked ? 'ON' : 'OFF' })} />
+            <span><b className="font-semibold">Asistan şirket verisini sorgulayabilsin</b>
+              <span className="block text-[12.5px] text-muted">Açıkken asistan, sorunuzu yanıtlamak için analiz motoruna salt okunur toplu sorgular yapar (ör. aylık satış, müşteri sıralaması) ve gelecek aylar için öngörü ister; öngörü rakamlarını program hesaplar. Ham fatura satırı, e-posta ve telefon gönderilmez. {secim === 'ollama' ? 'Ollama yerel çalıştığı için veri sunucudan çıkmaz.' : 'Sorgu sonuçları (ör. müşteri adları ve tutarlar) seçili yapay zekâ sağlayıcısına gider.'}</span></span>
+          </label>
+        )}
         <div className="mt-6 flex gap-2">
-          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key', 'ai_instructions'])}>Kaydet</Button>
+          <Button variant="primary" loading={busy} onClick={() => save(['ai_provider', 'ai_model', 'ai_base_url', 'ai_api_key', 'ai_instructions', 'ai_db_access'])}>Kaydet</Button>
           {secim !== 'kapali' && (
             <Button loading={testing} onClick={async () => {
               setTesting(true)

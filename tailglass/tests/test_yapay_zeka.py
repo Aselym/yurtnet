@@ -1,10 +1,19 @@
 """Yapay zeka saglayicilari: sahte yerel sunucuyla istek bicimi ve hata mesajlari."""
 import json
+import os
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import yapay_zeka as yz
+# gecici, bos veritabani: canli veriye dokunulmaz
+os.environ['MUHASEBE_DB'] = os.path.join(tempfile.mkdtemp(), 'test.db')
+
+import ai_araclar  # noqa: E402
+import yapay_zeka as yz  # noqa: E402
+from database import init_db  # noqa: E402
+
+init_db()
 
 GELEN = []
 
@@ -18,7 +27,14 @@ class Sahte(BaseHTTPRequestHandler):
         GELEN.append((self.path, dict(self.headers), govde))
         if 'bozuk' in self.path:
             self.send_response(401); self.end_headers(); return
-        if self.path.endswith('/chat/completions'):
+        if self.path.endswith('/chat/completions') and 'arac' in self.path:
+            # ilk turda arac cagrisi, arac sonucu gelince son yanit
+            if govde['messages'][-1]['role'] == 'tool':
+                cevap = {'choices': [{'message': {'content': 'lisans yok'}}]}
+            else:
+                cevap = {'choices': [{'message': {'content': None, 'tool_calls': [
+                    {'id': 'c1', 'type': 'function', 'function': {'name': 'lisans_bitisleri', 'arguments': '{"gun": 30}'}}]}}]}
+        elif self.path.endswith('/chat/completions'):
             cevap = {'choices': [{'message': {'content': ' openai yanıtı '}}]}
         elif self.path.endswith('/v1/messages'):
             cevap = {'content': [{'type': 'text', 'text': 'claude yanıtı'}]}
@@ -48,7 +64,7 @@ class YapayZekaTest(unittest.TestCase):
     MSJ = [{'rol': 'kullanici', 'metin': 'Neden düştü?'}]
 
     def test_openai_uyumlu(self):
-        self.assertEqual(yz.sohbet(self.MSJ, 'PANO-OZETI', self.a('groq')), 'openai yanıtı')
+        self.assertEqual(yz.sohbet(self.MSJ, 'PANO-OZETI', self.a('groq'))['yanit'], 'openai yanıtı')
         yol, bas, govde = GELEN[0]
         self.assertEqual(yol, '/chat/completions')
         self.assertEqual(bas['Authorization'], 'Bearer gizli')
@@ -63,16 +79,33 @@ class YapayZekaTest(unittest.TestCase):
         self.assertIn('Merhaba ile başla', sistem)
         self.assertLess(sistem.index('Merhaba'), sistem.index('PANO-OZETI'))   # pano en sonda
 
+    def test_arac_dongusu(self):
+        r = yz.sohbet(self.MSJ, 'x', self.a('openai', adres=self.adres + '/arac'))
+        self.assertEqual(r['yanit'], 'lisans yok')
+        self.assertEqual(r['araclar'], ['Lisans bitişleri (30 gün)'])
+        ikinci = GELEN[1][2]['messages']
+        self.assertEqual(ikinci[-2]['tool_calls'][0]['id'], 'c1')
+        self.assertEqual(ikinci[-1]['role'], 'tool')
+        self.assertEqual(ikinci[-1]['tool_call_id'], 'c1')
+        self.assertEqual(json.loads(ikinci[-1]['content'])['adet'], 0)
+
+    def test_veritabani_kapali(self):
+        a = {**self.a('groq'), 'ai_db_access': 'OFF'}
+        yz.sohbet(self.MSJ, 'x', a)
+        self.assertNotIn('tools', GELEN[0][2])
+        self.assertIn('Veritabanı araçları kapalı', GELEN[0][2]['messages'][0]['content'])
+
     def test_anthropic(self):
-        self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('anthropic')), 'claude yanıtı')
+        self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('anthropic'))['yanit'], 'claude yanıtı')
         yol, bas, govde = GELEN[0]
         self.assertEqual(yol, '/v1/messages')
         self.assertEqual(bas['X-Api-Key'], 'gizli')
         self.assertIn('x', govde['system'])
         self.assertEqual(govde['messages'], [{'role': 'user', 'content': 'Neden düştü?'}])
+        self.assertEqual({t['name'] for t in govde['tools']}, {'veri_sorgula', 'deger_ara', 'tahmin', 'lisans_bitisleri'})
 
     def test_ollama_anahtarsiz(self):
-        self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('ollama', anahtar='')), 'ollama yanıtı')
+        self.assertEqual(yz.sohbet(self.MSJ, 'x', self.a('ollama', anahtar=''))['yanit'], 'ollama yanıtı')
         self.assertEqual(GELEN[0][0], '/api/chat')
 
     def test_hatalar(self):
@@ -87,6 +120,29 @@ class YapayZekaTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             yz.sohbet([], '', self.a('groq'))
         self.assertEqual(GELEN, [g for g in GELEN if 'bozuk' in g[0]])   # anahtarsiz istek gitmedi
+
+
+class AracTest(unittest.TestCase):
+    def test_bilinmeyen_ve_bozuk(self):
+        self.assertIn('Bilinmeyen', ai_araclar.calistir('sil', {}))
+        self.assertIn('hata', ai_araclar.calistir('veri_sorgula', {'group_by': ['yok'], 'measures': ['DROP TABLE']}) + 'hata')
+        self.assertIn('lisanslar', ai_araclar.calistir('lisans_bitisleri', '{bozuk json'))
+
+    def test_mevsimsel_ongoru(self):
+        # 3 yil, her yil %10 buyuyen, Aralik'ta zirve yapan seri
+        seri = []
+        for y in range(3):
+            seri += [100 * 1.1 ** y * (2 if m == 11 else 1) for m in range(12)]
+        degerler, yontem = ai_araclar._ongor(seri, 12)
+        self.assertEqual(yontem, 'mevsimsel')
+        self.assertAlmostEqual(degerler[11], 200 * 1.1 ** 3, delta=1)   # bir sonraki Aralik zirvesi
+        self.assertAlmostEqual(degerler[0], 100 * 1.1 ** 3, delta=1)
+
+    def test_trend_ongoru(self):
+        degerler, yontem = ai_araclar._ongor([10, 20, 30, 40, 50, 60, 70, 80], 2)
+        self.assertEqual(yontem, 'trend')
+        self.assertAlmostEqual(degerler[0], 90, delta=0.01)
+        self.assertAlmostEqual(degerler[1], 100, delta=0.01)
 
 
 if __name__ == '__main__':

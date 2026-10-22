@@ -232,6 +232,7 @@ def init_db():
         ('ai_api_key', ''),
         ('ai_base_url', ''),
         ('ai_instructions', ''),           # kullanicinin asistana ek talimatlari
+        ('ai_db_access', 'ON'),            # asistan salt okunur araclarla toplu veri sorgulayabilir
     ]
     for key, val in default_settings:
         cursor.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, val))

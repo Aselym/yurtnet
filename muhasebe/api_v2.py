@@ -31,7 +31,7 @@ YAZILABILIR = {
     'reminder_days', 'expiring_soon_days', 'sub_min_invoices', 'sub_max_interval_days', 'sub_risk_factor',
     'app_public_url', 'company_name', 'base_currency', 'sync_hours', 'pinned_brands',
     'company_logo', 'company_logo_dark',
-    'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'ai_instructions', 'tcmb_rates',
+    'ai_provider', 'ai_model', 'ai_api_key', 'ai_base_url', 'ai_instructions', 'ai_db_access', 'tcmb_rates',
 }
 LOGO_ANAHTARLARI = {'company_logo', 'company_logo_dark'}
 LOGO_TIPLERI = ('data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/webp;base64,', 'data:image/svg+xml;base64,')
@@ -248,8 +248,8 @@ def _handle(h, method, path, query, body):
             if path == '/api/ai/test':
                 body = {'mesajlar': [{'rol': 'kullanici', 'metin': 'Tek cümleyle kendini tanıt.'}], 'baglam': ''}
             try:
-                yanit = yapay_zeka.sohbet(body.get('mesajlar'), body.get('baglam'))
-                h._send_json({'success': True, 'yanit': yanit})
+                sonuc = yapay_zeka.sohbet(body.get('mesajlar'), body.get('baglam'))
+                h._send_json({'success': True, **sonuc})
             except yapay_zeka.YapayZekaHatasi as e:
                 h._send_json({'success': False, 'message': str(e)}, 502)
             return True

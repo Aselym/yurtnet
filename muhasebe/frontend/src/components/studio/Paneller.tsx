@@ -325,8 +325,8 @@ function etiketBaslik(k: Kart, etiket: (d: string) => string) {
 }
 
 // ------------------------------------------------------------------ yapay zeka sohbeti
-interface Mesaj { rol: 'kullanici' | 'asistan'; metin: string; hata?: boolean }
-const ORNEK_SORULAR = ['Bu dönemdeki düşüşün nedeni ne olabilir?', 'Hangi müşteriye odaklanmalıyız?', 'Bu panoyu yöneticiye üç maddede özetle.']
+interface Mesaj { rol: 'kullanici' | 'asistan'; metin: string; hata?: boolean; araclar?: string[]; uyari?: string }
+const ORNEK_SORULAR = ['Önümüzdeki 3 ayda satışlar nasıl gider?', 'Hangi müşteriye odaklanmalıyız?', 'Önümüzdeki 60 günde hangi lisanslar bitiyor?', 'Bu panoyu yöneticiye üç maddede özetle.']
 
 function Sohbet({ baglam }: { baglam: string }) {
   const durum = useAsync(() => api.get<{ acik: boolean; ad?: string; model?: string; eksik?: string | null }>('/api/ai/durum'), [])
@@ -342,10 +342,10 @@ function Sohbet({ baglam }: { baglam: string }) {
     const yeni: Mesaj[] = [...mesajlar.filter((m) => !m.hata), { rol: 'kullanici', metin }]
     setMesajlar(yeni); setYazi(''); setBekliyor(true)
     try {
-      const r = await api.post<{ success: boolean; yanit?: string; message?: string }>('/api/ai/sohbet', {
+      const r = await api.post<{ success: boolean; yanit?: string; message?: string; araclar?: string[]; uyari?: string }>('/api/ai/sohbet', {
         mesajlar: yeni.map(({ rol, metin }) => ({ rol, metin })), baglam,
       })
-      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: (r.yanit || '(boş yanıt)').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,6}\s+/gm, '') } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
+      setMesajlar([...yeni, r.success ? { rol: 'asistan', metin: (r.yanit || '(boş yanıt)').replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#{1,6}\s+/gm, ''), araclar: r.araclar, uyari: r.uyari } : { rol: 'asistan', metin: r.message || 'Yanıt alınamadı.', hata: true }])
     } catch (e) {
       setMesajlar([...yeni, { rol: 'asistan', metin: e instanceof Error ? e.message : 'Yanıt alınamadı.', hata: true }])
     } finally { setBekliyor(false) }
@@ -368,7 +368,7 @@ function Sohbet({ baglam }: { baglam: string }) {
       <div className="scroll-thin flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
         {!mesajlar.length && (
           <>
-            <p className="text-[13px] text-ink-2">Panodaki kartlar hakkında soru sorun.{durum.data?.ad && <span className="text-muted"> ({durum.data.ad} · {durum.data.model})</span>}</p>
+            <p className="text-[13px] text-ink-2">Panodaki kartlar ya da şirket verisi hakkında soru sorun; öngörü isteyebilirsiniz.{durum.data?.ad && <span className="text-muted"> ({durum.data.ad} · {durum.data.model})</span>}</p>
             <div className="space-y-1.5">
               {ORNEK_SORULAR.map((q) => (
                 <button key={q} onClick={() => gonder(q)} className="block w-full border border-line px-3 py-2 text-left text-[12.5px] text-ink-2 hover:border-line-strong hover:text-ink rounded-[var(--radius-ctl)]">{q}</button>
@@ -379,6 +379,13 @@ function Sohbet({ baglam }: { baglam: string }) {
         {mesajlar.map((m, i) => (
           <div key={i} className={cn('text-[13px] leading-relaxed', m.rol === 'kullanici' ? 'ml-6 bg-surface-2 px-3 py-2 text-ink rounded-[var(--radius-ctl)]' : 'whitespace-pre-wrap text-ink-2', m.hata && 'border-l-2 border-[var(--neg)] pl-2.5 text-[var(--neg)]')}>
             {m.metin}
+            {!!m.araclar?.length && (
+              <details className="mt-1.5 text-[11.5px] text-muted">
+                <summary className="cursor-pointer select-none">Veritabanına {m.araclar.length} sorgu yapıldı</summary>
+                <ul className="mt-1 space-y-0.5">{m.araclar.map((a, j) => <li key={j}>{a}</li>)}</ul>
+              </details>
+            )}
+            {m.uyari && <p className="mt-1.5 text-[11.5px] text-muted">{m.uyari}</p>}
           </div>
         ))}
         {bekliyor && <p className="text-[12.5px] text-muted">Yanıt yazılıyor…</p>}
