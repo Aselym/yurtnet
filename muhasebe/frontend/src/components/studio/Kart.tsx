@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download, GripVertical, ImageDown, Maximize2, Minimize2, StickyNote, X } from 'lucide-react'
+import { Download, GripVertical, ImageDown, Maximize2, MoveHorizontal, StickyNote, X } from 'lucide-react'
 import { api, download, type QueryResult } from '../../lib/api'
 import { fmt, fmtPeriodKey, fmtShort, fmtSpoken, isNum, rangeLabel } from '../../lib/format'
 import { BarChart, LineChart, RankBars, SERIES } from '../charts/Charts'
@@ -10,7 +10,7 @@ import { dilimAraligi, istek, kartAraligi, kartBasligi, olcuBlok, type Kart, typ
 export const KART_TIPI = 'application/x-tailglass-kart'
 
 /** SVG grafigi PNG olarak indirir; CSS degiskenleriyle verilen renkler gercek renklere cevrilir. */
-function svgPng(kap: HTMLElement | null, ad: string) {
+export function grafikPng(kap: HTMLElement | null, ad: string) {
   const svg = kap?.querySelector('svg')
   if (!svg) return
   const kopya = svg.cloneNode(true) as SVGSVGElement
@@ -38,10 +38,10 @@ function svgPng(kap: HTMLElement | null, ad: string) {
   img.src = url
 }
 
-export function KartGorunum({ k, p, secili, etiket, onSec, onBlok, onTasi, onSil, onDegis, onVeri }: {
+export function KartGorunum({ k, p, secili, etiket, onSec, onBlok, onTasi, onSil, onDegis, onVeri, onOdak }: {
   k: Kart; p: Pano; secili: boolean; etiket: (d: string) => string
   onSec: () => void; onBlok: (blokId: string) => void; onTasi: (kaynakId: string) => void
-  onSil: () => void; onDegis: (k: Kart) => void; onVeri: (v: KartVeri | null) => void
+  onSil: () => void; onDegis: (k: Kart) => void; onVeri: (v: KartVeri | null) => void; onOdak: () => void
 }) {
   const [veri, setVeri] = useState<KartVeri | null>(null)
   const [hata, setHata] = useState<string | null>(null)
@@ -105,7 +105,7 @@ export function KartGorunum({ k, p, secili, etiket, onSec, onBlok, onTasi, onSil
     const satirlar = [...satir.values()]
     if (zaman) satirlar.sort((a, c) => String(a.d0).localeCompare(String(c.d0)))
     else satirlar.sort((a, c) => seriler.reduce((t, s) => t + (Number(c[s]) || 0), 0) - seriler.reduce((t, s) => t + (Number(a[s]) || 0), 0))
-    return { satirlar: satirlar.slice(0, zaman ? undefined : k.ust), seriler: seriler.map((s, i) => ({ key: s, label: s.slice(3), color: SERIES[i] })) }
+    return { satirlar: satirlar.slice(0, zaman ? undefined : k.ust), seriler: seriler.map((s, i) => ({ key: s, label: s === 's::Diğer' ? 'Diğer' : fmtPeriodKey(s.slice(3), k.seri), color: SERIES[i] })) }
   }, [veri, k.seri, k.ust, mkey, zaman])
 
   const grafik = k.grafik === 'otomatik' ? (!k.boyut ? 'sayi' : zaman ? 'cubuk' : 'cubuk') : k.grafik
@@ -143,8 +143,9 @@ export function KartGorunum({ k, p, secili, etiket, onSec, onBlok, onTasi, onSil
         <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover/kart:opacity-100" onClick={(e) => e.stopPropagation()}>
           {k.not && <StickyNote className="mr-1 size-3.5 text-[var(--warning)]" aria-label="Not var" />}
           <Ikon ad="Excel olarak indir" onClick={() => download('/api/export/sorgu', { request: istek(k, p), title: baslik, filename: baslik }).catch(() => {})}><Download className="size-4" /></Ikon>
-          {grafik !== 'sayi' && grafik !== 'tablo' && <Ikon ad="Grafiği görsel olarak indir" onClick={() => svgPng(govde.current, baslik)}><ImageDown className="size-4" /></Ikon>}
-          <Ikon ad={k.genis === 2 ? 'Daralt' : 'Genişlet'} onClick={() => onDegis({ ...k, genis: k.genis === 2 ? 1 : 2 })}>{k.genis === 2 ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</Ikon>
+          {grafik !== 'sayi' && grafik !== 'tablo' && <Ikon ad="Grafiği görsel olarak indir" onClick={() => grafikPng(govde.current, baslik)}><ImageDown className="size-4" /></Ikon>}
+          <Ikon ad={k.genis === 2 ? 'Panoda dar göster' : 'Panoda geniş göster'} onClick={() => onDegis({ ...k, genis: k.genis === 2 ? 1 : 2 })}><MoveHorizontal className="size-4" /></Ikon>
+          <Ikon ad="Tam ekran ayrıntılı analiz" onClick={onOdak}><Maximize2 className="size-4" /></Ikon>
           <Ikon ad="Kartı kaldır" onClick={onSil}><X className="size-4" /></Ikon>
         </div>
       </header>

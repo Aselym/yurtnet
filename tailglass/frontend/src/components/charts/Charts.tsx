@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ColType } from '../../lib/api'
 import { fmt, fmtAxis, fmtPeriodKey, fmtShort, niceTicks } from '../../lib/format'
+import { createPortal } from 'react-dom'
 import { cn } from '../ui'
 
 // Dataviz kurallari: tek eksen; ince isaretler, veri ucunda 4px yuvarlak,
@@ -27,14 +28,38 @@ export interface Series { key: string; label: string; color?: string }
 
 interface Tip { x: number; y: number; content: ReactNode }
 
+/** Ipucu kutusu: sayfanin en ust katmanina cizilir (kart kenarinda kesilmez) ve ekran icinde kalacak sekilde kaydirilir. */
 function Tooltip({ tip }: { tip: Tip | null }) {
+  const isaret = useRef<HTMLSpanElement>(null)
+  const kutu = useRef<HTMLDivElement>(null)
+  const [konum, setKonum] = useState<{ left: number; top: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!tip || !isaret.current || !kutu.current) return
+    const a = isaret.current.getBoundingClientRect(), k = kutu.current.getBoundingClientRect(), pay = 8
+    const left = Math.round(Math.max(pay, Math.min(a.left - k.width / 2, window.innerWidth - k.width - pay)))
+    let top = a.top - k.height - 10
+    if (top < pay) top = a.top + 14                                      // ustte yer yoksa altina
+    top = Math.round(Math.min(top, window.innerHeight - k.height - pay))
+    setKonum((o) => (o && o.left === left && o.top === top ? o : { left, top }))
+  })
   if (!tip) return null
   return (
-    <div className="pointer-events-none absolute z-20 min-w-[160px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-[var(--radius-panel)] border border-line bg-surface px-3 py-2 text-[12.5px] shadow-[0_10px_30px_rgba(20,33,28,.16)]"
-      style={{ left: tip.x, top: tip.y }}>
-      {tip.content}
-    </div>
+    <>
+      <span ref={isaret} aria-hidden className="pointer-events-none absolute size-0" style={{ left: tip.x, top: tip.y }} />
+      {createPortal(
+        <div ref={kutu} role="tooltip"
+          className="pointer-events-none fixed z-[200] min-w-[160px] max-w-[min(360px,calc(100vw-16px))] rounded-[var(--radius-panel)] border border-line bg-surface px-3 py-2 text-[12.5px] shadow-[0_10px_30px_rgba(20,33,28,.16)]"
+          style={konum ? { left: konum.left, top: konum.top } : { left: -9999, top: -9999 }}>
+          {tip.content}
+        </div>, document.body)}
+    </>
   )
+}
+
+/** Eksen etiketi sigmiyorsa kisaltir (Turkce karakter genisligi ~6.3 px @11px). */
+function sigdir(metin: string, px: number) {
+  const n = Math.max(3, Math.floor(px / 6.3))
+  return metin.length > n ? metin.slice(0, n - 1).trimEnd() + '…' : metin
 }
 
 export function Legend({ series }: { series: Series[] }) {
@@ -112,7 +137,9 @@ export function BarChart({ data, xKey, series, type = 'tl', dim, height = 240, s
                 )
               })}
               {i % labelEvery === 0 && (
-                <text x={cx} y={height - 8} textAnchor="middle" fontSize={11} fill="var(--muted)">{fmtPeriodKey(r[xKey], dim)}</text>
+                <text x={cx} y={height - 8} textAnchor="middle" fontSize={11} fill="var(--muted)">
+                  <title>{fmtPeriodKey(r[xKey], dim)}</title>{sigdir(fmtPeriodKey(r[xKey], dim), slot * labelEvery - 8)}
+                </text>
               )}
               <rect x={L + slot * i} y={T} width={slot} height={ih} fill="transparent"
                 className={cn(onBarClick && 'cursor-pointer')}

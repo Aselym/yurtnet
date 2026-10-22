@@ -3,6 +3,8 @@ import { CalendarRange, ChevronDown, FilePlus2, FileSpreadsheet, FolderOpen, Pre
 import { api, download } from '../lib/api'
 import { fmtShort, isNum, rangeLabel } from '../lib/format'
 import { useAsync } from '../lib/hooks'
+import { navigate, useRoute } from '../lib/router'
+import { OdakGorunum } from '../components/studio/Odak'
 import { useWork } from '../lib/state'
 import { donemAdi, yorumla } from '../lib/yorum'
 import { blokBul } from '../components/studio/bloklar'
@@ -67,7 +69,19 @@ export default function StudioPage() {
   })
 
   const kartlar = pano.hucreler.filter(Boolean) as Kart[]
-  const seciliKart = kartlar.find((k) => k.id === secili) ?? null
+  // Tam ekran ayrintili analiz: #/studyo?kart=<id> (kendi adresi var; yeni sekmede de acilir, geri tusuyla panoya donulur)
+  const route = useRoute()
+  const odakKart = kartlar.find((k) => k.id === route.params.get('kart')) ?? null
+  const [odakDuzenle, setOdakDuzenle] = useState(false)
+  useEffect(() => {
+    if (!odakKart) return
+    const tus = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) navigate('studyo')
+    }
+    window.addEventListener('keydown', tus)
+    return () => window.removeEventListener('keydown', tus)
+  }, [odakKart])
+  const seciliKart = odakKart ? (odakDuzenle ? odakKart : null) : kartlar.find((k) => k.id === secili) ?? null
   const kartDegis = (k: Kart, sessiz = false) => setPano({ ...pano, hucreler: pano.hucreler.map((x) => (x?.id === k.id ? k : x)) }, sessiz)
 
   /** Blogu bir karta uygula: olcu degistirir, boyut kirilim ekler, hazir secim filtreler. */
@@ -125,6 +139,7 @@ export default function StudioPage() {
   // Yapay zeka sohbetine giden ozet: kart basligi, araligi, ilk satirlar, yorumlar, notlar. Ham fatura gitmez.
   const baglam = useMemo(() => {
     const L: string[] = [`Pano: ${pano.ad}`, `Analiz aralığı: ${rangeLabel(pano.aralik.from, pano.aralik.to)}`]
+    if (odakKart) L.push(`Kullanıcı şu an "${kartBasligi(odakKart, etiket)}" kartını tam ekranda ayrıntılı inceliyor; sorular öncelikle bu kartla ilgili olabilir.`)
     if (pano.not.trim()) L.push(`Analiz notu: ${pano.not.trim()}`)
     for (const k of kartlar) {
       const b = olcuBlok(k), v = veriler[k.id], ar = kartAraligi(k, pano), mk = `m_${b.olcu}`
@@ -144,7 +159,7 @@ export default function StudioPage() {
       if (k.not.trim()) L.push(`Kart notu: ${k.not.trim()}`)
     }
     return L.join('\n')
-  }, [kartlar, veriler, pano, etiket, parcalar])
+  }, [kartlar, veriler, pano, etiket, parcalar, odakKart])
 
   // ------------------------------------------------------------ arac cubugu
   const panolar = useAsyncPanolar()
@@ -184,7 +199,7 @@ export default function StudioPage() {
   const bosIndeks = pano.hucreler.findIndex((x) => x === null)
 
   return (
-    <div ref={kok} className="-mx-6 -mt-6 -mb-16 flex h-dvh flex-col bg-canvas max-sm:-mx-3">
+    <div ref={kok} className={cn('flex flex-col bg-canvas', odakKart ? 'fixed inset-0 z-40' : '-mx-6 -mt-6 -mb-16 h-dvh max-sm:-mx-3')}>
       {/* ------------------------------------------------ tek satir: ad, aralik, islemler, logo */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line bg-surface px-4 py-2">
         <input value={pano.ad} onChange={(e) => setPano({ ...pano, ad: e.target.value }, true)} aria-label="Analizin adı"
@@ -234,7 +249,7 @@ export default function StudioPage() {
       </div>
 
       {/* ------------------------------------------------ bloklar */}
-      {!sunum && <div className="border-b border-line bg-surface/70 px-4 backdrop-blur"><BlokPaleti onTikla={paletTik} /></div>}
+      {!sunum && !odakKart && <div className="border-b border-line bg-surface/70 px-4 backdrop-blur"><BlokPaleti onTikla={paletTik} /></div>}
 
       {/* ------------------------------------------------ calisma alani */}
       <div className="relative flex min-h-0 flex-1">
@@ -242,7 +257,7 @@ export default function StudioPage() {
           <aside className="scroll-thin absolute inset-y-0 left-0 z-20 w-[300px] overflow-y-auto border-r border-line bg-surface shadow-[8px_0_24px_rgba(11,15,14,.06)]">
             <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
               <span className="text-[13px] font-semibold text-ink">Kartı düzenle</span>
-              <button onClick={() => setSecili(null)} aria-label="Kapat" className="text-muted hover:text-ink"><X className="size-4" /></button>
+              <button onClick={() => (odakKart ? setOdakDuzenle(false) : setSecili(null))} aria-label="Kapat" className="text-muted hover:text-ink"><X className="size-4" /></button>
             </div>
             <SolPanel pano={pano} kart={seciliKart} etiket={etiket} onPano={(p) => setPano(p)}
               onKart={(k) => kartDegis(k, k.not !== seciliKart?.not)} />
@@ -250,7 +265,12 @@ export default function StudioPage() {
         )}
 
         <section aria-label="Analiz ızgarası" className={cn('@container scroll-thin min-w-0 flex-1 overflow-y-auto p-5', !sunum && seciliKart && 'pl-[320px] max-md:pl-5')}
-          onClick={(e) => { if (e.target === e.currentTarget) setSecili(null) }}>
+          onClick={(e) => { if (e.target === e.currentTarget && !odakKart) setSecili(null) }}>
+          {odakKart && (
+            <OdakGorunum k={odakKart} p={pano} etiket={etiket} onKapat={() => navigate('studyo')}
+              duzenleAcik={odakDuzenle} onDuzenle={() => setOdakDuzenle(!odakDuzenle)}
+              cumleler={parcalar.find((x) => x.id === odakKart.id)?.cumleler ?? []} />
+          )}
           {!kartlar.length && !sunum && (
             <div className="mx-auto mt-[6vh] max-w-2xl text-center">
               <Sparkles className="mx-auto size-7 text-brand-ink" />
@@ -264,12 +284,13 @@ export default function StudioPage() {
               </div>
             </div>
           )}
-          <div data-izgara className={cn('grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3', !kartlar.length && 'mx-auto mt-6 max-w-2xl @2xl:grid-cols-1 @5xl:grid-cols-1')}>
+          <div data-izgara className={cn('grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3', !kartlar.length && 'mx-auto mt-6 max-w-2xl @2xl:grid-cols-1 @5xl:grid-cols-1', odakKart && 'hidden')}>
             {pano.hucreler.map((k, i) => k
               ? <KartGorunum key={k.id} k={k} p={pano} secili={secili === k.id} etiket={etiket}
                   onSec={() => setSecili(k.id)} onBlok={(b) => kartDegis(blokUygula(k, b))} onTasi={(id) => tasi(id, i)}
                   onSil={() => { setPano({ ...pano, hucreler: pano.hucreler.map((x) => (x?.id === k.id ? null : x)) }); if (secili === k.id) setSecili(null) }}
-                  onDegis={(y) => kartDegis(y)} onVeri={(v) => setVeriler((s) => ({ ...s, [k.id]: v }))} />
+                  onDegis={(y) => kartDegis(y)} onVeri={(v) => setVeriler((s) => ({ ...s, [k.id]: v }))}
+                  onOdak={() => { setSecili(k.id); navigate('studyo', { kart: k.id }) }} />
               : !sunum && i === bosIndeks
                 ? <BosHucre key={`bos-${i}`} ilk={!kartlar.length} onBlok={(b) => bosaBirak(i, b)} onTasi={(id) => tasi(id, i)} />
                 : null)}
@@ -277,7 +298,7 @@ export default function StudioPage() {
         </section>
 
         <aside className={cn('hidden w-[340px] shrink-0 border-l border-line bg-surface xl:block', sunum && 'w-[400px]')}>
-          <SagPanel parcalar={parcalar} baglam={baglam} seciliId={secili} pano={pano} kartlar={kartlar} etiket={etiket}
+          <SagPanel parcalar={parcalar} baglam={baglam} seciliId={odakKart?.id ?? secili} pano={pano} kartlar={kartlar} etiket={etiket}
             onPano={(p) => setPano(p, true)} onKartNot={(id, not) => { const k = kartlar.find((x) => x.id === id); if (k) kartDegis({ ...k, not }, true) }}
             onSec={setSecili} />
         </aside>
